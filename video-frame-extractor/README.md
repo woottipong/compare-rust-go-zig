@@ -1,0 +1,145 @@
+# Video Frame Extractor
+
+เปรียบเทียบการทำ Video Frame Extractor ด้วย Go, Rust, และ Zig
+
+## วัตถุประสงค์
+ดึงภาพ Thumbnail จากวิดีโอในช่วงเวลาที่กำหนด (ฝึก C Interop กับ FFmpeg)
+
+## โครงสร้างโปรเจกต์
+```
+video-frame-extractor/
+├── go/                 # Go + CGO + FFmpeg C API
+├── rust/               # Rust + ffmpeg-sys-next 8.0
+├── zig/                # Zig + @cImport + FFmpeg
+├── test-data/          # ไฟล์วิดีโอสำหรับทดสอบ
+├── bin/                # compiled binaries
+└── benchmark/          # Scripts สำหรับ benchmark
+```
+
+## การติดตั้ง Dependencies
+
+### FFmpeg Development Libraries
+```bash
+# macOS
+brew install ffmpeg
+
+# Ubuntu/Debian
+sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
+```
+
+### สร้าง Test Video
+```bash
+cd test-data
+ffmpeg -f lavfi -i testsrc=duration=30:size=1280x720:rate=30 -pix_fmt yuv420p sample.mp4
+```
+
+## Build & Run
+
+### Go
+```bash
+cd go
+unset GOROOT
+go mod init video-frame-extractor  # ครั้งแรกเท่านั้น
+go build -o ../bin/extractor-go .
+../bin/extractor-go ../test-data/sample.mp4 5.0 ../output_go.ppm
+```
+
+### Rust
+```bash
+cd rust
+LLVM_CONFIG_PATH=/opt/homebrew/opt/llvm/bin/llvm-config \
+LIBCLANG_PATH=/opt/homebrew/opt/llvm/lib \
+PKG_CONFIG_PATH=/opt/homebrew/Cellar/ffmpeg/8.0.1_4/lib/pkgconfig \
+cargo build --release
+./target/release/video-frame-extractor ../test-data/sample.mp4 5.0 ../output_rust.ppm
+```
+
+### Zig
+```bash
+cd zig
+zig build -Doptimize=ReleaseFast
+./zig-out/bin/video-frame-extractor ../test-data/sample.mp4 5.0 ../output_zig.ppm
+```
+
+## Benchmark
+```bash
+cd benchmark
+./run.sh ../test-data/sample.mp4 5.0
+
+# Save results with timestamp
+./results/save-results.sh video-frame-extractor
+```
+
+### ผลการวัดที่เก็บไว้
+- **Full results**: `benchmark/results/video-frame-extractor_YYYYMMDD_HHMMSS.txt`
+- **Summary CSV**: `benchmark/results/video-frame-extractor_summary.csv`
+- ทุกครั้งที่รัน benchmark ควร save results เพื่อ tracking performance ข้ามเวลา
+
+## การเปรียบเทียบ
+
+| Aspect | Go | Rust | Zig |
+|--------|----|------|-----|
+| **C Interop** | CGO | ffmpeg-sys-next 8.0 | @cImport |
+| **Memory Safety** | GC + Manual (CGO) | Ownership + scopeguard | Manual |
+| **Binary Size** | 2.7MB | 451KB | **271KB** |
+| **Performance** | 67ms avg | 54ms avg | **51ms avg** |
+| **Memory Usage** | 23MB peak | 22MB peak | **20MB peak** |
+| **Code Lines** | 182 | 192 | **169** |
+| **Build Time** | Fast | Medium (env vars) | Fast |
+
+## ผลการวัด (Benchmark Results)
+
+```
+╔══════════════════════════════════════════╗
+║    Video Frame Extractor Benchmark       ║
+╚══════════════════════════════════════════╝
+  Input    : test-data/sample.mp4
+  Timestamp: 5.0s
+  Runs     : 5 (1 warm-up)
+
+── Go     ─────────────────────────────────────
+  Run 1 (warm-up): 198ms
+  Run 2           : 51ms
+  Run 3           : 52ms
+  Run 4           : 84ms
+  Run 5           : 81ms
+  ─────────────────────────────────────────
+  Avg: 67ms  |  Min: 51ms  |  Max: 84ms
+  Peak Memory: 23072 KB
+
+── Rust   ─────────────────────────────────────
+  Run 1 (warm-up): 256ms
+  Run 2           : 51ms
+  Run 3           : 60ms
+  Run 4           : 54ms
+  Run 5           : 52ms
+  ─────────────────────────────────────────
+  Avg: 54ms  |  Min: 51ms  |  Max: 60ms
+  Peak Memory: 22704 KB
+
+── Zig    ─────────────────────────────────────
+  Run 1 (warm-up): 73ms
+  Run 2           : 50ms
+  Run 3           : 51ms
+  Run 4           : 56ms
+  Run 5           : 50ms
+  ─────────────────────────────────────────
+  Avg: 51ms  |  Min: 50ms  |  Max: 56ms
+  Peak Memory: 20480 KB
+
+── Binary Size ───────────────────────────────
+  Go  : 2.7M
+  Rust: 451K
+  Zig : 271K
+
+── Code Lines ────────────────────────────────
+  Go  : 182 lines
+  Rust: 192 lines
+  Zig : 169 lines
+```
+
+## หมายเหตุ
+- **Go**: ต้อง `unset GOROOT` บนเครื่องที่มีหลาย Go versions, CGO memory leak ง่าย
+- **Rust**: `ffmpeg-sys-next 8.0` รองรับ FFmpeg 8.x, ใช้ `scopeguard::guard()` สำหรับ RAII
+- **Zig**: Manual memory management แต่มี control สูง, binary เล็กที่สุด (10x เล็กกว่า Go)
+- **Performance**: ทุกภาษาใช้เวลาใกล้เคียงกัน ~50ms → FFmpeg operations เป็น bottleneck หลัก

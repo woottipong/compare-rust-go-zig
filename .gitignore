@@ -1,0 +1,50 @@
+# ─── Go ───────────────────────────────────────────────────────────────────────
+**/go/bin/
+**/bin/
+
+# ─── Rust ─────────────────────────────────────────────────────────────────────
+**/rust/target/
+
+# ─── Zig ──────────────────────────────────────────────────────────────────────
+**/zig/.zig-cache/
+**/zig/zig-out/
+**/.zig-cache/
+
+# ─── Build artifacts (root level) ────────────────────────────────────────────
+bin/
+
+# ─── Output files ────────────────────────────────────────────────────────────
+*.ppm
+*.jpg
+*.png
+*.ts
+*.m3u8
+
+# ─── Test data (large files) ─────────────────────────────────────────────────
+**/test-data/*.mp4
+**/test-data/*.mkv
+**/test-data/*.avi
+**/test-data/*.mov
+**/test-data/*.wav
+**/test-data/*.mp3
+**/test-data/*.flac
+**/test-data/*.pcm
+
+# ─── macOS ────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ─── Editor ───────────────────────────────────────────────────────────────────
+.vscode/
+*.swp
+*.swo
+*~
+
+# ─── Benchmark results (generated, not tracked) ─────────────────────────────
+**/benchmark/results/*.txt
+**/benchmark/results/*.csv
+
+# ─── Benchmark temp files ─────────────────────────────────────────────────────
+/tmp/bench_*.ppm
+/tmp/bench_time_*.txt
