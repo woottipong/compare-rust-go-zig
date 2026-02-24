@@ -98,3 +98,29 @@ wrk -t12 -c100 -d30s -H "Authorization: Bearer <token>" http://localhost:8080/ap
 - **Zig manual** (main_manual.zig): single-threaded, เก็บไว้เพื่อเปรียบเทียบ
 - **Test Setup**: mock backend service + wrk (4 threads, 50 connections, 3s duration)
 - **Benchmark**: วัด throughput (req/s) — metric หลักสำหรับ API Gateway
+
+## ข้อควรระวัง (Technical Considerations)
+
+### ⚠️ Zap Dynamic Library
+`libfacil.io.dylib` ถูก bundle แบบ dynamic library:
+- หาก rebuild Zig → ต้อง `cp .zig-cache/o/*/libfacil.io.dylib zig-out/bin/` ใหม่ทุกครั้ง
+- หรือใช้ `install_name_tool` สำหรับ static linking (ยังไม่ได้ทดลอง)
+- สาเหตุ: facil.io เป็น C library ที่ compile เป็น shared library บน macOS
+
+### ℹ️ Zig Zap Memory Usage
+Zap ใช้ memory สูง (27MB vs 2.5MB Rust):
+- **สาเหตุ**: facil.io worker pool (4 threads) + per-request buffers
+- **Trade-off**: Performance 52K req/s vs memory usage
+- **ถ้าต้องการ low memory**: ใช้ `main_manual.zig` (single-threaded, 8K req/s, 1.4MB)
+- **Tuning options**: ลด `threads`/`workers` ใน `zap.start()` หรือใช้ `max_clients`
+
+### ℹ️ JWT Implementation
+ทุกภาษาใช้ simple string validation:
+```go
+tokenString == "valid-test-token"
+```
+- **เหตุผล**: เหมาะสำหรับ benchmark — ไม่ต้อง load crypto keys
+- **Production**: ควรใช้ real JWT signing/verification
+  - Go: `github.com/golang-jwt/jwt/v5` + HMAC/RS256
+  - Rust: `jsonwebtoken` crate + validation
+  - Zig: ใช้ crypto libraries หรือ implement HMAC-SHA256
