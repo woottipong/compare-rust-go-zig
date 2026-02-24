@@ -58,7 +58,7 @@ zig build -Doptimize=ReleaseFast
 ## Benchmark
 ```bash
 cd benchmark
-./run.sh test-data/video.mp4 test-data/subs.srt
+./run.sh ../test-data/video.mp4 ../test-data/subs.srt
 
 # Save results with timestamp
 ./results/save-results.sh subtitle-burn-in-engine
@@ -95,8 +95,8 @@ EOF
 | **Subtitle Rendering** | libass CGO | libass-sys | @cImport |
 | **Re-encoding** | libavcodec | libavcodec | libavcodec |
 | **Memory Management** | GC + Manual (CGO) | Ownership + Drop trait | Manual |
-| **Performance** | ~463ms avg | ~503ms avg | ~431ms avg |
-| **Memory Usage** | 103,856 KB | 103,904 KB | 101,024 KB |
+| **Performance** | ~503ms avg | ~419ms avg | ~392ms avg |
+| **Memory Usage** | 103,920 KB | 104,000 KB | 101,120 KB |
 | **Binary Size** | 2.7MB | 1.6MB | 288KB |
 | **Code Lines** | 340 | 230 | 332 |
 
@@ -109,7 +109,7 @@ EOF
 
 ## สรุปผล
 - **Zig** เร็วสุดและ binary เล็กสุด (288KB) — เหมาะสำหรับ embedded/systems
-- **Go** เร็วใกล้เคียง Zig (~7% ช้ากว่า) แต่ binary ใหญ่มาก (2.7MB) — เหมาะสำหรับ web services
-- **Rust** ช้าสุดในชุดนี้ (~17% ช้ากว่า Zig) แต่ code กระชับสุด (230 lines) — เหมาะสำหรับ complex applications
+- **Rust** เร็วกว่า Go อย่างมีนัยสำคัญ (~17% เร็วกว่า) และ code กระชับสุด (230 lines) — เหมาะสำหรับ complex applications
+- **Go** ช้าสุดในชุดนี้ (~28% ช้ากว่า Zig) แต่ binary ใหญ่มาก (2.7MB) — เหมาะสำหรับ web services
 - Memory ใกล้เคียงกันทุกภาษา (~100MB) เพราะ FFmpeg buffers ครอบงำ
 - FFmpeg decode+encode เป็น bottleneck หลัก — language overhead แทบไม่ต่างกัน
