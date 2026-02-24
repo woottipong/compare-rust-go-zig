@@ -1,0 +1,12 @@
+.{
+    .name = .zig,
+    .version = "0.15.2",
+    .dependencies = .{
+        .zap = .{
+            .url = "git+https://github.com/zigzap/zap?ref=v0.11.0#66c5dc42c781bbb8a9100afda3c7e69ee96eddf3",
+            .hash = "zap-0.10.6-GoeB8xCEJABLgoiZjWZMMT5TsoZ5OO2EZe6j24RTUYEH",
+        },
+    },
+    .paths = .{""},
+    .fingerprint = 0xc1ce10810bc288e7,
+}
