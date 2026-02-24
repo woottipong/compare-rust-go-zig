@@ -6,7 +6,7 @@
 |---|---------|--------|-----|------|-----|
 | 1.1 | Video Frame Extractor | ✅ Done | 50ms | 76ms | 51ms |
 | 1.2 | HLS Stream Segmenter | ✅ Done | 1452ms | 1395ms | 1380ms |
-| 1.3 | Subtitle Burn-in Engine | ⬜ Next (ถ้าอยู่ใน Video group) | — | — | — |
+| 1.3 | Subtitle Burn-in Engine | ⬜ | — | — | — |
 | 2.1 | High-Performance Reverse Proxy | ⬜ | — | — | — |
 | 2.2 | Real-time Audio Chunker | ⬜ | — | — | — |
 | 2.3 | Lightweight API Gateway | ⬜ | — | — | — |
@@ -22,46 +22,16 @@
 | 6.1 | Sheets-to-DB Sync | ⬜ | — | — | — |
 | 6.2 | Web Accessibility Crawler | ⬜ | — | — | — |
 | 6.3 | Automated TOR Tracker | ⬜ | — | — | — |
+| 7.1 | DNS Resolver | ⬜ | — | — | — |
+| 7.2 | TCP Port Scanner | ⬜ | — | — | — |
+| 7.3 | QUIC Ping Client | ⬜ | — | — | — |
+| 8.1 | PNG Encoder from Scratch | ⬜ | — | — | — |
+| 8.2 | JPEG Thumbnail Pipeline | ⬜ | — | — | — |
+| 8.3 | Perceptual Hash (pHash) | ⬜ | — | — | — |
+| 9.1 | SQLite Query Engine (subset) | ⬜ | — | — | — |
+| 9.2 | CSV Stream Aggregator | ⬜ | — | — | — |
+| 9.3 | Parquet File Reader | ⬜ | — | — | — |
 
----
-
-## 🏆 แนะนำ Next Project
-
-### ตัวเลือก A — ต่อเนื่องใน Video group
-**Subtitle Burn-in Engine** (1.3) — ฝัง SRT/VTT ลงในวิดีโอ
-- ✦ ใช้ `libass` + `libavfilter` → C interop ที่ซับซ้อนกว่าเดิม
-- ✦ ต้อง re-encode → เห็น encode performance ครั้งแรก
-- ✦ Pixel blending → ทดสอบ Memory Safety จริงๆ
-
-### ตัวเลือก B — ข้ามไป Networking
-**Lightweight API Gateway** (2.3) — JWT Auth + Rate Limiting
-- ✦ เห็น Concurrency model ชัดที่สุด (goroutines vs tokio vs manual)
-- ✦ ไม่ต้องพึ่ง FFmpeg → ทดสอบ core language ล้วน
-- ✦ Go จะชนะชัดในด้าน networking throughput
-
-### ตัวเลือก C — Systems Fundamentals
-**In-memory Key-Value Store** (5.1) — Redis-like store
-- ✦ เห็น GC vs Manual Memory vs Zig comptime ชัดเจนที่สุด
-- ✦ ง่ายสุดในแง่ dependencies (zero external libs)
-- ✦ เหมาะสำหรับ pure language benchmark
-
----
-
-## Lessons Learned จากโปรเจกต์ที่ทำแล้ว
-
-### video-frame-extractor
-- FFmpeg 8.0: ใช้ `ffmpeg-sys-next = "8.0"` เท่านั้น
-- Zig 0.15: `createModule()` + `root_module` syntax
-- Go CGO: `*(**C.AVStream)` pattern สำหรับ access C array
-- ทุกภาษา ~50ms → FFmpeg decode เป็น bottleneck หลัก
-
-### hls-stream-segmenter
-- **Critical bug**: ต้องเปิด segment file ค้างไว้ระหว่าง frames (persistent file handle)
-- Zig: ใช้ `cwd().createFile()` ไม่ใช่ `createFileAbsolute()` สำหรับ relative paths
-- Rust: `Option<File>` pattern สำหรับ conditional resource ownership
-- ทุกภาษา ~1.4s → I/O (write raw YUV420P per frame) เป็น bottleneck
-
----
 
 ## 1. กลุ่มงานวิดีโอและมัลติมีเดีย (Video & Media Processing)
 *เน้นการจัดการ Data Streaming และ Memory Layout*
@@ -98,3 +68,21 @@
 - ⬜ **Sheets-to-DB Sync:** ระบบ Sync ข้อมูลจาก Google Sheets ลง MySQL/Pocketbase อัตโนมัติ
 - ⬜ **Web Accessibility Crawler:** บอทสำรวจหน้าเว็บเพื่อหาจุดที่ผิดหลัก Accessibility (ฝึก Web Scraping & DOM Parsing)
 - ⬜ **Automated TOR Tracker:** ตัวดึงข้อมูลจากเอกสาร TOR มาสรุปสถานะลง Dashboard (ฝึก Text Extraction)
+
+## 7. กลุ่มเครือข่ายระดับต่ำ (Low-Level Networking) ⭐ ใหม่
+*เน้น raw socket, binary protocol parsing, และ concurrency ที่วัดได้จริง*
+- ⬜ **DNS Resolver:** parse UDP DNS packet, query A/AAAA/CNAME records ด้วย raw socket (ฝึก Binary Protocol Parsing + UDP)
+- ⬜ **TCP Port Scanner:** scan หลาย port พร้อมกันด้วย concurrency model ของแต่ละภาษา — goroutines vs tokio tasks vs Zig threads (ฝึก Concurrent I/O และ Timeout Handling)
+- ⬜ **QUIC Ping Client:** implement minimal QUIC handshake + ping ด้วย `quic-go` / `quinn` / raw UDP (ฝึก Modern Transport Protocol และ TLS Integration)
+
+## 8. กลุ่มประมวลผลรูปภาพ Zero-dependency (Image Processing from Scratch) ⭐ ใหม่
+*เน้น pure algorithm implementation ไม่พึ่ง library — เห็น performance ของภาษาล้วนๆ*
+- ⬜ **PNG Encoder from Scratch:** implement DEFLATE compression + PNG chunk writing โดยไม่ใช้ libpng (ฝึก Bit Manipulation, Compression, และ Memory Layout)
+- ⬜ **JPEG Thumbnail Pipeline:** decode JPEG → resize (bilinear/lanczos) → re-encode ด้วย libjpeg หรือ pure impl (ฝึก SIMD-friendly loop, Cache Locality)
+- ⬜ **Perceptual Hash (pHash):** คำนวณ DCT-based image fingerprint สำหรับ duplicate detection (ฝึก Math-heavy computation และ SIMD/vectorization)
+
+## 9. กลุ่มข้อมูลขนาดใหญ่ (Data Engineering Primitives) ⭐ ใหม่
+*เน้น streaming data processing, columnar format, และ zero-copy parsing*
+- ⬜ **SQLite Query Engine (subset):** implement B-tree page reader + SQL SELECT/WHERE parser อย่างง่าย (ฝึก File Format Parsing, Algorithmic thinking, Zero-copy reads)
+- ⬜ **CSV Stream Aggregator:** อ่าน CSV ไฟล์ขนาดหลาย GB แบบ streaming, GROUP BY + SUM/COUNT โดยไม่โหลดทั้งหมดใน memory (ฝึก Streaming I/O, Memory efficiency)
+- ⬜ **Parquet File Reader:** parse Parquet column metadata + decode RLE/bit-packing encoding ให้ได้ค่า column จริง (ฝึก Columnar Format, Bit manipulation, Schema handling)
