@@ -1,0 +1,13 @@
+[package]
+name = "hls-stream-segmenter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ffmpeg-sys-next = "8.0"
+anyhow = "1.0"
+scopeguard = "1.2"
+
+[profile.release]
+opt-level = 3
+lto = true

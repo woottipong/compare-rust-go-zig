@@ -9,6 +9,7 @@
 **/zig/.zig-cache/
 **/zig/zig-out/
 **/.zig-cache/
+**/zig/main
 
 # ─── Build artifacts (root level) ────────────────────────────────────────────
 bin/
