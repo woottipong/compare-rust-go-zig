@@ -11,6 +11,8 @@
 compare-rust-go-zig/
 ├── video-frame-extractor/    ✅ ดึง frame thumbnail จากวิดีโอ (FFmpeg C interop)
 ├── hls-stream-segmenter/     ✅ ตัดวิดีโอเป็น .ts + .m3u8 (HLS streaming)
+├── subtitle-burn-in-engine/  ✅ ฝัง SRT subtitle ลงวิดีโอ + re-encode H264
+├── lightweight-api-gateway/  ✅ API Gateway: JWT, rate limiting, reverse proxy
 ├── <project-name>/           ⬜ projects ถัดไป
 ├── plan.md                   # รายการ projects ทั้งหมด + สถานะ
 └── .windsurf/rules/          # Coding rules สำหรับแต่ละภาษา
@@ -62,6 +64,30 @@ compare-rust-go-zig/
 
 **Key insight**: I/O ของการ write raw YUV420P frame เป็น bottleneck → ทุกภาษา ~1.4s
 
+### 3. Subtitle Burn-in Engine
+ฝัง SRT subtitle ลงในวิดีโอโดยตรง (decode → burn text → encode H264)
+
+| Metric | Go | Rust | Zig |
+|--------|-----|------|-----|
+| **Avg Time** | 503ms | 419ms | **392ms** |
+| **Peak Memory** | 103,920 KB | 104,000 KB | **101,120 KB** |
+| **Binary Size** | 2.7MB | 1.6MB | **288KB** |
+| **Code Lines** | 340 | 230 | 332 |
+
+**Key insight**: FFmpeg decode+encode เป็น bottleneck — language overhead แทบไม่ต่างกัน
+
+### 4. Lightweight API Gateway
+HTTP API Gateway พร้อม JWT validation, rate limiting, middleware chain
+
+| Metric | Go (Fiber) | Rust (axum) | Zig (Zap) |
+|--------|-----------|-------------|----------|
+| **Throughput** | 54,919 req/s | **57,056 req/s** | 52,103 req/s |
+| **Peak Memory** | 11,344 KB | **2,528 KB** | 27,680 KB |
+| **Binary Size** | 9.1MB | 1.6MB | **233KB** |
+| **Code Lines** | 209 | 173 | **146** |
+
+**Key insight**: เมื่อใช้ async framework ที่เหมาะสม ทุกภาษาอยู่ใน ballpark เดียวกัน (~50–57K req/s)
+
 ---
 
 ## Quick Start
@@ -81,10 +107,18 @@ sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
 ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p test-data/sample.mp4
 ```
 
-### Run Benchmark
+### Run Benchmark (Media Projects)
 ```bash
 cd <project-name>
 bash benchmark/run.sh test-data/sample.mp4 [param]
+```
+
+### Run Benchmark (API Gateway)
+```bash
+# ต้องติดตั้ง wrk ก่อน
+brew install wrk
+cd lightweight-api-gateway
+bash benchmark/run.sh
 ```
 
 ---
@@ -115,9 +149,9 @@ zig build -Doptimize=ReleaseFast
 
 | ภาษา | จุดเด่น | จุดที่ต้องระวัง |
 |------|---------|----------------|
-| **Go** | เขียนง่าย, stdlib ครบ, build เร็ว | CGO memory leak ง่าย, binary ใหญ่ที่สุด |
-| **Rust** | Memory safe, ไม่มี GC, `Option`/`Result` ชัดเจน | Build time นาน, env vars สำหรับ FFI |
-| **Zig** | Binary เล็กที่สุด, C interop ตรง, `comptime` ทรงพลัง | Error handling verbose, ecosystem เล็ก |
+| **Go** | เขียนง่าย, stdlib ครบ, build เร็ว, Fiber/net/http ยืดหยุ่น | CGO memory leak ง่าย, binary ใหญ่เมื่อใช้ deps |
+| **Rust** | Memory safe, ไม่มี GC, performance สม่ำเสมอ, binary กลาง | Build time นาน, env vars สำหรับ FFI |
+| **Zig** | Binary เล็กที่สุด, C interop ตรง, `comptime` ทรงพลัง | Ecosystem เล็ก — ต้องพึ่ง C libraries (Zap→facil.io) |
 
 ---
 
@@ -134,6 +168,17 @@ zig build -Doptimize=ReleaseFast
 - Zig: ใช้ `cwd().createFile()` ไม่ใช่ `createFileAbsolute()` สำหรับ relative paths
 - Rust: `Option<File>` pattern สำหรับ conditional resource ownership
 - Go: ไม่ต้อง `go mod init` ซ้ำถ้า `go.mod` มีอยู่แล้ว
+
+### subtitle-burn-in-engine
+- Simple white-bar overlay ไม่ใช้ libass — FFmpeg pixel manipulation โดยตรง
+- Go go.mod: ต้องใช้ go version จริงที่ install (1.23.0) ไม่ใช่ version อนาคต
+
+### lightweight-api-gateway
+- Rust `SocketAddr`: `:8080` parse ไม่ได้ → แปลงเป็น `127.0.0.1:8080` ก่อน
+- Go Fiber: binary ใหญ่ (9.1MB) เพราะ fasthttp + dependencies
+- Zig manual HTTP: single-threaded → throughput ต่ำ (8K req/s) → ใช้ **Zap** แทน (52K req/s)
+- Zap ต้อง copy `libfacil.io.dylib` ไปด้วย และ set `DYLD_LIBRARY_PATH` บน macOS
+- ใช้ `wrk` แทน `ab` สำหรับ HTTP benchmark บน macOS
 
 ---
 

@@ -10,7 +10,6 @@ use dashmap::DashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tower::Layer;
 
 #[derive(Clone)]
 struct AppState {
@@ -57,7 +56,7 @@ impl RateLimiter {
 }
 
 async fn jwt_middleware(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     request: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {

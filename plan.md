@@ -6,10 +6,10 @@
 |---|---------|--------|-----|------|-----|
 | 1.1 | Video Frame Extractor | ✅ Done | 50ms | 76ms | 51ms |
 | 1.2 | HLS Stream Segmenter | ✅ Done | 1452ms | 1395ms | 1380ms |
-| 1.3 | Subtitle Burn-in Engine | ⬜ | — | — | — |
+| 1.3 | Subtitle Burn-in Engine | ✅ Done | 503ms | 419ms | 392ms |
 | 2.1 | High-Performance Reverse Proxy | ⬜ | — | — | — |
 | 2.2 | Real-time Audio Chunker | ⬜ | — | — | — |
-| 2.3 | Lightweight API Gateway | ⬜ | — | — | — |
+| 2.3 | Lightweight API Gateway | ✅ Done | 54,919 req/s | 57,056 req/s | 52,103 req/s |
 | 3.1 | Local ASR/LLM Proxy | ⬜ | — | — | — |
 | 3.2 | Vector DB Ingester | ⬜ | — | — | — |
 | 3.3 | Custom Log Masker | ⬜ | — | — | — |
@@ -36,14 +36,14 @@
 ## 1. กลุ่มงานวิดีโอและมัลติมีเดีย (Video & Media Processing)
 *เน้นการจัดการ Data Streaming และ Memory Layout*
 - ✅ **Video Frame Extractor:** ดึงภาพ Thumbnail จากวิดีโอในช่วงเวลาที่กำหนด (ฝึก C Interop กับ FFmpeg)
-- ⬜ **Subtitle Burn-in Engine:** ฝังไฟล์ VTT/SRT ลงในเนื้อวิดีโอ (ฝึก Memory Safety และ Pixel Manipulation)
+- ✅ **Subtitle Burn-in Engine:** ฝังไฟล์ VTT/SRT ลงในเนื้อวิดีโอ (ฝึก Memory Safety และ Pixel Manipulation)
 - ✅ **HLS Stream Segmenter:** ตัดวิดีโอเป็นชิ้นเล็กๆ (.ts) และสร้างไฟล์ .m3u8 (ฝึก File I/O และ Streaming)
 
 ## 2. กลุ่มระบบหลังบ้านและโครงสร้างพื้นฐาน (Infrastructure & Networking)
 *เน้นความเร็ว Network และ Concurrency Model*
 - ⬜ **High-Performance Reverse Proxy:** ตัวกลางรับ Request และทำ Load Balancer (ฝึก Concurrency & Networking)
 - ⬜ **Real-time Audio Chunker:** ตัดแบ่ง Audio Stream เป็นท่อนๆ เพื่อส่งให้ AI (ฝึกเรื่อง Latency และ Buffer)
-- ⬜ **Lightweight API Gateway:** ระบบเช็ค JWT Auth และทำ Rate Limiting (ฝึกความปลอดภัยและ Performance)
+- ✅ **Lightweight API Gateway:** ระบบเช็ค JWT Auth และทำ Rate Limiting (ฝึกความปลอดภัยและ Performance)
 
 ## 3. กลุ่มงาน AI และ Data Pipeline (AI & Data Engineering)
 *เน้นการเตรียมข้อมูลมหาศาลเพื่อส่งให้ Model*
@@ -86,3 +86,30 @@
 - ⬜ **SQLite Query Engine (subset):** implement B-tree page reader + SQL SELECT/WHERE parser อย่างง่าย (ฝึก File Format Parsing, Algorithmic thinking, Zero-copy reads)
 - ⬜ **CSV Stream Aggregator:** อ่าน CSV ไฟล์ขนาดหลาย GB แบบ streaming, GROUP BY + SUM/COUNT โดยไม่โหลดทั้งหมดใน memory (ฝึก Streaming I/O, Memory efficiency)
 - ⬜ **Parquet File Reader:** parse Parquet column metadata + decode RLE/bit-packing encoding ให้ได้ค่า column จริง (ฝึก Columnar Format, Bit manipulation, Schema handling)
+
+---
+
+## สรุปความคืบหน้า (Progress Summary)
+
+### ✅ Completed Projects (4/27)
+1. **Video Frame Extractor** — FFmpeg C interop, 50ms/76ms/51ms
+2. **HLS Stream Segmenter** — I/O bound streaming, ~1.4s all languages  
+3. **Subtitle Burn-in Engine** — Pixel manipulation, 503ms/419ms/392ms
+4. **Lightweight API Gateway** — HTTP throughput, 54.9K/57.1K/52.1K req/s
+
+### 📊 Performance Insights
+- **Rust** ชนะใน CPU-bound tasks (subtitle burn-in, API gateway)
+- **Zig** ชนะใน I/O-bound tasks และ binary size เล็กสุด  
+- **Go** อยู่ในกลางเสมอ แต่ binary ใหญ่ที่สุดเมื่อใช้ dependencies
+- **Framework choice** สำคัญมาก — Zig manual HTTP 8K req/s → Zap 52K req/s
+
+### 🎯 ถัดไป (Next Projects)
+- **กลุ่ม 2**: High-Performance Reverse Proxy (networking benchmark)
+- **กลุ่ม 7**: DNS Resolver (low-level networking)  
+- **กลุ่ม 8**: PNG Encoder from Scratch (pure algorithms)
+
+### 📈 สถิติ
+- **Total projects**: 27 (9 groups)
+- **Completed**: 4 (14.8%)
+- **In Progress**: 0
+- **Remaining**: 23 (85.2%)
