@@ -11,10 +11,12 @@ hls-stream-segmenter/
 ├── go/                 # Go + FFmpeg
 ├── rust/               # Rust + FFmpeg
 ├── zig/                # Zig + FFmpeg
-├── test-data/          # ไฟล์วิดีโอสำหรับทดสอบ
+├── test-data -> ../test-data  # symlink ไปยัง shared test-data
 ├── benchmark/          # Scripts สำหรับ benchmark
 └── README.md           # คำแนะนำ build/run + ตาราง comparison
 ```
+
+> **Shared test-data**: ไฟล์วิดีโอเก็บที่ `<repo-root>/test-data/` ใช้ร่วมกันทุก project ผ่าน symlink
 
 ## Dependencies
 
@@ -64,6 +66,12 @@ cd benchmark
 ./results/save-results.sh hls-stream-segmenter
 ```
 
+### สร้าง Test Video (shared)
+```bash
+cd <repo-root>/test-data
+ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=30 -pix_fmt yuv420p sample.mp4
+```
+
 ### ผลการวัดที่เก็บไว้
 - **Full results**: `benchmark/results/hls-stream-segmenter_YYYYMMDD_HHMMSS.txt`
 - **Summary CSV**: `benchmark/results/hls-stream-segmenter_summary.csv`
@@ -77,10 +85,10 @@ cd benchmark
 | **File I/O** | os package | std::fs | std.fs |
 | **Memory Management** | GC + Manual (CGO) | Ownership + Drop trait | Manual |
 | **Error Handling** | error interface | Result<T,E> | error union |
-| **Performance** | **306ms avg** | 1012ms avg | 1014ms avg |
-| **Peak Memory** | 25MB | 19MB | **17MB** |
-| **Binary Size** | 2.6MB | 451KB | **288KB** |
-| **Code Lines** | 290 | 256 | **239** |
+| **Performance** | 1452ms avg | 1395ms avg | **1380ms avg** |
+| **Peak Memory** | 20MB | 18MB | **16MB** |
+| **Binary Size** | 2.6MB | 467KB | **288KB** |
+| **Code Lines** | 324 | 274 | **266** |
 
 ## ผลการวัด (Benchmark Results)
 
@@ -93,31 +101,50 @@ cd benchmark
   Runs     : 5 (1 warm-up)
 
 ── Go     ─────────────────────────────────────
-  Avg: 306ms  |  Min: 282ms  |  Max: 333ms
-  Peak Memory: 25216 KB
+  Run 1 (warm-up): 1625ms (6 segments)
+  Run 2           : 1510ms (6 segments)
+  Run 3           : 1535ms (6 segments)
+  Run 4           : 1386ms (6 segments)
+  Run 5           : 1379ms (6 segments)
+  ─────────────────────────────────────────
+  Avg: 1452ms  |  Min: 1379ms  |  Max: 1535ms
+  Peak Memory: 20336 KB
 
 ── Rust   ─────────────────────────────────────
-  Avg: 1012ms  |  Min: 966ms  |  Max: 1071ms
-  Peak Memory: 18944 KB
+  Run 1 (warm-up): 1550ms (6 segments)
+  Run 2           : 1366ms (6 segments)
+  Run 3           : 1486ms (6 segments)
+  Run 4           : 1368ms (6 segments)
+  Run 5           : 1361ms (6 segments)
+  ─────────────────────────────────────────
+  Avg: 1395ms  |  Min: 1361ms  |  Max: 1486ms
+  Peak Memory: 18912 KB
 
 ── Zig    ─────────────────────────────────────
-  Avg: 1014ms  |  Min: 982ms  |  Max: 1056ms
+  Run 1 (warm-up): 1379ms (6 segments)
+  Run 2           : 1364ms (6 segments)
+  Run 3           : 1393ms (6 segments)
+  Run 4           : 1378ms (6 segments)
+  Run 5           : 1388ms (6 segments)
+  ─────────────────────────────────────────
+  Avg: 1380ms  |  Min: 1364ms  |  Max: 1393ms
   Peak Memory: 16672 KB
 
 ── Binary Size ───────────────────────────────
   Go  : 2.6M
-  Rust: 451K
+  Rust: 467K
   Zig : 288K
 
 ── Code Lines ────────────────────────────────
-  Go  : 290 lines
-  Rust: 256 lines
-  Zig : 239 lines
+  Go  : 324 lines
+  Rust: 274 lines
+  Zig : 266 lines
 ```
 
 ## หมายเหตุ
-- **Go**: เร็วที่สุด (3x) เพราะ GC จัดการ memory โดยไม่ต้อง decode-encode ซ้ำ
-- **Rust/Zig**: ช้ากว่าเพราะ write ทุก frame แยกไฟล์ (I/O bound) แต่ใช้ memory น้อยกว่า
-- **Zig**: Binary เล็กที่สุด (288KB), memory น้อยที่สุด (17MB)
-- **HLS**: ต้องสร้าง .m3u8 playlist และ .ts segments ตามมาตรฐาน Apple
+- **Go/Rust/Zig**: ทุกภาษาใช้เวลาใกล้เคียงกัน ~1.4s → I/O ของการ write raw YUV frame data เป็น bottleneck หลัก
+- **Zig**: Binary เล็กที่สุด (288KB), memory น้อยที่สุด (16MB), variance ต่ำที่สุด
+- **Rust**: Memory ต่ำกว่า Go เพราะไม่มี GC overhead
+- **HLS**: สร้าง .m3u8 playlist และ .ts segments ที่มี raw YUV420P frame data
 - **Double-pointer in Go CGO**: `*(**C.AVStream)` pattern สำหรับ access C array
+- **Persistent file handle**: key fix — ต้องเปิดไฟล์ segment ค้างไว้ระหว่าง frames ไม่ใช่เปิด/ปิดทุก frame

@@ -89,6 +89,7 @@ const HLSegmenter = struct {
     segment_start: i64,
     time_base: f64,
     playlist: std.fs.File,
+    segment_file: ?std.fs.File,
 
     fn init(
         fmt_ctx: *c.AVFormatContext,
@@ -132,7 +133,7 @@ const HLSegmenter = struct {
 
         const playlist_path = try std.fmt.allocPrint(allocator, "{s}/playlist.m3u8", .{output_dir});
         defer allocator.free(playlist_path);
-        const playlist = try std.fs.createFileAbsolute(playlist_path, .{});
+        const playlist = try std.fs.cwd().createFile(playlist_path, .{});
 
         return HLSegmenter{
             .input_fmt_ctx = fmt_ctx,
@@ -147,10 +148,12 @@ const HLSegmenter = struct {
             .segment_start = 0,
             .time_base = time_base,
             .playlist = playlist,
+            .segment_file = null,
         };
     }
 
     fn deinit(self: *HLSegmenter) void {
+        if (self.segment_file) |f| f.close();
         c.av_packet_free(@ptrCast(&self.packet));
         c.av_frame_free(@ptrCast(&self.frame));
         if (self.codec_ctx) |_| {
@@ -206,30 +209,54 @@ const HLSegmenter = struct {
     fn startSegment(self: *HLSegmenter) !void {
         self.segment_start = self.frame.?.pts;
         self.current_segment += 1;
-    }
-
-    fn writeFrame(self: *HLSegmenter) !void {
-        const segment_file = try std.fmt.allocPrint(
+        const seg_path = try std.fmt.allocPrint(
             self.allocator,
             "{s}/segment_{d:0>3}.ts",
             .{ self.output_dir, self.current_segment },
         );
-        defer self.allocator.free(segment_file);
+        defer self.allocator.free(seg_path);
+        self.segment_file = try std.fs.cwd().createFile(seg_path, .{});
+    }
 
-        var file = try std.fs.createFileAbsolute(segment_file, .{});
-        defer file.close();
+    fn writeFrame(self: *HLSegmenter) !void {
+        if (self.segment_file == null) return error.NoSegmentFileOpen;
+        const file = &self.segment_file.?;
 
-        const linesize: usize = @intCast(self.frame.?.linesize[0]);
+        const width: usize = @intCast(self.codec_ctx.?.width);
         const height: usize = @intCast(self.codec_ctx.?.height);
-        const data: [*]const u8 = @ptrCast(self.frame.?.data[0]);
+        const uv_width = width / 2;
+        const uv_height = height / 2;
 
-        var y: usize = 0;
-        while (y < height) : (y += 1) {
-            try file.writeAll(data[y * linesize .. y * linesize + linesize]);
+        // Write Y plane
+        const y_stride: usize = @intCast(self.frame.?.linesize[0]);
+        const y_data: [*]const u8 = @ptrCast(self.frame.?.data[0]);
+        var row: usize = 0;
+        while (row < height) : (row += 1) {
+            try file.writeAll(y_data[row * y_stride .. row * y_stride + width]);
+        }
+
+        // Write U plane
+        const u_stride: usize = @intCast(self.frame.?.linesize[1]);
+        const u_data: [*]const u8 = @ptrCast(self.frame.?.data[1]);
+        row = 0;
+        while (row < uv_height) : (row += 1) {
+            try file.writeAll(u_data[row * u_stride .. row * u_stride + uv_width]);
+        }
+
+        // Write V plane
+        const v_stride: usize = @intCast(self.frame.?.linesize[2]);
+        const v_data: [*]const u8 = @ptrCast(self.frame.?.data[2]);
+        row = 0;
+        while (row < uv_height) : (row += 1) {
+            try file.writeAll(v_data[row * v_stride .. row * v_stride + uv_width]);
         }
     }
 
     fn finishSegment(self: *HLSegmenter) !void {
+        if (self.segment_file) |f| {
+            f.close();
+            self.segment_file = null;
+        }
         const dur = (@as(f64, @floatFromInt(self.frame.?.pts)) -
             @as(f64, @floatFromInt(self.segment_start))) * self.time_base;
         const extinf = try std.fmt.allocPrint(self.allocator, "#EXTINF:{d:.3},\nsegment_{d:0>3}.ts\n", .{ dur, self.current_segment });

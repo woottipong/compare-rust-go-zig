@@ -108,9 +108,9 @@ type HLSegmenter struct {
 
 	// Segmenting
 	currentSegment int
-	segmentPts     int64
 	segmentStart   int64
 	timeBase       float64
+	segmentFile    *os.File
 }
 
 func (h *HLSegmenter) initialize() error {
@@ -163,6 +163,10 @@ func (h *HLSegmenter) initialize() error {
 }
 
 func (h *HLSegmenter) cleanup() {
+	if h.segmentFile != nil {
+		h.segmentFile.Close()
+		h.segmentFile = nil
+	}
 	if h.swsCtx != nil {
 		C.sws_freeContext(h.swsCtx)
 	}
@@ -248,13 +252,21 @@ func (h *HLSegmenter) segment() error {
 
 func (h *HLSegmenter) startSegment() error {
 	h.segmentStart = int64(h.frame.pts)
-	h.segmentPts = int64(h.frame.pts)
 	h.currentSegment++
+	segmentPath := filepath.Join(h.outputDir, fmt.Sprintf("segment_%03d.ts", h.currentSegment))
+	f, err := os.Create(segmentPath)
+	if err != nil {
+		return fmt.Errorf("could not create segment file: %v", err)
+	}
+	h.segmentFile = f
 	return nil
 }
 
 func (h *HLSegmenter) writeFrame() error {
-	// Scale frame to YUV420P
+	if h.segmentFile == nil {
+		return fmt.Errorf("no segment file open")
+	}
+
 	C.sws_scale(h.swsCtx,
 		(**C.uint8_t)(unsafe.Pointer(&h.frame.data[0])),
 		(*C.int)(unsafe.Pointer(&h.frame.linesize[0])),
@@ -264,27 +276,49 @@ func (h *HLSegmenter) writeFrame() error {
 		(*C.int)(unsafe.Pointer(&h.rgbFrame.linesize[0])),
 	)
 
-	// Write frame to segment file (simplified - actual TS muxing would be more complex)
-	segmentFile := filepath.Join(h.outputDir, fmt.Sprintf("segment_%03d.ts", h.currentSegment))
-	file, err := os.OpenFile(segmentFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return fmt.Errorf("could not open segment file: %v", err)
-	}
-	defer file.Close()
+	width := int(h.codecCtx.width)
+	height := int(h.codecCtx.height)
 
-	// For simplicity, we're just writing raw frame data
-	// In a real implementation, you'd use avformat_write_header() and av_interleaved_write_frame()
-	data := C.GoBytes(unsafe.Pointer(&h.rgbFrame.data[0]), C.int(h.rgbFrame.linesize[0]*h.codecCtx.height))
-	_, err = file.Write(data)
-	return err
+	// Write Y plane
+	yData := (*[1 << 30]byte)(unsafe.Pointer(h.rgbFrame.data[0]))
+	yStride := int(h.rgbFrame.linesize[0])
+	for row := 0; row < height; row++ {
+		if _, err := h.segmentFile.Write(yData[row*yStride : row*yStride+width]); err != nil {
+			return fmt.Errorf("write Y plane error: %v", err)
+		}
+	}
+
+	// Write U plane (half height, half width for YUV420P)
+	uvWidth := width / 2
+	uvHeight := height / 2
+	uData := (*[1 << 30]byte)(unsafe.Pointer(h.rgbFrame.data[1]))
+	uStride := int(h.rgbFrame.linesize[1])
+	for row := 0; row < uvHeight; row++ {
+		if _, err := h.segmentFile.Write(uData[row*uStride : row*uStride+uvWidth]); err != nil {
+			return fmt.Errorf("write U plane error: %v", err)
+		}
+	}
+
+	// Write V plane
+	vData := (*[1 << 30]byte)(unsafe.Pointer(h.rgbFrame.data[2]))
+	vStride := int(h.rgbFrame.linesize[2])
+	for row := 0; row < uvHeight; row++ {
+		if _, err := h.segmentFile.Write(vData[row*vStride : row*vStride+uvWidth]); err != nil {
+			return fmt.Errorf("write V plane error: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func (h *HLSegmenter) finishSegment(playlist *os.File) error {
+	if h.segmentFile != nil {
+		h.segmentFile.Close()
+		h.segmentFile = nil
+	}
 	segmentDuration := float64(int64(h.frame.pts)-h.segmentStart) * h.timeBase
-	segmentFile := fmt.Sprintf("segment_%03d.ts", h.currentSegment)
-
+	segmentName := fmt.Sprintf("segment_%03d.ts", h.currentSegment)
 	playlist.WriteString(fmt.Sprintf("#EXTINF:%.3f,\n", segmentDuration))
-	playlist.WriteString(segmentFile + "\n")
-
+	playlist.WriteString(segmentName + "\n")
 	return nil
 }

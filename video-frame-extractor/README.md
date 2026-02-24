@@ -11,10 +11,12 @@ video-frame-extractor/
 ├── go/                 # Go + CGO + FFmpeg C API
 ├── rust/               # Rust + ffmpeg-sys-next 8.0
 ├── zig/                # Zig + @cImport + FFmpeg
-├── test-data/          # ไฟล์วิดีโอสำหรับทดสอบ
+├── test-data -> ../test-data  # symlink ไปยัง shared test-data
 ├── bin/                # compiled binaries
 └── benchmark/          # Scripts สำหรับ benchmark
 ```
+
+> **Shared test-data**: ไฟล์วิดีโอเก็บที่ `<repo-root>/test-data/` ใช้ร่วมกันทุก project ผ่าน symlink
 
 ## การติดตั้ง Dependencies
 
@@ -27,9 +29,9 @@ brew install ffmpeg
 sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
 ```
 
-### สร้าง Test Video
+### สร้าง Test Video (shared)
 ```bash
-cd test-data
+cd <repo-root>/test-data
 ffmpeg -f lavfi -i testsrc=duration=30:size=1280x720:rate=30 -pix_fmt yuv420p sample.mp4
 ```
 
@@ -82,8 +84,8 @@ cd benchmark
 | **C Interop** | CGO | ffmpeg-sys-next 8.0 | @cImport |
 | **Memory Safety** | GC + Manual (CGO) | Ownership + scopeguard | Manual |
 | **Binary Size** | 2.7MB | 451KB | **271KB** |
-| **Performance** | 67ms avg | 54ms avg | **51ms avg** |
-| **Memory Usage** | 23MB peak | 22MB peak | **20MB peak** |
+| **Performance** | **50ms avg** | 76ms avg | 51ms avg |
+| **Memory Usage** | 20MB peak | 19MB peak | **19MB peak** |
 | **Code Lines** | 182 | 192 | **169** |
 | **Build Time** | Fast | Medium (env vars) | Fast |
 
@@ -93,39 +95,39 @@ cd benchmark
 ╔══════════════════════════════════════════╗
 ║    Video Frame Extractor Benchmark       ║
 ╚══════════════════════════════════════════╝
-  Input    : test-data/sample.mp4
+  Input    : test-data/sample.mp4 (30s, 640x360, H.264)
   Timestamp: 5.0s
   Runs     : 5 (1 warm-up)
 
 ── Go     ─────────────────────────────────────
-  Run 1 (warm-up): 198ms
-  Run 2           : 51ms
-  Run 3           : 52ms
-  Run 4           : 84ms
-  Run 5           : 81ms
-  ─────────────────────────────────────────
-  Avg: 67ms  |  Min: 51ms  |  Max: 84ms
-  Peak Memory: 23072 KB
-
-── Rust   ─────────────────────────────────────
-  Run 1 (warm-up): 256ms
-  Run 2           : 51ms
-  Run 3           : 60ms
-  Run 4           : 54ms
-  Run 5           : 52ms
-  ─────────────────────────────────────────
-  Avg: 54ms  |  Min: 51ms  |  Max: 60ms
-  Peak Memory: 22704 KB
-
-── Zig    ─────────────────────────────────────
-  Run 1 (warm-up): 73ms
+  Run 1 (warm-up): 513ms
   Run 2           : 50ms
-  Run 3           : 51ms
-  Run 4           : 56ms
+  Run 3           : 50ms
+  Run 4           : 51ms
   Run 5           : 50ms
   ─────────────────────────────────────────
-  Avg: 51ms  |  Min: 50ms  |  Max: 56ms
-  Peak Memory: 20480 KB
+  Avg: 50ms  |  Min: 50ms  |  Max: 51ms
+  Peak Memory: 20224 KB
+
+── Rust   ─────────────────────────────────────
+  Run 1 (warm-up): 497ms
+  Run 2           : 52ms
+  Run 3           : 58ms
+  Run 4           : 53ms
+  Run 5           : 141ms
+  ─────────────────────────────────────────
+  Avg: 76ms  |  Min: 52ms  |  Max: 141ms
+  Peak Memory: 19856 KB
+
+── Zig    ─────────────────────────────────────
+  Run 1 (warm-up): 53ms
+  Run 2           : 51ms
+  Run 3           : 51ms
+  Run 4           : 51ms
+  Run 5           : 54ms
+  ─────────────────────────────────────────
+  Avg: 51ms  |  Min: 51ms  |  Max: 54ms
+  Peak Memory: 19632 KB
 
 ── Binary Size ───────────────────────────────
   Go  : 2.7M

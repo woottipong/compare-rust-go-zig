@@ -6,6 +6,17 @@ trigger: always_on
 
 ## โครงสร้างมาตรฐานสำหรับทุกโปรเจกต์
 
+โครงสร้าง **repository ระดับบน**:
+
+```
+compare-rust-go-zig/           ← repo root
+├── test-data/                 # shared media files (gitignored *.mp4 ฯลฯ)
+│   └── sample.mp4
+├── <project-name>/
+├── <project-name>/
+└── .gitignore
+```
+
 ทุกโปรเจกต์ต้องมีโครงสร้างดังนี้:
 
 ```
@@ -21,11 +32,15 @@ trigger: always_on
 │   ├── src/
 │   │   └── main.zig    # Entry point
 │   └── build.zig       # Zig 0.15+ format (createModule + root_module)
-├── test-data/           # input files สำหรับทดสอบ
+├── test-data -> ../test-data  # symlink ไปยัง shared test-data
 ├── benchmark/
 │   └── run.sh           # script สำหรับวัด performance ทั้ง 3 ภาษา
 └── README.md            # คำแนะนำ build/run + ตาราง comparison
 ```
+
+> **Shared test-data rule**: ไฟล์ media ขนาดใหญ่เก็บที่ `<repo-root>/test-data/` เพียงที่เดียว  
+> แต่ละ project ใช้ symlink: `ln -s ../test-data <project>/test-data`  
+> ไม่ copy ไฟล์ซ้ำ — ประหยัด disk และ maintain ง่ายกว่า
 
 ---
 

@@ -87,6 +87,7 @@ struct HLSegmenter {
     segment_start: i64,
     time_base: f64,
     playlist: File,
+    segment_file: Option<File>,
 }
 
 impl HLSegmenter {
@@ -149,6 +150,7 @@ impl HLSegmenter {
             segment_start: 0,
             time_base,
             playlist,
+            segment_file: None,
         })
     }
 
@@ -204,37 +206,53 @@ impl HLSegmenter {
     unsafe fn start_segment(&mut self) -> Result<()> {
         self.segment_start = (*self.frame).pts;
         self.current_segment += 1;
+        let seg_path = format!("{}/segment_{:03}.ts", self.output_dir, self.current_segment);
+        self.segment_file = Some(File::create(&seg_path)?);
         Ok(())
     }
 
     unsafe fn write_frame(&mut self) -> Result<()> {
-        // For simplicity, we're just writing raw frame data
-        // In a real implementation, you'd use avformat_write_header() and av_interleaved_write_frame()
-        let segment_file = format!("{}/segment_{:03}.ts", self.output_dir, self.current_segment);
-        let mut file = File::create(&segment_file)?;
+        let file = self.segment_file.as_mut()
+            .ok_or_else(|| anyhow!("No segment file open"))?;
 
-        // Write frame data (simplified)
-        let linesize = (*self.frame).linesize[0] as usize;
+        let width = (*self.codec_ctx).width as usize;
         let height = (*self.codec_ctx).height as usize;
-        let data = (*self.frame).data[0];
-        
-        for y in 0..height {
-            let row_start = y * linesize;
-            let _row_end = row_start + linesize;
-            let row = std::slice::from_raw_parts(data.add(row_start), linesize);
-            file.write_all(row)?;
+        let uv_width = width / 2;
+        let uv_height = height / 2;
+
+        // Write Y plane
+        let y_stride = (*self.frame).linesize[0] as usize;
+        let y_data = (*self.frame).data[0];
+        for row in 0..height {
+            let slice = std::slice::from_raw_parts(y_data.add(row * y_stride), width);
+            file.write_all(slice)?;
+        }
+
+        // Write U plane
+        let u_stride = (*self.frame).linesize[1] as usize;
+        let u_data = (*self.frame).data[1];
+        for row in 0..uv_height {
+            let slice = std::slice::from_raw_parts(u_data.add(row * u_stride), uv_width);
+            file.write_all(slice)?;
+        }
+
+        // Write V plane
+        let v_stride = (*self.frame).linesize[2] as usize;
+        let v_data = (*self.frame).data[2];
+        for row in 0..uv_height {
+            let slice = std::slice::from_raw_parts(v_data.add(row * v_stride), uv_width);
+            file.write_all(slice)?;
         }
 
         Ok(())
     }
 
     unsafe fn finish_segment(&mut self) -> Result<()> {
+        self.segment_file = None;
         let segment_duration = ((*self.frame).pts - self.segment_start) as f64 * self.time_base;
-        let segment_file = format!("segment_{:03}.ts", self.current_segment);
-        
+        let segment_name = format!("segment_{:03}.ts", self.current_segment);
         self.playlist.write_fmt(format_args!("#EXTINF:{:.3},\n", segment_duration))?;
-        self.playlist.write_fmt(format_args!("{}\n", segment_file))?;
-        
+        self.playlist.write_fmt(format_args!("{}\n", segment_name))?;
         Ok(())
     }
 }

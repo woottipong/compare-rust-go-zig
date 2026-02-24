@@ -29,7 +29,7 @@ echo ""
 echo "── Building ──────────────────────────────────"
 
 echo "[Go]"
-(unset GOROOT && cd "$PROJECT_DIR/go" && go mod init hls-stream-segmenter 2>/dev/null && go build -o ../bin/segmenter-go . 2>&1) \
+(unset GOROOT && cd "$PROJECT_DIR/go" && go build -o ../bin/segmenter-go . 2>&1) \
     && echo "  ✓ bin/segmenter-go" || echo "  ✗ build failed"
 
 echo "[Rust]"
