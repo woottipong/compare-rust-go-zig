@@ -11,12 +11,10 @@ video-frame-extractor/
 ├── go/                 # Go + CGO + FFmpeg C API
 ├── rust/               # Rust + ffmpeg-sys-next 8.0
 ├── zig/                # Zig + @cImport + FFmpeg
-├── test-data -> ../test-data  # symlink ไปยัง shared test-data
+├── test-data/          # ไฟล์วิดีโอสำหรับทดสอบ (gitignored)
 ├── bin/                # compiled binaries
 └── benchmark/          # Scripts สำหรับ benchmark
 ```
-
-> **Shared test-data**: ไฟล์วิดีโอเก็บที่ `<repo-root>/test-data/` ใช้ร่วมกันทุก project ผ่าน symlink
 
 ## การติดตั้ง Dependencies
 
@@ -29,10 +27,10 @@ brew install ffmpeg
 sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
 ```
 
-### สร้าง Test Video (shared)
+### สร้าง Test Video
 ```bash
-cd <repo-root>/test-data
-ffmpeg -f lavfi -i testsrc=duration=30:size=1280x720:rate=30 -pix_fmt yuv420p sample.mp4
+cd video-frame-extractor/test-data
+ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p sample.mp4
 ```
 
 ## Build & Run

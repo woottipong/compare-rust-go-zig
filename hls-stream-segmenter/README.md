@@ -11,12 +11,10 @@ hls-stream-segmenter/
 ├── go/                 # Go + FFmpeg
 ├── rust/               # Rust + FFmpeg
 ├── zig/                # Zig + FFmpeg
-├── test-data -> ../test-data  # symlink ไปยัง shared test-data
+├── test-data/          # ไฟล์วิดีโอสำหรับทดสอบ (gitignored)
 ├── benchmark/          # Scripts สำหรับ benchmark
 └── README.md           # คำแนะนำ build/run + ตาราง comparison
 ```
-
-> **Shared test-data**: ไฟล์วิดีโอเก็บที่ `<repo-root>/test-data/` ใช้ร่วมกันทุก project ผ่าน symlink
 
 ## Dependencies
 
@@ -66,10 +64,10 @@ cd benchmark
 ./results/save-results.sh hls-stream-segmenter
 ```
 
-### สร้าง Test Video (shared)
+### สร้าง Test Video
 ```bash
-cd <repo-root>/test-data
-ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=30 -pix_fmt yuv420p sample.mp4
+cd hls-stream-segmenter/test-data
+ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p sample.mp4
 ```
 
 ### ผลการวัดที่เก็บไว้

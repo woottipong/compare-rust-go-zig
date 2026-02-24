@@ -10,8 +10,6 @@ trigger: always_on
 
 ```
 compare-rust-go-zig/           ← repo root
-├── test-data/                 # shared media files (gitignored *.mp4 ฯลฯ)
-│   └── sample.mp4
 ├── <project-name>/
 ├── <project-name>/
 └── .gitignore
@@ -32,15 +30,16 @@ compare-rust-go-zig/           ← repo root
 │   ├── src/
 │   │   └── main.zig    # Entry point
 │   └── build.zig       # Zig 0.15+ format (createModule + root_module)
-├── test-data -> ../test-data  # symlink ไปยัง shared test-data
+├── test-data/           # ไฟล์ media สำหรับทดสอบ (gitignored — ไม่ commit)
+│   └── sample.mp4
 ├── benchmark/
 │   └── run.sh           # script สำหรับวัด performance ทั้ง 3 ภาษา
 └── README.md            # คำแนะนำ build/run + ตาราง comparison
 ```
 
-> **Shared test-data rule**: ไฟล์ media ขนาดใหญ่เก็บที่ `<repo-root>/test-data/` เพียงที่เดียว  
-> แต่ละ project ใช้ symlink: `ln -s ../test-data <project>/test-data`  
-> ไม่ copy ไฟล์ซ้ำ — ประหยัด disk และ maintain ง่ายกว่า
+> **test-data rule**: แต่ละ project มี `test-data/` เป็นของตัวเอง ไม่ใช้ symlink  
+> ไฟล์ media (`.mp4`, `.mkv` ฯลฯ) ถูก gitignore — ต้อง generate เองด้วย ffmpeg หลัง clone  
+> `ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p test-data/sample.mp4`
 
 ---
 

@@ -21,20 +21,6 @@ bin/
 *.ts
 *.m3u8
 
-# ─── Shared test-data (large media files, not committed) ────────────────────
-test-data/*.mp4
-test-data/*.mkv
-test-data/*.avi
-test-data/*.mov
-test-data/*.wav
-test-data/*.mp3
-test-data/*.flac
-test-data/*.pcm
-
-# ─── Per-project test-data symlinks (don't track symlinks) ───────────────────
-video-frame-extractor/test-data
-hls-stream-segmenter/test-data
-
 # ─── macOS ────────────────────────────────────────────────────────────────────
 .DS_Store
 .AppleDouble
