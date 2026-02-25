@@ -131,12 +131,12 @@ HTTP API Gateway พร้อม JWT validation, rate limiting, middleware chain
 
 | Metric | Go | **Rust** | **Zig** 🏆 |
 |--------|-----|----------|-----------|
-| **Throughput** | 23,157 chunks/s | 30,832 chunks/s | **36,162 chunks/s** |
-| **Avg Latency** | 0.043ms | 0.032ms | **0.028ms** |
-| **Processing Time** | 0.040s | 0.030s | **0.026s** |
-| **Speedup vs Go** | 1.0x | 1.33x | **1.56x** |
+| **Avg Throughput** | 21,799 chunks/s | 38,945 chunks/s | **53,617 chunks/s** |
+| **Avg Processing Time** | 299ms | 229ms | **215ms** |
+| **Variance** | 55% | **11%** | **14%** |
+| **Speedup vs Go** | 1.0x | **1.79x** | **2.46x** |
 
-**Key insight**: Zig manual memory management ชนะด้วยไม่มี GC overhead — เหมาะกับ high-throughput data processing
+**Key insight**: Zig manual memory management ชนะด้วยเสถียพอดีและเสถียพอดี (14% variance) — Rust มีความเสถียพอดีสูงสุด (11% variance)
 
 ---
 

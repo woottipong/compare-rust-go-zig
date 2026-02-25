@@ -63,7 +63,10 @@ fn processContent(allocator: std.mem.Allocator, content: []const u8) !struct { c
     // Simple word-based chunking
     var words = std.mem.tokenizeScalar(u8, content, ' ');
     var word_idx: usize = 0;
-    var chunk_words = std.ArrayList([]const u8).initCapacity(allocator, 1024) catch unreachable;
+    var chunk_words = std.ArrayList([]const u8).initCapacity(allocator, 1024) catch {
+        std.debug.print("Error: Failed to initialize ArrayList\n", .{});
+        return error.OutOfMemory;
+    };
     defer chunk_words.deinit(allocator);
     
     while (words.next()) |word| {
@@ -73,7 +76,9 @@ fn processContent(allocator: std.mem.Allocator, content: []const u8) !struct { c
         // Create chunk when we reach CHUNK_SIZE
         if (chunk_words.items.len >= CHUNK_SIZE) {
             // Simulate embedding generation
-            const chunk_content = std.mem.join(allocator, " ", chunk_words.items) catch "";
+            const chunk_content = std.mem.join(allocator, " ", chunk_words.items) catch {
+                return error.OutOfMemory;
+            };
             defer allocator.free(chunk_content);
             _ = generateEmbedding(chunk_content);
             
@@ -94,7 +99,9 @@ fn processContent(allocator: std.mem.Allocator, content: []const u8) !struct { c
     
     // Process remaining words
     if (chunk_words.items.len > 0) {
-        const chunk_content = std.mem.join(allocator, " ", chunk_words.items) catch "";
+        const chunk_content = std.mem.join(allocator, " ", chunk_words.items) catch {
+            return error.OutOfMemory;
+        };
         defer allocator.free(chunk_content);
         _ = generateEmbedding(chunk_content);
         chunk_count += 1;

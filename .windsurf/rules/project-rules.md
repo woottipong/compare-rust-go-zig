@@ -1,5 +1,6 @@
 ---
 description: Compare Rust / Go / Zig — Mandatory project rules for all AI assistants
+trigger: always_on
 ---
 
 # Project Rules: Compare Rust / Go / Zig
@@ -95,6 +96,81 @@ const Stats = struct {
 };
 ```
 
+### Vector DB Ingester Patterns
+
+```zig
+// Document processing with proper error handling
+fn processContent(allocator: std.mem.Allocator, content: []const u8) !struct { count: usize } {
+    var chunk_count: usize = 0;
+    
+    var chunk_words = std.ArrayList([]const u8).initCapacity(allocator, 1024) catch {
+        return error.OutOfMemory;
+    };
+    defer chunk_words.deinit(allocator);
+    
+    // Process chunks with proper error handling
+    const chunk_content = std.mem.join(allocator, " ", chunk_words.items) catch {
+        return error.OutOfMemory;
+    };
+    defer allocator.free(chunk_content);
+    
+    return .{ .count = chunk_count };
+}
+
+// Embedding simulation (same algorithm across languages)
+fn generateEmbedding(content: []const u8) [EMBEDDING_DIM]f32 {
+    var embedding: [EMBEDDING_DIM]f32 = undefined;
+    const hash = hashString(content);
+    
+    for (0..EMBEDDING_DIM) |i| {
+        // Generate pseudo-random values based on hash
+        var seed = hash ^ @as(u64, @intCast(i));
+        // ... hash calculations ...
+        embedding[i] = (@as(f32, @floatFromInt(seed & 0x7fffffff)) / @as(f32, @floatFromInt(std.math.maxInt(u32))) * 2.0 - 1.0;
+    }
+    return embedding;
+}
+```
+
+### Benchmark Methodology
+
+```bash
+# 5 runs total: 1 warm-up + 4 measured
+RUNS=5
+WARMUP=1
+
+run_benchmark() {
+    local times=()
+    
+    for i in $(seq 1 $RUNS); do
+        start=$(date +%s%N)
+        # Run benchmark
+        if docker run ...; then
+            end=$(date +%s%N)
+            elapsed=$(( (end - start) / 1000000 ))
+            
+            if [ "$i" -le "$WARMUP" ]; then
+                echo "  Run $i (warm-up): ${elapsed}ms"
+            else
+                echo "  Run $i           : ${elapsed}ms"
+                times+=("$elapsed")
+            fi
+        fi
+    done
+    
+    # Calculate statistics
+    if [ ${#times[@]} -gt 0 ]; then
+        local total=0 min=${times[0]} max=${times[0]}
+        for t in "${times[@]}"; do
+            total=$((total + t))
+            [ "$t" -lt "$min" ] && min=$t
+            [ "$t" -gt "$max" ] && max=$t
+        done
+        echo "  Avg: $((total / ${#times[@]}))ms | Min: ${min}ms | Max: ${max}ms"
+    fi
+}
+```
+
 ---
 
 ## โครงสร้างมาตรฐาน
@@ -120,6 +196,7 @@ const Stats = struct {
 | subtitle-burn-in-engine | `sbe-go` | `sbe-rust` | `sbe-zig` |
 | lightweight-api-gateway | `gw-go` | `gw-rust` | `gw-zig` |
 | realtime-audio-chunker | `rac-go` | `rac-rust` | `rac-zig` |
+| **vector-db-ingester** | **`vdi-go`** | **`vdi-rust`** | **`vdi-zig`** |
 
 ---
 

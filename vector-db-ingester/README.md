@@ -122,11 +122,19 @@ bash benchmark/run.sh
 
 ## Benchmark
 
-Run benchmark via Docker:
+Run benchmark via Docker with 5 runs and warm-up:
 
 ```bash
 bash benchmark/run.sh
 ```
+
+### Methodology
+
+- **5 runs total**: 1 warm-up + 4 measured runs
+- **Warm-up**: Eliminates container startup overhead
+- **Statistics**: Average, Min, Max, Variance calculated from measured runs
+- **Environment**: Docker containers ensure consistent runtime
+- **Metrics**: Processing time, throughput, latency, binary size, code lines
 
 ### Metrics
 
@@ -141,32 +149,38 @@ bash benchmark/run.sh
 
 ## Comparison
 
-### Benchmark Results (500 docs, 924 chunks, 2.8MB)
+### Benchmark Results (5 runs with warm-up)
 
 | Metric | Go | **Rust** | **Zig** 🏆 |
 |--------|-----|----------|-----------|
-| **Throughput** | 23,157 chunks/s | 30,832 chunks/s | **36,162 chunks/s** |
-| **Avg Latency** | 0.043ms | 0.032ms | **0.028ms** |
-| **Processing Time** | 0.040s | 0.030s | **0.026s** |
-| **Speedup vs Go** | 1.0x | 1.33x | **1.56x** |
+| **Avg Throughput** | 21,799 chunks/s | 38,945 chunks/s | **53,617 chunks/s** |
+| **Avg Processing Time** | 299ms | 229ms | **215ms** |
+| **Min/Max Time** | 252-390ms | 223-247ms | **207-236ms** |
+| **Variance** | 55% | 11% | **14%** |
+| **Speedup vs Go** | 1.0x | **1.79x** | **2.46x** |
+
+> **Test**: 500 documents, 924 chunks, 2.8MB — 5 runs (1 warm-up + 4 measured) on Docker
 
 ### Language Comparison
 
 | Aspect | Go | Rust | Zig |
 |--------|-----|------|-----|
-| **Performance** | Good (baseline) | Better (1.33x) | **Best (1.56x)** |
+| **Performance** | Baseline (21,799 chunks/s) | Better (1.79x) | **Best (2.46x)** |
+| **Stability** | Low (55% variance) | **High (11% variance)** | **High (14% variance)** |
 | **Memory Model** | Garbage Collection | Ownership + Borrowing | Manual Management |
-| **Code Complexity** | Simple (205 lines) | Moderate (243 lines) | Complex (176 lines) |
+| **Code Complexity** | Simple (216 lines) | Moderate (253 lines) | **Compact (193 lines)** |
 | **Build Time** | Fastest | Slowest | Fast |
-| **Binary Size** | Medium | Small | Small |
+| **Binary Size** | Large (1.9M) | **Small (450K)** | Medium (1.1M) |
 | **API Stability** | Stable | Stable | Changing (0.15) |
 
 ### Key Insights
 
-- **Zig** wins with manual memory management and zero GC overhead
-- **Rust** provides good balance of safety and performance  
-- **Go** is easiest to write but suffers from GC pressure
-- **Test data size matters**: Larger datasets show clearer performance differences
+- **Zig** wins with manual memory management and zero GC overhead — **2.46x faster** than Go
+- **Rust** provides excellent stability (11% variance) and safety with good performance (1.79x)
+- **Go** is easiest to write but suffers from high variance (55%) due to GC pressure
+- **Stability matters**: Rust and Zig show consistent performance, Go has unpredictable spikes
+- **Warm-up effect**: Container startup overhead significantly impacts single-run benchmarks
+- **5-run methodology** provides more reliable and representative performance measurements
 
 ---
 
