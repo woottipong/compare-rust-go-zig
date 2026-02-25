@@ -16,7 +16,9 @@ compare-rust-go-zig/
 ├── lightweight-api-gateway/  ✅ API Gateway: JWT, rate limiting, reverse proxy
 ├── realtime-audio-chunker/   ✅ Real-time Audio Chunker (buffer management)
 ├── custom-log-masker/        ✅ Log PII masking (string processing)
-├── vector-db-ingester/       ✅ Vector embeddings generation (memory management)
+├── vector-db-ingester/       ✅  Vector embeddings generation (memory management)
+├── log-aggregator-sidecar/  ✅  Log aggregation + forwarding (HTTP client)
+├── local-asr-llm-proxy/     ✅  ASR/LLM proxy with worker pool (async vs sync)
 ├── <project-name>/           ⬜ projects ถัดไป
 ├── plan.md                   # รายการ projects ทั้งหมด + สถานะ
 └── .windsurf/rules/          # Coding rules
@@ -43,7 +45,7 @@ compare-rust-go-zig/
 
 ---
 
-## ผลการเปรียบเทียบ (8/27 Completed)
+## ผลการเปรียบเทียบ (10/27 Completed)
 
 ### 1. Video Frame Extractor
 ดึง frame จากวิดีโอที่ตำแหน่ง timestamp → output PPM image
@@ -138,15 +140,40 @@ HTTP Gateway พร้อม JWT validation, rate limiting, middleware chain
 
 **Key insight**: Zig ชนะ 2.27x ด้วย manual memory management — Rust มี outlier (501ms) แต่ variance ยังดีกว่า Go
 
+### 9. Local ASR/LLM Proxy
+ASR/LLM Proxy พร้อม Worker Pool และ Job Queue — Async vs Sync I/O
+
+| Metric | Go | **Rust** 🏆 | Zig |
+|--------|-----|-----------|-----|
+| **Throughput** | 242 req/s | **1,526 req/s** | 115 req/s |
+| **Avg Latency** | 191ms | **31ms** | 402ms |
+| **Memory** | 2,968 KB | **1,248 KB** | 72,499 KB |
+| **Binary Size** | 5.7MB | 3.8MB | 7.5MB |
+| **Code Lines** | 317 | 207 | 221 |
+
+**Key insight**: **Rust ชนะขาด 6.3x** เหนือ Go เพราะ `tokio` async multiplexes 50 connections โดยไม่บล็อก thread
+
+### 10. Log Aggregator Sidecar
+ดึง Log จาก Container แปลงเป็น JSON และส่งต่อ — HTTP Client Performance
+
+| Metric | Go | Rust | **Zig** 🏆 |
+|--------|-----|------|-----------|
+| **Throughput** | 22,750 l/s | 25,782 l/s | **54,014 l/s** |
+| **Avg Latency** | 44ms | 39ms | **18ms** |
+| **Binary Size** | 5.9MB | 5.9MB | 7.5MB |
+| **Code Lines** | 370 | 385 | 448 |
+
+**Key insight**: **Zig ชนะขาด 2.4x** เหนือ Rust และ Go เพราะ `readToEndAlloc` + `splitScalar` อ่านไฟล์ครั้งเดียว ไม่มี async overhead
+
 ---
 
 ## 🏆 Overall Score (8 projects)
 
 | ภาษา | Wins | จุดเด่น |
 |------|------|---------|
-| **Zig** | 3 | FFmpeg (vfe/hls) + Vector DB — เร็วสุดใน memory-intensive tasks |
-| **Rust** | 3 | Log masking (12x) + API Gateway + Subtitle — SIMD regex + async I/O |
-| **Go** | 2 | Reverse proxy + Frame extractor — connection pooling + stdlib |
+| **Zig** | 4 | FFmpeg (vfe/hls) + Vector DB + Log Aggregator — sync I/O + manual memory |
+| **Rust** | 3 | ASR Proxy (6.3x) + Log masking (12x) + Subtitle — async tokio + SIMD regex |
+| **Go** | 3 | Reverse proxy + Frame extractor + API Gateway — connection pooling + stdlib |
 
 ---
 
@@ -232,8 +259,8 @@ zig build -Doptimize=ReleaseFast
 |-------|---------|--------|
 | 1 Media (FFmpeg) | vfe, hls, sbe | ✅ Done |
 | 2 Networking | proxy, gateway, audio | ✅ Done |
-| 3 AI/Data | llm-proxy, vector-db, log-masker | 2/3 Done |
-| 4 DevOps | log-aggregator, health-check, watchdog | ⬜ |
+| 3 AI/Data | llm-proxy, vector-db, log-masker | ✅ Done |
+| 4 DevOps | log-aggregator, health-check, watchdog | 1/3 Done |
 | 5 Systems | kv-store, bittorrent, bytecode-vm | ⬜ |
 | 6 Integration | sheets-sync, crawler, tor-tracker | ⬜ |
 | 7 Low-level Networking | dns, port-scanner, quic | ⬜ |

@@ -13,7 +13,7 @@
 | 3.1 | Local ASR/LLM Proxy | ✅ Done | 11,051 req/s | 1,522 req/s | 119 req/s |
 | 3.2 | Vector DB Ingester | ✅ Done | 21,799 chunks/s | 38,945 chunks/s | 53,617 chunks/s |
 | 3.3 | Custom Log Masker | ✅ Done | 3.91 MB/s | 41.71 MB/s | 11.68 MB/s |
-| 4.1 | Log Aggregator Sidecar | 🔧 Implemented | — | — | — |
+| 4.1 | Log Aggregator Sidecar | ✅ Done | 22,750 l/s | 25,782 l/s | 54,014 l/s |
 | 4.2 | Tiny Health Check Agent | ⬜ | — | — | — |
 | 4.3 | Container Watchdog | ⬜ | — | — | — |
 | 5.1 | In-memory Key-Value Store | ⬜ | — | — | — |
@@ -92,7 +92,7 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (9/27)
+### ✅ Completed Projects (10/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
@@ -101,29 +101,31 @@
 6. **Real-time Audio Chunker** — Buffer management, 4-5µs / 5µs / 17ns latency
 7. **Custom Log Masker** — String processing, **41.71 MB/s (Rust)** vs 3.91 MB/s (Go)
 8. **Vector DB Ingester** — Memory management, **53,617 chunks/s (Zig)** vs 21,799 chunks/s (Go)
-9. **Local ASR/LLM Proxy** — Worker pool + queue, **12,951 req/s (Go)** vs 221 req/s (Rust)
+9. **Local ASR/LLM Proxy** — Worker pool + queue, **1,526 req/s (Rust)** vs 242 req/s (Go)
+10. **Log Aggregator Sidecar** — HTTP client performance, **54,014 l/s (Zig)** vs 22,750 l/s (Go)
 
 > *Docker overhead included (~400-500ms container startup)
 
 ### 📊 Performance Insights
-- **Zig** เร็วสุดใน FFmpeg projects (vfe, hls, sbe) — variance ต่ำสุด
+- **Zig** เร็วสุดใน FFmpeg projects (vfe, hls, sbe) + Log Aggregator (2.4x) — sync I/O + manual memory
 - **Rust** เร็วรองมาและ binary size เล็กที่สุด (388KB) ใน FFmpeg projects
 - **Go** ช้ากว่าใน Docker เพราะ bookworm + glibc FFmpeg decode overhead
 - **Connection pooling** สำคัญ — Go reverse proxy ชนะขาด (10K vs 3.6K/2.7K req/s)
 - **Framework choice** สำคัญมาก — Zig manual HTTP 8K req/s → Zap 52K req/s
 - **Regex engine** สำคัญ — Rust `regex` crate เร็วกว่า Go RE2 ถึง 10x (41.71 vs 3.91 MB/s)
-- **Memory model** สำคัญ — Zig manual memory ชนะใน Vector DB (2.46x), Rust regex engine ชนะใน Log Masker (10x)
+- **Memory model** สำคัญ — Zig manual memory ชนะใน Vector DB (2.46x) + Log Aggregator (2.4x), Rust regex engine ชนะใน Log Masker (10x)
+- **Async vs Sync** สำคัญ — Rust async tokio ชนะขาดใน ASR Proxy (6.3x) เพราะ multiplexes connections
 - **Stability matters** — Rust (11% variance) และ Zig (14% variance) มีความเสถียพอดีสูงกว่า Go (55% variance)
 - **5-run methodology** ให้ผลลัพธ์ที่น่าเชื่อถืออยู่และลด outlier จาก warm-up effect
 - **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช่ Alpine)
 
 ### 🎯 ถัดไป (Next Projects)
-- **กลุ่ม 3**: Local ASR/LLM Proxy (AI pipeline) - เหลือ 1 project
+- **กลุ่ม 4**: Tiny Health Check Agent (DevOps) - เหลือ 2 projects
 - **กลุ่ม 7**: DNS Resolver (low-level networking)  
 - **กลุ่ม 8**: PNG Encoder from Scratch (pure algorithms)
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 9 (33.3%)
+- **Completed**: 10 (37.0%)
 - **In Progress**: 0
-- **Remaining**: 18 (66.7%)
+- **Remaining**: 17 (63.0%)
