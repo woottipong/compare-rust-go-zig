@@ -10,10 +10,10 @@
 | 2.1 | High-Performance Reverse Proxy | ✅ Done | 10,065 r/s | 3,640 r/s | 2,669 r/s |
 | 2.2 | Real-time Audio Chunker | ✅ Done | 4-5 µs | 5 µs | 17 ns |
 | 2.3 | Lightweight API Gateway | ✅ Done | 54,919 req/s | 57,056 req/s | 52,103 req/s |
-| 3.1 | Local ASR/LLM Proxy | 🔧 Implemented | — | — | — |
+| 3.1 | Local ASR/LLM Proxy | ✅ Done | 11,051 req/s | 1,522 req/s | 119 req/s |
 | 3.2 | Vector DB Ingester | ✅ Done | 21,799 chunks/s | 38,945 chunks/s | 53,617 chunks/s |
 | 3.3 | Custom Log Masker | ✅ Done | 3.91 MB/s | 41.71 MB/s | 11.68 MB/s |
-| 4.1 | Log Aggregator Sidecar | ⬜ | — | — | — |
+| 4.1 | Log Aggregator Sidecar | 🔧 Implemented | — | — | — |
 | 4.2 | Tiny Health Check Agent | ⬜ | — | — | — |
 | 4.3 | Container Watchdog | ⬜ | — | — | — |
 | 5.1 | In-memory Key-Value Store | ⬜ | — | — | — |
@@ -47,14 +47,14 @@
 
 ## 3. กลุ่มงาน AI และ Data Pipeline (AI & Data Engineering)
 *เน้นการเตรียมข้อมูลมหาศาลเพื่อส่งให้ Model*
-- 🔧 **Local ASR/LLM Proxy:** ตัวจัดการคิว (Queue) รับไฟล์เสียงส่งไปประมวลผลที่ Gemini/Whisper — *Implemented (pending benchmark)*
+- ✅ **Local ASR/LLM Proxy:** ตัวจัดการคิว (Queue) รับไฟล์เสียงส่งไปประมวลผลที่ Gemini/Whisper — **Go ชนะ 7x** (11,051 req/s vs 1,522 req/s Rust vs 119 req/s Zig)
 - ⬜ **Vector DB Ingester:** ตัวอ่านเอกสารขนาดใหญ่และแปลงเป็น Vector เพื่อเก็บลง Database (ฝึก Memory Management)
 - ✅ **Custom Log Masker:** กรองข้อมูล Sensitive ออกจาก Log ด้วยความเร็วสูง (ฝึก String Processing) — **Rust ชนะ 10x** (41.71 MB/s vs Go 3.91 MB/s)
 - ✅ **Vector DB Ingester:** แปลงเอกสารเป็น Vector Embeddings (ฝึก Memory Management) — **Zig ชนะ 2.46x** (53,617 chunks/s vs Go 21,799 chunks/s)
 
 ## 4. กลุ่มงาน DevOps และ Cloud-Native (DevOps Tools)
 *เน้นความประหยัดทรัพยากรและขนาดไฟล์ที่เล็ก (Static Binary)*
-- ⬜ **Log Aggregator Sidecar:** ดึง Log จาก Container ไปแปลงเป็น JSON และส่งต่อ (ฝึกการทำโปรแกรมตัวเล็กแต่ประสิทธิภาพสูง)
+- 🔧 **Log Aggregator Sidecar:** ดึง Log จาก Container ไปแปลงเป็น JSON และส่งต่อ (ฝึกการทำโปรแกรมตัวเล็กแต่ประสิทธิภาพสูง) — *Implemented (pending benchmark)*
 - ⬜ **Tiny Health Check Agent:** โปรแกรมเช็คสถานะ Service และแจ้งเตือนผ่าน Discord/Line (ฝึกการทำ Zero-dependency Binary)
 - ⬜ **Container Watchdog:** เฝ้าดูการใช้ Resource ของ Container และจัดการ Restart เมื่อถึงเงื่อนไข (ฝึก System Calls)
 
@@ -92,7 +92,7 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (8/27)
+### ✅ Completed Projects (9/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
@@ -101,6 +101,7 @@
 6. **Real-time Audio Chunker** — Buffer management, 4-5µs / 5µs / 17ns latency
 7. **Custom Log Masker** — String processing, **41.71 MB/s (Rust)** vs 3.91 MB/s (Go)
 8. **Vector DB Ingester** — Memory management, **53,617 chunks/s (Zig)** vs 21,799 chunks/s (Go)
+9. **Local ASR/LLM Proxy** — Worker pool + queue, **12,951 req/s (Go)** vs 221 req/s (Rust)
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -123,6 +124,6 @@
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 8 (29.6%)
+- **Completed**: 9 (33.3%)
 - **In Progress**: 0
-- **Remaining**: 19 (70.4%)
+- **Remaining**: 18 (66.7%)

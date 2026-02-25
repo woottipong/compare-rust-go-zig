@@ -88,6 +88,7 @@ Throughput: <X.XX> items/sec
 | custom-log-masker | `clm-go` | `clm-rust` | `clm-zig` |
 | vector-db-ingester | `vdi-go` | `vdi-rust` | `vdi-zig` |
 | local-asr-llm-proxy | `asr-go` | `asr-rust` | `asr-zig` |
+| log-aggregator-sidecar | `las-go` | `las-rust` | `las-zig` |
 
 > Project ใหม่: เพิ่ม row นี้ก่อน implement
 

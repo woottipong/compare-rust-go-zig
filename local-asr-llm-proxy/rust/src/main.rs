@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
 // ============================================================================
@@ -52,18 +51,12 @@ struct HealthResponse {
     status: String,
 }
 
-struct Job {
-    id: String,
-    audio_data: String,
-    format: String,
-    language: String,
-    response_tx: oneshot::Sender<Result<TranscriptionResponse, String>>,
-}
-
 struct Stats {
     total_processed: AtomicU64,
     total_latency_ns: AtomicU64,
     start_time: Instant,
+    // Shared HTTP client for connection pooling
+    client: reqwest::Client,
 }
 
 impl Stats {
@@ -72,6 +65,12 @@ impl Stats {
             total_processed: AtomicU64::new(0),
             total_latency_ns: AtomicU64::new(0),
             start_time: Instant::now(),
+            client: Client::builder()
+                .timeout(Duration::from_secs(3))
+                .pool_max_idle_per_host(100)
+                .pool_idle_timeout(Duration::from_secs(30))
+                .build()
+                .unwrap(),
         }
     }
 
@@ -104,12 +103,13 @@ impl Stats {
             throughput,
         }
     }
+
+    fn get_client(&self) -> &Client {
+        &self.client
+    }
 }
 
-struct AppState {
-    job_tx: mpsc::Sender<Job>,
-    stats: Arc<Stats>,
-}
+type AppState = Arc<Stats>;
 
 // ============================================================================
 // Main
@@ -121,32 +121,19 @@ async fn main() {
     let listen_addr = args.get(1).map(|s| s.as_str()).unwrap_or("0.0.0.0:8080");
     let backend_url = args.get(2).map(|s| s.as_str()).unwrap_or("http://localhost:3000");
 
-    let worker_count = num_cpus::get();
-    let queue_size = 1000;
+    print_config(listen_addr, backend_url);
 
-    print_config(listen_addr, backend_url, worker_count, queue_size);
+    let state = Arc::new(Stats::new());
 
-    let (job_tx, job_rx) = mpsc::channel::<Job>(queue_size);
-    let stats = Arc::new(Stats::new());
-
-    // Start workers
-    for worker_id in 0..worker_count {
-        let job_rx = job_rx.clone();
-        let backend_url = backend_url.to_string();
-        let stats = stats.clone();
-
-        tokio::spawn(async move {
-            worker(worker_id, job_rx, &backend_url, stats).await;
-        });
-    }
-
-    let state = Arc::new(AppState { job_tx, stats });
+    // Store backend URL in a static for the handler
+    // This is a hack to avoid passing it through the state
+    BACKEND_URL.set(backend_url.to_string()).ok();
 
     let app = Router::new()
         .route("/transcribe", post(handle_transcribe))
         .route("/health", get(handle_health))
         .route("/stats", get(handle_stats))
-        .with_state(state);
+        .with_state(state.clone());
 
     let listener = tokio::net::TcpListener::bind(listen_addr).await.unwrap();
     println!("Server listening on {}", listen_addr);
@@ -154,59 +141,51 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-fn print_config(listen_addr: &str, backend_url: &str, worker_count: usize, queue_size: usize) {
+// Global backend URL - set once at startup
+static BACKEND_URL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+fn print_config(listen_addr: &str, backend_url: &str) {
     println!("── Configuration ─────────────────────");
     println!("  Listen Addr : {}", listen_addr);
     println!("  Backend URL : {}", backend_url);
-    println!("  Workers     : {}", worker_count);
-    println!("  Queue Size  : {}", queue_size);
+    println!("  Mode        : Direct (no worker pool)");
     println!();
 }
 
 // ============================================================================
-// Worker
+// HTTP Handlers
 // ============================================================================
 
-async fn worker(
-    worker_id: usize,
-    mut job_rx: mpsc::Receiver<Job>,
-    backend_url: &str,
-    stats: Arc<Stats>,
-) {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(3))
-        .pool_max_idle_per_host(10)
-        .build()
-        .unwrap();
+async fn handle_transcribe(
+    State(state): State<AppState>,
+    Json(req): Json<TranscriptionRequest>,
+) -> Result<Json<TranscriptionResponse>, (StatusCode, String)> {
+    let start = Instant::now();
+    
+    let backend_url = BACKEND_URL.get().unwrap();
 
-    while let Some(job) = job_rx.recv().await {
-        let start = Instant::now();
+    // Forward to backend directly using shared connection pool
+    let result = forward_to_backend(state.get_client(), backend_url, &req).await;
 
-        let result = forward_to_backend(&client, backend_url, &job).await;
+    // Record stats
+    let latency_ns = start.elapsed().as_nanos() as u64;
+    state.add_request(latency_ns);
 
-        // Record stats
-        let latency_ns = start.elapsed().as_nanos() as u64;
-        stats.add_request(latency_ns);
-
-        // Send response
-        let response = match result {
-            Ok(resp) => Ok(resp),
-            Err(e) => Err(format!("Backend error: {}", e)),
-        };
-
-        let _ = job.response_tx.send(response);
+    match result {
+        Ok(resp) => Ok(Json(resp)),
+        Err(e) => Err((StatusCode::BAD_GATEWAY, format!("Backend error: {}", e))),
     }
 }
 
 async fn forward_to_backend(
     client: &Client,
     backend_url: &str,
-    job: &Job,
-) -> Result<TranscriptionResponse, Box<dyn std::error::Error>> {
+    req: &TranscriptionRequest,
+) -> Result<TranscriptionResponse, Box<dyn std::error::Error + Send + Sync>> {
     let req_body = serde_json::json!({
-        "audio_data": job.audio_data,
-        "format": job.format,
-        "language": job.language,
+        "audio_data": req.audio_data,
+        "format": req.format,
+        "language": req.language,
     });
 
     let response = client
@@ -218,43 +197,11 @@ async fn forward_to_backend(
     let backend_resp: BackendResponse = response.json().await?;
 
     Ok(TranscriptionResponse {
-        job_id: job.id.clone(),
+        job_id: Uuid::new_v4().to_string(),
         status: "completed".to_string(),
         transcription: backend_resp.transcription,
         processing_time_ms: backend_resp.processing_time_ms,
     })
-}
-
-// ============================================================================
-// HTTP Handlers
-// ============================================================================
-
-async fn handle_transcribe(
-    State(state): State<Arc<AppState>>,
-    Json(req): Json<TranscriptionRequest>,
-) -> Result<Json<TranscriptionResponse>, (StatusCode, String)> {
-    let (response_tx, response_rx) = oneshot::channel();
-
-    let job = Job {
-        id: Uuid::new_v4().to_string(),
-        audio_data: req.audio_data,
-        format: req.format,
-        language: req.language,
-        response_tx,
-    };
-
-    // Try to enqueue job
-    if state.job_tx.send(job).await.is_err() {
-        return Err((StatusCode::SERVICE_UNAVAILABLE, "Queue full".to_string()));
-    }
-
-    // Wait for response with timeout
-    match tokio::time::timeout(Duration::from_secs(5), response_rx).await {
-        Ok(Ok(Ok(resp))) => Ok(Json(resp)),
-        Ok(Ok(Err(e))) => Err((StatusCode::INTERNAL_SERVER_ERROR, e)),
-        Ok(Err(_)) => Err((StatusCode::INTERNAL_SERVER_ERROR, "Channel closed".to_string())),
-        Err(_) => Err((StatusCode::GATEWAY_TIMEOUT, "Request timeout".to_string())),
-    }
 }
 
 async fn handle_health() -> Json<HealthResponse> {
@@ -263,6 +210,6 @@ async fn handle_health() -> Json<HealthResponse> {
     })
 }
 
-async fn handle_stats(State(state): State<Arc<AppState>>) -> Json<StatsResponse> {
-    Json(state.stats.get_stats())
+async fn handle_stats(State(state): State<AppState>) -> Json<StatsResponse> {
+    Json(state.get_stats())
 }

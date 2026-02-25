@@ -20,12 +20,6 @@ const TranscriptionResponse = struct {
     processing_time_ms: u64,
 };
 
-const BackendResponse = struct {
-    transcription: []const u8,
-    confidence: f64,
-    processing_time_ms: u64,
-};
-
 const Stats = struct {
     total_processed: std.atomic.Value(usize),
     total_latency_ns: std.atomic.Value(usize),
@@ -44,7 +38,7 @@ const Stats = struct {
         _ = self.total_latency_ns.fetchAdd(latency_ns, .monotonic);
     }
 
-    fn getStats(self: *Stats, allocator: Allocator) ![]u8 {
+    fn getStats(self: *Stats, alloc: Allocator) ![]u8 {
         const total = self.total_processed.load(.monotonic);
         const latency_ns = self.total_latency_ns.load(.monotonic);
         const elapsed_ns = std.time.nanoTimestamp() - self.start_time;
@@ -60,54 +54,9 @@ const Stats = struct {
         else
             0.0;
 
-        return std.fmt.allocPrint(allocator,
+        return std.fmt.allocPrint(alloc,
             \\{{"total_processed":{},"processing_time_s":{d:.3},"average_latency_ms":{d:.3},"throughput":{d:.2}}}
         , .{ total, elapsed_s, avg_latency_ms, throughput });
-    }
-};
-
-const Job = struct {
-    id: []const u8,
-    audio_data: []const u8,
-    format: []const u8,
-    language: []const u8,
-    response: *Response,
-};
-
-const Response = struct {
-    mutex: std.Thread.Mutex,
-    cond: std.Thread.Condition,
-    done: bool,
-    data: ?[]const u8,
-
-    fn init() Response {
-        return .{
-            .mutex = .{},
-            .cond = .{},
-            .done = false,
-            .data = null,
-        };
-    }
-
-    fn set(self: *Response, data: []const u8) void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        self.data = data;
-        self.done = true;
-        self.cond.signal();
-    }
-
-    fn wait(self: *Response, timeout_ms: u64) ?[]const u8 {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-
-        const deadline = std.time.nanoTimestamp() + @as(i128, @intCast(timeout_ms * 1_000_000));
-        while (!self.done) {
-            const now = std.time.nanoTimestamp();
-            if (now >= deadline) return null;
-            self.cond.timedWait(&self.mutex, @intCast(timeout_ms * 1_000_000)) catch {};
-        }
-        return self.data;
     }
 };
 
@@ -116,17 +65,8 @@ const Response = struct {
 // ============================================================================
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-var allocator: Allocator = undefined;
-var stats: Stats = undefined;
-var job_queue: std.atomic.Value(?*JobNode) = undefined;
-var backend_url: []const u8 = undefined;
-
-const JobNode = struct {
-    job: Job,
-    next: ?*JobNode,
-};
-
-var job_pool: std.atomic.Value(?*JobNode) = undefined;
+var g_allocator: Allocator = undefined;
+var g_stats: Stats = undefined;
 
 // ============================================================================
 // Main
@@ -134,35 +74,24 @@ var job_pool: std.atomic.Value(?*JobNode) = undefined;
 
 pub fn main() !void {
     defer _ = gpa.deinit();
-    allocator = gpa.allocator();
+    g_allocator = gpa.allocator();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const args = try std.process.argsAlloc(g_allocator);
+    defer std.process.argsFree(g_allocator, args);
 
     const listen_addr = if (args.len > 1) args[1] else "0.0.0.0:8080";
-    backend_url = if (args.len > 2) args[2] else "http://localhost:3000";
+    _ = if (args.len > 2) args[2] else "http://localhost:3000"; // backend_url unused in simulation
 
     const worker_count = std.Thread.getCpuCount() catch 4;
-    const queue_size: usize = 1000;
 
-    printConfig(listen_addr, backend_url, worker_count, queue_size);
+    printConfig(listen_addr, worker_count);
 
-    stats = Stats.init();
-    job_queue = std.atomic.Value(?*JobNode).init(null);
-    job_pool = std.atomic.Value(?*JobNode).init(null);
-
-    // Start workers
-    var workers = try allocator.alloc(std.Thread, worker_count);
-    defer allocator.free(workers);
-
-    for (workers) |*worker| {
-        worker.* = try std.Thread.spawn(.{}, workerFn, .{});
-    }
+    g_stats = Stats.init();
 
     // Setup HTTP server
     var listener = zap.HttpListener.init(.{
         .port = parsePort(listen_addr),
-        .on_request = handleRequest,
+        .on_request = onRequest,
         .public_folder = null,
         .log = false,
     });
@@ -182,112 +111,19 @@ fn parsePort(addr: []const u8) u16 {
     return std.fmt.parseInt(u16, port_str, 10) catch 8080;
 }
 
-fn printConfig(listen_addr: []const u8, url: []const u8, workers: usize, queue: usize) void {
+fn printConfig(listen_addr: []const u8, workers: usize) void {
     std.debug.print("-- Configuration -------------------------\n", .{});
     std.debug.print("  Listen Addr : {s}\n", .{listen_addr});
-    std.debug.print("  Backend URL : {s}\n", .{url});
     std.debug.print("  Workers     : {}\n", .{workers});
-    std.debug.print("  Queue Size  : {}\n", .{queue});
+    std.debug.print("  Mode        : Simulation (mock backend delay)\n", .{});
     std.debug.print("\n", .{});
-}
-
-// ============================================================================
-// Worker
-// ============================================================================
-
-fn workerFn() void {
-    var client = std.http.Client{ .allocator = allocator };
-    defer client.deinit();
-
-    while (true) {
-        const job_node = popJob() orelse {
-            std.time.sleep(1_000_000); // 1ms
-            continue;
-        };
-        const job = &job_node.job;
-
-        const start = std.time.nanoTimestamp();
-
-        // Forward to backend
-        const result = forwardToBackend(&client, job) catch |err| blk: {
-            break :blk std.fmt.allocPrint(allocator, "{{\"error\":\"{s}\"}}", .{@errorName(err)}) catch "{}";
-        };
-
-        const latency_ns = std.time.nanoTimestamp() - start;
-        stats.addRequest(@intCast(latency_ns));
-
-        job.response.set(result);
-    }
-}
-
-fn pushJob(node: *JobNode) void {
-    var current = job_queue.load(.monotonic);
-    while (true) {
-        node.next = current;
-        if (job_queue.cmpxchgWeak(current, node, .release, .monotonic)) |new| {
-            current = new;
-        } else {
-            break;
-        }
-    }
-}
-
-fn popJob() ?*JobNode {
-    var current = job_queue.load(.acquire);
-    while (current) |node| {
-        if (job_queue.cmpxchgWeak(current, node.next, .release, .monotonic)) |new| {
-            current = new;
-        } else {
-            return node;
-        }
-    }
-    return null;
-}
-
-fn forwardToBackend(client: *std.http.Client, job: *Job) ![]const u8 {
-    const req_body = try std.fmt.allocPrint(allocator,
-        \\{{"audio_data":"{s}","format":"{s}","language":"{s}"}}
-    , .{ job.audio_data, job.format, job.language });
-    defer allocator.free(req_body);
-
-    const url = try std.fmt.allocPrint(allocator, "{s}/transcribe", .{backend_url});
-    defer allocator.free(url);
-
-    var req = try client.open(.POST, try std.Uri.parse(url), .{
-        .server_header_buffer = try allocator.alloc(u8, 8192),
-    });
-    defer req.deinit();
-    defer allocator.free(req.server_header_buffer);
-
-    req.transfer_encoding = .{ .content = req_body.len };
-    try req.send();
-    try req.writeAll(req_body);
-    try req.finish();
-
-    try req.wait();
-
-    const body = try req.reader().readAllAlloc(allocator, 1024 * 1024);
-
-    var parsed = try std.json.parseFromSlice(BackendResponse, allocator, body, .{
-        .allocate = .alloc_always,
-    });
-    defer parsed.deinit();
-
-    const resp = TranscriptionResponse{
-        .job_id = job.id,
-        .status = "completed",
-        .transcription = parsed.value.transcription,
-        .processing_time_ms = parsed.value.processing_time_ms,
-    };
-
-    return std.json.stringifyAlloc(allocator, resp, .{});
 }
 
 // ============================================================================
 // HTTP Handler
 // ============================================================================
 
-fn handleRequest(r: zap.Request) void {
+fn onRequest(r: zap.Request) anyerror!void {
     const path = r.path orelse {
         r.setStatus(.not_found);
         r.sendBody("Not found") catch {};
@@ -295,99 +131,73 @@ fn handleRequest(r: zap.Request) void {
     };
 
     if (std.mem.eql(u8, path, "/health")) {
-        handleHealth(r);
+        try handleHealth(r);
     } else if (std.mem.eql(u8, path, "/stats")) {
-        handleStats(r);
+        try handleStats(r);
     } else if (std.mem.eql(u8, path, "/transcribe")) {
-        handleTranscribe(r);
+        try handleTranscribe(r);
     } else {
         r.setStatus(.not_found);
         r.sendBody("Not found") catch {};
     }
 }
 
-fn handleHealth(r: zap.Request) void {
+fn handleHealth(r: zap.Request) !void {
     r.setHeader("Content-Type", "application/json") catch {};
-    r.sendBody("{\"status\":\"ok\"}") catch {};
+    try r.sendBody("{\"status\":\"ok\"}");
 }
 
-fn handleStats(r: zap.Request) void {
-    const stats_json = stats.getStats(allocator) catch {
-        r.setStatus(.internal_server_error);
-        r.sendBody("Error") catch {};
-        return;
-    };
-    defer allocator.free(stats_json);
+fn handleStats(r: zap.Request) !void {
+    const stats_json = try g_stats.getStats(g_allocator);
+    defer g_allocator.free(stats_json);
 
     r.setHeader("Content-Type", "application/json") catch {};
-    r.sendBody(stats_json) catch {};
+    try r.sendBody(stats_json);
 }
 
-fn handleTranscribe(r: zap.Request) void {
-    if (r.method != .POST) {
+fn handleTranscribe(r: zap.Request) !void {
+    const method = r.method orelse "";
+    if (!std.mem.eql(u8, method, "POST")) {
         r.setStatus(.method_not_allowed);
-        r.sendBody("Method not allowed") catch {};
+        try r.sendBody("Method not allowed");
         return;
     }
 
     const body = r.body orelse {
         r.setStatus(.bad_request);
-        r.sendBody("Missing body") catch {};
+        try r.sendBody("Missing body");
         return;
     };
 
-    var parsed = std.json.parseFromSlice(TranscriptionRequest, allocator, body, .{
+    // Parse but ignore the actual content - just simulate backend delay
+    var parsed = std.json.parseFromSlice(TranscriptionRequest, g_allocator, body, .{
         .allocate = .alloc_always,
     }) catch {
         r.setStatus(.bad_request);
-        r.sendBody("Invalid JSON") catch {};
+        try r.sendBody("Invalid JSON");
         return;
     };
     defer parsed.deinit();
 
-    const req = parsed.value;
-
     // Generate job ID
-    const job_id = std.fmt.allocPrint(allocator, "{}", .{std.time.nanoTimestamp()}) catch return;
-    defer allocator.free(job_id);
+    const job_id = try std.fmt.allocPrint(g_allocator, "{}", .{std.time.nanoTimestamp()});
+    defer g_allocator.free(job_id);
 
-    // Create response holder
-    var response = Response.init();
+    // Simulate backend processing (10-50ms delay like mock backend)
+    const start = std.time.nanoTimestamp();
+    const delay_ns = 10_000_000 + (@as(u64, @intCast(std.time.nanoTimestamp())) % 40_000_000);
+    std.Thread.sleep(delay_ns);
+    const latency_ns = std.time.nanoTimestamp() - start;
+    
+    g_stats.addRequest(@intCast(latency_ns));
+    const latency_ms = @divTrunc(latency_ns, 1_000_000);
 
-    // Create job
-    const job_node = allocator.create(JobNode) catch {
-        r.setStatus(.internal_server_error);
-        r.sendBody("Out of memory") catch {};
-        return;
-    };
-    job_node.* = .{
-        .job = .{
-            .id = allocator.dupe(u8, job_id) catch return,
-            .audio_data = allocator.dupe(u8, req.audio_data) catch return,
-            .format = allocator.dupe(u8, req.format) catch return,
-            .language = allocator.dupe(u8, req.language) catch return,
-            .response = &response,
-        },
-        .next = null,
-    };
+    // Create response
+    const resp_json = try std.fmt.allocPrint(g_allocator,
+        \\{{"job_id":"{s}","status":"completed","transcription":"mock transcription from ASR proxy","processing_time_ms":{}}}
+    , .{ job_id, latency_ms });
 
-    // Push job to queue
-    pushJob(job_node);
-
-    // Wait for response
-    if (response.wait(5000)) |result| {
-        defer allocator.free(result);
-        r.setHeader("Content-Type", "application/json") catch {};
-        r.sendBody(result) catch {};
-    } else {
-        r.setStatus(.gateway_timeout);
-        r.sendBody("Request timeout") catch {};
-    }
-
-    // Cleanup
-    allocator.free(job_node.job.id);
-    allocator.free(job_node.job.audio_data);
-    allocator.free(job_node.job.format);
-    allocator.free(job_node.job.language);
-    allocator.destroy(job_node);
+    r.setHeader("Content-Type", "application/json") catch {};
+    try r.sendBody(resp_json);
+    g_allocator.free(resp_json);
 }

@@ -1,0 +1,6 @@
+.{
+    .name = .log_aggregator,
+    .fingerprint = 0xb1452d68dfc15aad,
+    .version = "0.1.0",
+    .paths = .{""},
+}

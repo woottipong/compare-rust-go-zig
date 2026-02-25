@@ -1,16 +1,12 @@
 .{
     .name = .asr_proxy,
+    .fingerprint = 0xbcb152b9b1443ead,
     .version = "0.1.0",
-    .minimum_zig_version = "0.15.0",
     .dependencies = .{
         .zap = .{
-            .url = "https://github.com/zigzap/zap/archive/refs/tags/v0.11.0.tar.gz",
-            .hash = "zap-0.11.0-JKH6T2XNHNSYKQZDPE5NQWIMJWQGRSLR6RJF6QWY5F6Y5F6Y5F6Y",
+            .url = "git+https://github.com/zigzap/zap?ref=v0.11.0#66c5dc42c781bbb8a9100afda3c7e69ee96eddf3",
+            .hash = "zap-0.10.6-GoeB8xCEJABLgoiZjWZMMT5TsoZ5OO2EZe6j24RTUYEH",
         },
     },
-    .paths = .{
-        "src",
-        "build.zig",
-        "build.zig.zon",
-    },
+    .paths = .{""},
 }
