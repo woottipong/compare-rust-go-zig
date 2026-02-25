@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ffmpeg-sys-next = "8.0"
+ffmpeg-sys-next = "6"
 anyhow = "1.0"
 scopeguard = "1.2"
 

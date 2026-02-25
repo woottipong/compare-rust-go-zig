@@ -1,31 +1,26 @@
-FROM debian:bookworm-slim AS builder
+FROM alpine:3.21 AS builder
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget xz-utils \
-    pkg-config \
-    libavformat-dev \
-    libavcodec-dev \
-    libavutil-dev \
-    libswscale-dev \
-    libswresample-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+    wget xz \
+    pkgconfig \
+    ffmpeg-dev \
+    musl-dev \
+    gcc
 
-RUN wget -q https://ziglang.org/download/0.15.0/zig-linux-x86_64-0.15.0.tar.xz \
-    && tar -xf zig-linux-x86_64-0.15.0.tar.xz \
-    && mv zig-linux-x86_64-0.15.0 /usr/local/zig \
-    && rm zig-linux-x86_64-0.15.0.tar.xz
+RUN wget -q https://ziglang.org/download/0.14.0/zig-linux-aarch64-0.14.0.tar.xz \
+    && tar -xf zig-linux-aarch64-0.14.0.tar.xz \
+    && mv zig-linux-aarch64-0.14.0 /usr/local/zig \
+    && rm zig-linux-aarch64-0.14.0.tar.xz
 ENV PATH="/usr/local/zig:$PATH"
 
 WORKDIR /src
 COPY build.zig build.zig.zon* ./
 COPY src ./src
-RUN zig build -Doptimize=ReleaseFast
+RUN mkdir -p /out && zig build -Doptimize=ReleaseFast
 RUN cp zig-out/bin/subtitle-burn-in-engine /out/subtitle-zig
 
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libavformat60 libavcodec60 libavutil58 libswscale7 libswresample4 \
-    && rm -rf /var/lib/apt/lists/*
+FROM alpine:3.21
+RUN apk add --no-cache ffmpeg-libs
 
 COPY --from=builder /out/subtitle-zig /usr/local/bin/subtitle-zig
 ENTRYPOINT ["subtitle-zig"]
