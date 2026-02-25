@@ -59,6 +59,27 @@ zig build -Doptimize=ReleaseFast
 ./zig-out/bin/realtime-audio-chunker ../test-data/sample.wav
 ```
 
+## Docker Build & Run
+
+### Build Images
+```bash
+# Build all images
+docker build -t rac-go   go/
+docker build -t rac-rust rust/
+docker build -t rac-zig  zig/
+```
+
+### Docker Run
+```bash
+# Create test data first
+ffmpeg -f lavfi -i sine=frequency=440:duration=10 -ar 16000 -ac 1 -c:a pcm_s16le test-data/sample.wav
+
+# Run with test data
+docker run --rm -v "$(pwd)/test-data:/data:ro" rac-go /data/sample.wav
+docker run --rm -v "$(pwd)/test-data:/data:ro" rac-rust /data/sample.wav
+docker run --rm -v "$(pwd)/test-data:/data:ro" rac-zig /data/sample.wav
+```
+
 ## Benchmark
 วัดผลด้วย `benchmark/run.sh` ซึ่งจะสร้าง Docker container และประมวลผลไฟล์ `sample.wav` โดยจำลองเวลาจริง (10 วินาที)
 

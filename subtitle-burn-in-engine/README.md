@@ -55,6 +55,42 @@ zig build -Doptimize=ReleaseFast
 ./zig-out/bin/subtitle-burn-in-engine test-data/video.mp4 test-data/subs.srt output.mp4
 ```
 
+## Docker Build & Run
+
+### Build Images
+```bash
+# Build all images
+docker build -t sbe-go   go/
+docker build -t sbe-rust rust/
+docker build -t sbe-zig  zig/
+
+# Run with test data
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" sbe-go \
+  /data/video.mp4 /data/subs.srt /out/output_go.mp4
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" sbe-rust \
+  /data/video.mp4 /data/subs.srt /out/output_rust.mp4
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" sbe-zig \
+  /data/video.mp4 /data/subs.srt /out/output_zig.mp4
+```
+
+### Docker Run (Interactive)
+```bash
+# Create output directory
+mkdir -p output
+
+# Go
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" sbe-go \
+  /data/video.mp4 /data/subs.srt /out/output.mp4
+
+# Rust
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" sbe-rust \
+  /data/video.mp4 /data/subs.srt /out/output.mp4
+
+# Zig
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" sbe-zig \
+  /data/video.mp4 /data/subs.srt /out/output.mp4
+```
+
 ## Benchmark
 ```bash
 cd subtitle-burn-in-engine

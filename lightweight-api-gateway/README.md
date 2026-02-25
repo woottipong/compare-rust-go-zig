@@ -57,6 +57,48 @@ zig build -Doptimize=ReleaseFast
 ./zig-out/bin/lightweight-api-gateway :8080 http://localhost:3000
 ```
 
+## Docker Build & Run
+
+### Build Images
+```bash
+# Build all images
+docker build -t gw-go   go/
+docker build -t gw-rust rust/
+docker build -t gw-zig  zig/
+```
+
+### Docker Run (HTTP Mode)
+```bash
+# Create Docker network for gateway + backend
+docker network create gw-net
+
+# Start mock backend
+docker run -d --network gw-net --name mock-backend -p 3000:3000 \
+  python:3.12-slim python3 -c "
+from http.server import BaseHTTPRequestHandler, HTTPServer
+class H(BaseHTTPRequestHandler):
+    def do_GET(self): self.send_response(200); self.end_headers(); self.wfile.write(b'OK')
+    def log_message(self,*a): pass
+HTTPServer(('0.0.0.0',3000),H).serve_forever()
+"
+
+# Run Gateway
+# Go
+docker run -d --network gw-net -p 8080:8080 --name gateway-go gw-go \
+  0.0.0.0:8080 http://mock-backend:3000
+
+# Rust
+docker run -d --network gw-net -p 8080:8080 --name gateway-rust gw-rust \
+  0.0.0.0:8080 http://mock-backend:3000
+
+# Zig
+docker run -d --network gw-net -p 8080:8080 --name gateway-zig gw-zig \
+  0.0.0.0:8080 http://mock-backend:3000
+```
+
+### Test Gateway
+curl http://localhost:8080/api/test
+
 ## Benchmark
 ```bash
 cd benchmark

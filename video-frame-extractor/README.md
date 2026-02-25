@@ -61,6 +61,36 @@ zig build -Doptimize=ReleaseFast
 ./zig-out/bin/video-frame-extractor ../test-data/sample.mp4 5.0 ../output_zig.ppm
 ```
 
+## Docker Build & Run
+
+### Build Images
+```bash
+# Build all images
+docker build -t vfe-go   go/
+docker build -t vfe-rust rust/
+docker build -t vfe-zig  zig/
+
+# Run with test data
+docker run --rm -v "$(pwd)/test-data:/data:ro" vfe-go /data/sample.mp4 5.0 /data/output.ppm
+docker run --rm -v "$(pwd)/test-data:/data:ro" vfe-rust /data/sample.mp4 5.0 /data/output.ppm
+docker run --rm -v "$(pwd)/test-data:/data:ro" vfe-zig /data/sample.mp4 5.0 /data/output.ppm
+```
+
+### Docker Run (Interactive)
+```bash
+# Go
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" vfe-go \
+  /data/sample.mp4 5.0 /out/output_go.ppm
+
+# Rust
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" vfe-rust \
+  /data/sample.mp4 5.0 /out/output_rust.ppm
+
+# Zig
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" vfe-zig \
+  /data/sample.mp4 5.0 /out/output_zig.ppm
+```
+
 ## Benchmark
 ```bash
 cd video-frame-extractor

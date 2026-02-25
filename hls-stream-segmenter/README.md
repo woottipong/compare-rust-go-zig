@@ -55,6 +55,42 @@ zig build -Doptimize=ReleaseFast
 ./zig-out/bin/hls-stream-segmenter ../test-data/sample.mp4 output_dir 10
 ```
 
+## Docker Build & Run
+
+### Build Images
+```bash
+# Build all images
+docker build -t hls-go   go/
+docker build -t hls-rust rust/
+docker build -t hls-zig  zig/
+
+# Run with test data
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" hls-go \
+  /data/sample.mp4 /out/segments 10
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" hls-rust \
+  /data/sample.mp4 /out/segments 10
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" hls-zig \
+  /data/sample.mp4 /out/segments 10
+```
+
+### Docker Run (Interactive)
+```bash
+# Create output directory
+mkdir -p output
+
+# Go
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" hls-go \
+  /data/sample.mp4 /out/segments 10
+
+# Rust
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" hls-rust \
+  /data/sample.mp4 /out/segments 10
+
+# Zig
+docker run --rm -v "$(pwd)/test-data:/data:ro" -v "$(pwd)/output:/out" hls-zig \
+  /data/sample.mp4 /out/segments 10
+```
+
 ## Benchmark
 ```bash
 cd hls-stream-segmenter
