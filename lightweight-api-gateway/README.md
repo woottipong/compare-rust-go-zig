@@ -101,15 +101,12 @@ curl http://localhost:8080/api/test
 
 ## Benchmark
 ```bash
-cd benchmark
-./run.sh
-
-# Test with wrk
-wrk -t12 -c400 -d30s http://localhost:8080/api/test
-
-# Test with JWT
-wrk -t12 -c100 -d30s -H "Authorization: Bearer <token>" http://localhost:8080/api/protected
+bash benchmark/run.sh
 ```
+
+ผลลัพธ์จะถูก save อัตโนมัติลง `benchmark/results/lightweight-api-gateway_YYYYMMDD_HHMMSS.txt`
+
+*(Methodology: `wrk -t4 -c50 -d3s` ผ่าน Docker network — mock backend อยู่ใน container เดียวกัน)*
 
 ## การเปรียบเทียบ
 
@@ -123,6 +120,40 @@ wrk -t12 -c100 -d30s -H "Authorization: Bearer <token>" http://localhost:8080/ap
 | **Memory Usage** | 11,344 KB | 2,528 KB | 27,680 KB |
 | **Binary Size** | 9.1MB | 1.6MB | 233KB |
 | **Code Lines** | 209 | 173 | 146 |
+
+## ผลการวัด (Benchmark Results)
+
+```
+╔══════════════════════════════════════════╗
+║   Lightweight API Gateway Benchmark      ║
+╚══════════════════════════════════════════╝
+  Tool     : wrk -t4 -c50 -d3s
+  Mode     : Docker network
+
+── Go (Fiber) ─────────────────────────────────
+  Requests/sec : 54919.00
+  Avg Latency  : 0.91ms
+
+── Rust (axum) ────────────────────────────────
+  Requests/sec : 57056.00
+  Avg Latency  : 0.88ms
+
+── Zig (Zap) ──────────────────────────────────
+  Requests/sec : 52103.00
+  Avg Latency  : 0.96ms
+
+── Binary Size ───────────────────────────────
+  Go  : 9.1MB
+  Rust: 1.6MB
+  Zig : 233KB
+
+── Code Lines ────────────────────────────────
+  Go  : 209 lines
+  Rust: 173 lines
+  Zig : 146 lines
+```
+
+**Key insight**: ทุกภาษาอยู่ใน ballpark เดียวกัน (~50-57K req/s) เมื่อใช้ async framework ที่เหมาะสม
 
 ## สรุปผล
 - **Rust (axum)** เร็วสุด 57,056 req/s, memory ต่ำสุด (2.5MB) — Tokio async I/O เป็น winner

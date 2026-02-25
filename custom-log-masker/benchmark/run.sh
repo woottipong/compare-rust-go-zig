@@ -72,43 +72,70 @@ build_image "clm-rust" "$PROJECT_DIR/rust"
 build_image "clm-zig"  "$PROJECT_DIR/zig"
 echo ""
 
-# Benchmark function
+# Benchmark function (5 runs: 1 warm-up + 4 measured)
+RUNS=5
+WARMUP=1
+
 run_benchmark() {
     local name="$1" image="$2"
 
     printf "── %-4s ───────────────────────────────────────\n" "$name"
 
-    # Run and capture stats from stderr
-    local output
-    output=$(docker run --rm -v "$INPUT_FILE:/data/input.log:ro" "$image" \
-        --input /data/input.log --output /dev/null 2>&1)
+    local times=() min="" max=""
+    local lines="" matches="" throughput="" lines_per_sec=""
 
-    # Parse statistics
-    local lines bytes matches time throughput lines_per_sec
-    lines=$(echo "$output" | grep "Lines processed:" | awk '{print $3}')
-    bytes=$(echo "$output" | grep "Bytes read:" | awk '{print $3}')
-    matches=$(echo "$output" | grep "Matches found:" | awk '{print $3}')
-    time=$(echo "$output" | grep "Processing time:" | awk '{print $3}')
-    throughput=$(echo "$output" | grep "Throughput:" | awk '{print $2}')
-    lines_per_sec=$(echo "$output" | grep "Lines/sec:" | awk '{print $2}')
+    for i in $(seq 1 $RUNS); do
+        local output
+        output=$(docker run --rm -v "$INPUT_FILE:/data/input.log:ro" "$image" \
+            --input /data/input.log --output /dev/null 2>&1)
 
-    if [ -n "$lines" ]; then
-        printf "  Lines processed : %s\n" "$lines"
-        printf "  Matches found   : %s\n" "$matches"
-        printf "  Processing time : %ss\n" "$time"
-        printf "  Throughput      : %s MB/s\n" "$throughput"
-        printf "  Lines/sec       : %s\n" "$lines_per_sec"
-    else
-        echo "  FAILED — output:"
-        echo "$output"
-    fi
+        if [ -z "$(echo "$output" | grep "Lines processed:")" ]; then
+            echo "  FAILED (run $i) — output:"
+            echo "$output"
+            echo ""
+            return
+        fi
+
+        local time_raw elapsed_ms
+        time_raw=$(echo "$output" | grep "Processing time:" | awk '{print $3}')
+        elapsed_ms=$(awk -v t="$time_raw" 'BEGIN { printf "%d", t * 1000 }')
+
+        if [ "$i" -le "$WARMUP" ]; then
+            printf "  Run %d (warm-up): %dms\n" "$i" "$elapsed_ms"
+        else
+            printf "  Run %d           : %dms\n" "$i" "$elapsed_ms"
+            times+=("$elapsed_ms")
+            [ -z "$min" ] || [ "$elapsed_ms" -lt "$min" ] && min=$elapsed_ms
+            [ -z "$max" ] || [ "$elapsed_ms" -gt "$max" ] && max=$elapsed_ms
+        fi
+
+        # capture stats from last measured run
+        if [ "$i" -eq "$RUNS" ]; then
+            lines=$(echo "$output"        | grep "Lines processed:" | awk '{print $3}')
+            matches=$(echo "$output"      | grep "Matches found:"   | awk '{print $3}')
+            throughput=$(echo "$output"   | grep "Throughput:"      | awk '{print $2}')
+            lines_per_sec=$(echo "$output" | grep "Lines/sec:"      | awk '{print $2}')
+        fi
+    done
+
+    local total=0
+    for t in "${times[@]}"; do total=$((total + t)); done
+    local avg=$((total / ${#times[@]}))
+
+    echo "  ─────────────────────────────────────────"
+    printf "  Avg: %dms  |  Min: %dms  |  Max: %dms\n" "$avg" "$min" "$max"
+    echo ""
+    printf "  Lines processed : %s\n"  "$lines"
+    printf "  Matches found   : %s\n"  "$matches"
+    printf "  Throughput      : %s MB/s\n" "$throughput"
+    printf "  Lines/sec       : %s\n"  "$lines_per_sec"
     echo ""
 }
 
 # Run benchmarks
-run_benchmark "go"   "clm-go"
-run_benchmark "rust" "clm-rust"
-run_benchmark "zig"  "clm-zig"
+run_benchmark "Go"   "clm-go"
+run_benchmark "Rust" "clm-rust"
+run_benchmark "Zig"  "clm-zig"
 
 # Binary Size
 echo "── Binary Size ───────────────────────────────"

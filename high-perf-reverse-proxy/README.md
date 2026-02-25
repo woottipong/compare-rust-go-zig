@@ -78,9 +78,10 @@ docker build -t hprp-zig  zig/
 ## Benchmark
 
 ```bash
-# รัน benchmark ผ่าน Docker (รวม mock backends)
 bash benchmark/run.sh
 ```
+
+ผลลัพธ์จะถูก save อัตโนมัติลง `benchmark/results/high-perf-reverse-proxy_YYYYMMDD_HHMMSS.txt`
 
 ---
 
@@ -94,6 +95,38 @@ bash benchmark/run.sh
 | **Code Lines** | **158** | 160 | 166 |
 
 > Benchmark: `wrk -t4 -c50 -d5s` ผ่าน Docker network พร้อม 3 Python mock backends
+
+## ผลการวัด (Benchmark Results)
+
+```
+╔══════════════════════════════════════════╗
+║  High-Performance Reverse Proxy Benchmark ║
+╚══════════════════════════════════════════╝
+
+── Go   ───────────────────────────────────────
+  Requests/sec : 10065.43
+  Avg Latency  : 5.60ms
+
+── Rust ───────────────────────────────────────
+  Requests/sec : 3640.21
+  Avg Latency  : 12.66ms
+
+── Zig  ───────────────────────────────────────
+  Requests/sec : 2669.87
+  Avg Latency  : 16.24ms
+
+── Binary Size ───────────────────────────────
+  Go  : 5.2MB
+  Rust: 1.2MB
+  Zig : 2.4MB
+
+── Code Lines ────────────────────────────────
+  Go  : 158 lines
+  Rust: 160 lines
+  Zig : 166 lines
+```
+
+**Key insight**: Go ชนะขาดเพราะ `httputil.ReverseProxy` มี connection pooling — reuse TCP connections ลด handshake overhead
 
 ---
 

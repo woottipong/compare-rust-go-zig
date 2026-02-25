@@ -81,13 +81,76 @@ docker run --rm -v "$(pwd)/test-data:/data:ro" rac-zig /data/sample.wav
 ```
 
 ## Benchmark
-วัดผลด้วย `benchmark/run.sh` ซึ่งจะสร้าง Docker container และประมวลผลไฟล์ `sample.wav` โดยจำลองเวลาจริง (10 วินาที)
 
 ```bash
 bash benchmark/run.sh
 ```
 
-*(หมายเหตุ: ต้องเปิด Docker Daemon ไว้เพื่อรัน Benchmark)*
+ผลลัพธ์จะถูก save อัตโนมัติลง `benchmark/results/realtime-audio-chunker_YYYYMMDD_HHMMSS.txt`
+
+*(หมายเหตุ: รัน 5 ครั้ง: 1 warm-up + 4 วัดผล — ใช้เวลา ~50-60 วินาที เพราะจำลอง real-time audio 10s ต่อรอบ)*
+
+## ผลการวัด (Benchmark Results)
+
+```
+╔══════════════════════════════════════════╗
+║    Real-time Audio Chunker Benchmark     ║
+╚══════════════════════════════════════════╝
+  Input    : test-data/sample.wav
+  Runs     : 5 (1 warm-up + 4 measured)
+  Mode     : Docker
+
+── Go   ───────────────────────────────────────
+  Run 1 (warm-up): 11524ms
+  Run 2           : 11521ms
+  Run 3           : 11519ms
+  Run 4           : 11522ms
+  Run 5           : 11523ms
+  ─────────────────────────────────────────
+  Avg: 11521ms  |  Min: 11519ms  |  Max: 11523ms
+
+  Total Chunks : 666
+  Avg Latency  : 0.006 ms
+  Throughput   : 57.81 chunks/sec
+
+── Rust ───────────────────────────────────────
+  Run 1 (warm-up): 12215ms
+  Run 2           : 12208ms
+  Run 3           : 12210ms
+  Run 4           : 12207ms
+  Run 5           : 12208ms
+  ─────────────────────────────────────────
+  Avg: 12208ms  |  Min: 12207ms  |  Max: 12210ms
+
+  Total Chunks : 666
+  Avg Latency  : 0.061 ms
+  Throughput   : 54.56 chunks/sec
+
+── Zig  ───────────────────────────────────────
+  Run 1 (warm-up): 12142ms
+  Run 2           : 12138ms
+  Run 3           : 12136ms
+  Run 4           : 12139ms
+  Run 5           : 12140ms
+  ─────────────────────────────────────────
+  Avg: 12138ms  |  Min: 12136ms  |  Max: 12140ms
+
+  Total Chunks : 666
+  Avg Latency  : 0.000 ms
+  Throughput   : 54.87 chunks/sec
+
+── Binary Size ───────────────────────────────
+  Go  : 1.5MB
+  Rust: 452KB
+  Zig : 2.2MB
+
+── Code Lines ────────────────────────────────
+  Go  : 198 lines
+  Rust: 180 lines
+  Zig : 157 lines
+```
+
+**Key insight**: Throughput ใกล้เคียงกันทุกภาษา (dominated โดย real-time simulation) — Zig latency ต่ำสุดในระดับ nanoseconds
 
 ## ตารางเปรียบเทียบ (Docker Benchmark — sample.wav 10s, 16kHz mono)
 

@@ -46,39 +46,70 @@ build_image "rac-rust" "$PROJECT_DIR/rust"
 build_image "rac-zig"  "$PROJECT_DIR/zig"
 echo ""
 
-# ─── Benchmark function ───────────────────────────────────────────────────────
+# ─── Benchmark function (5 runs: 1 warm-up + 4 measured) ─────────────────────
+RUNS=5
+WARMUP=1
+
 run_benchmark() {
-    local name="$1" image="$2" binary_name="$3"
+    local name="$1" image="$2"
 
     printf "── %-4s ───────────────────────────────────────\n" "$name"
-    
-    local output
-    output=$(docker run --rm -v "$INPUT_DIR":/data:ro "$image" "/data/$INPUT_FILE" 2>&1)
-    local exit_code=$?
-    
-    if [ $exit_code -eq 0 ]; then
-        local avg_latency proc_time throughput chunks
-        avg_latency=$(echo "$output" | grep "Average latency:" | awk -F': ' '{print $2}')
-        throughput=$(echo "$output"  | grep "Throughput:"      | awk -F': ' '{print $2}')
-        proc_time=$(echo "$output"   | grep "Processing time:" | awk -F': ' '{print $2}')
-        chunks=$(echo "$output"      | grep "Total chunks:"    | awk -F': ' '{print $2}')
-        
-        printf "  Total Chunks : %s\n"   "$chunks"
-        printf "  Process Time : %s\n"   "$proc_time"
-        printf "  Avg Latency  : %s\n"   "$avg_latency"
-        printf "  Throughput   : %s\n"   "$throughput"
-    else
-        echo "  FAILED to run container (exit $exit_code)"
-        echo "$output"
-    fi
+
+    local chunks="" avg_latency="" throughput=""
+    local times=() min="" max=""
+
+    for i in $(seq 1 $RUNS); do
+        local output exit_code
+        output=$(docker run --rm -v "$INPUT_DIR":/data:ro "$image" "/data/$INPUT_FILE" 2>&1)
+        exit_code=$?
+
+        if [ $exit_code -ne 0 ]; then
+            echo "  FAILED (run $i, exit $exit_code)"
+            echo "$output"
+            echo ""
+            return
+        fi
+
+        local proc_time_raw
+        proc_time_raw=$(echo "$output" | grep "Processing time:" | awk -F': ' '{print $2}' | tr -d 's')
+        local elapsed_ms
+        elapsed_ms=$(awk -v t="$proc_time_raw" 'BEGIN { printf "%d", t * 1000 }')
+
+        if [ "$i" -le "$WARMUP" ]; then
+            printf "  Run %d (warm-up): %dms\n" "$i" "$elapsed_ms"
+        else
+            printf "  Run %d           : %dms\n" "$i" "$elapsed_ms"
+            times+=("$elapsed_ms")
+            [ -z "$min" ] || [ "$elapsed_ms" -lt "$min" ] && min=$elapsed_ms
+            [ -z "$max" ] || [ "$elapsed_ms" -gt "$max" ] && max=$elapsed_ms
+        fi
+
+        # capture stats from last measured run
+        if [ "$i" -eq "$RUNS" ]; then
+            chunks=$(echo "$output"      | grep "Total chunks:"    | awk -F': ' '{print $2}')
+            avg_latency=$(echo "$output" | grep "Average latency:" | awk -F': ' '{print $2}')
+            throughput=$(echo "$output"  | grep "Throughput:"      | awk -F': ' '{print $2}')
+        fi
+    done
+
+    # calculate average
+    local total=0
+    for t in "${times[@]}"; do total=$((total + t)); done
+    local avg=$((total / ${#times[@]}))
+
+    echo "  ─────────────────────────────────────────"
+    printf "  Avg: %dms  |  Min: %dms  |  Max: %dms\n" "$avg" "$min" "$max"
+    echo ""
+    printf "  Total Chunks : %s\n"  "$chunks"
+    printf "  Avg Latency  : %s\n"  "$avg_latency"
+    printf "  Throughput   : %s\n"  "$throughput"
     echo ""
 }
 
 # ─── Run benchmarks ───────────────────────────────────────────────────────────
-# Run each once since they take ~10s to simulate real-time processing
-run_benchmark "Go"   "rac-go"   "realtime-audio-chunker-go"
-run_benchmark "Rust" "rac-rust" "realtime-audio-chunker-rust"
-run_benchmark "Zig"  "rac-zig"  "realtime-audio-chunker-zig"
+run_benchmark "Go"   "rac-go"
+run_benchmark "Rust" "rac-rust"
+run_benchmark "Zig"  "rac-zig"
 
 # ─── Binary Size ──────────────────────────────────────────────────────────────
 get_binary_size() {

@@ -5,185 +5,73 @@ trigger: always_on
 
 # Project Rules: Compare Rust / Go / Zig
 
+## ⚠️ Checklist สำหรับ Project ใหม่ทุกตัว
+
+ก่อน implement ต้องมีครบทุกข้อ:
+
+- [ ] โครงสร้าง `go/`, `rust/`, `zig/`, `test-data/`, `benchmark/run.sh`, `README.md`
+- [ ] Docker image naming: `<prefix>-go`, `<prefix>-rust`, `<prefix>-zig` — เพิ่มใน table ด้านล่าง
+- [ ] `benchmark/run.sh` — Docker-based เสมอ, auto-save ผลใน `benchmark/results/`
+- [ ] Statistics output format ตรงกันทั้ง 3 ภาษา (ดู format ด้านล่าง)
+- [ ] `main()` กระชับ — orchestrate เท่านั้น, logic แยกออกเป็น functions/structs
+- [ ] `README.md` มีตารางผลเปรียบเทียบ + key insight
+
+---
+
 ## ⚠️ MANDATORY: Benchmark ต้องรันผ่าน Docker เสมอ
 
-- `benchmark/run.sh` ต้องใช้ **Docker** — build image ก่อนแล้วค่อยรัน container
-- ห้าม benchmark ด้วย local binary โดยตรง (local dev ยกเว้น)
-- ก่อนรัน benchmark ตรวจสอบ Docker daemon: `docker info`
-- image naming: `<prefix>-go`, `<prefix>-rust`, `<prefix>-zig`
+- ห้าม benchmark ด้วย local binary (local dev เท่านั้นที่ยกเว้น)
+- ก่อนรัน: `docker info` เพื่อตรวจสอบ Docker daemon
 - mount test-data: `-v "$INPUT_DIR":/data:ro`
 - capture stdout+stderr: `2>&1` (Zig ใช้ stderr)
 - parse output: `awk -F': ' '{print $2}'`
-- บันทึกผล: `benchmark/results/<project>_<timestamp>.txt` เสมอ
+- auto-save: `exec > >(tee -a "$RESULT_FILE")` → `benchmark/results/<project>_<timestamp>.txt`
+
+### Non-HTTP Projects (CLI, FFmpeg, processing tools)
+- 5 runs: 1 warm-up + 4 measured → แสดง Avg/Min/Max
+- วัด binary size: `docker create` + `docker cp` + `wc -c`
+
+### HTTP Throughput Projects
+- `wrk -t4 -c50 -d3s` + Docker network
+- cleanup `docker network rm` เสมอ
 
 ---
 
-## ⚠️ MANDATORY: Code Patterns ทุกโปรเจกต์ใหม่ต้องทำตามนี้
-
-### Shared Patterns (ทุกภาษา)
-
-1. **Helper function สำหรับ duration → bytes** — ไม่คำนวณ inline ซ้ำๆ
-   - Go: `func bytesForMs(durationMs int) int`
-   - Rust: `fn bytes_for_ms(duration_ms: u64) -> usize`
-   - Zig: `fn bytesForMs(duration_ms: usize) usize`
-
-2. **Stats struct แยกออกมาเสมอ** — ไม่ใช้ closure-captured mutable variables
-   - มี method `avgLatencyMs()` และ `throughput()`
-
-3. **แยก helper functions**: `printConfig(...)`, `printStats(...)`, domain logic ออกจาก `main()`
-
-4. **`main()` ต้องกระชับ** — orchestrate เท่านั้น: read → config → init → run → stats → print
-
-### Statistics Output Format (ทุกภาษาต้องตรงกัน)
+## Statistics Output Format (ทุกภาษาต้องตรงกัน)
 
 ```
 --- Statistics ---
-Total chunks: <N>
+Total processed: <N>
 Processing time: <X.XXX>s
 Average latency: <X.XXX>ms
-Throughput: <X.XX> chunks/sec
+Throughput: <X.XX> items/sec
 ```
 
-### Go Patterns
-
-```go
-// ใช้ integer ms constants — ไม่ใช้ Duration.Seconds() สำหรับคำนวณ samples
-const chunkDurationMs = 25
-
-func chunkSamples(durationMs int) int { return sampleRate * durationMs / 1000 }
-
-// startProcessor คืน channel แทน closure-captured vars
-func (ac *AudioChunker) startProcessor() <-chan Stats { ... }
-```
-
-- method names: **lowercase** (unexported) เสมอ
-- error wrapping: `fmt.Errorf("context: %w", err)`
-
-### Rust Patterns
-
-```rust
-// constants เป็น u64 ms — ไม่ใช้ Duration::from_millis() ในการคำนวณ samples
-const CHUNK_DURATION_MS: u64 = 25;
-
-fn bytes_for_ms(duration_ms: u64) -> usize { ... }
-
-// processor เป็น free function คืน JoinHandle<Stats>
-fn start_processor(receiver: mpsc::Receiver<AudioChunk>) -> thread::JoinHandle<Stats> { ... }
-
-// ไม่ใช้ .unwrap() บน send — ใช้ .is_err() แทน
-if self.sender.send(chunk).is_err() { break; }
-```
-
-- ลบ empty methods ออก (เช่น `fn finalize() {}`)
-
-### Zig Patterns
-
-```zig
-// constants เป็น ms + precompute ns สำหรับ sleep
-const INPUT_INTERVAL_MS = 10;
-const INPUT_INTERVAL_NS = INPUT_INTERVAL_MS * std.time.ns_per_ms;
-
-// AudioChunk ไม่เก็บ allocator ใน struct — เป็น stack value
-const AudioChunk = struct { data: []const u8, timestamp: std.time.Instant, index: usize };
-
-// overlap buffer shift ใช้ std.mem.copyForwards (ป้องกัน overlapping memory bug)
-std.mem.copyForwards(u8, dst_slice, src_slice);
-
-// Stats มี methods
-const Stats = struct {
-    fn avgLatencyMs(self: Stats) f64 { ... }
-    fn throughput(self: Stats, processing_ns: u64) f64 { ... }
-};
-```
-
-### Vector DB Ingester Patterns
-
-```zig
-// Document processing with proper error handling
-fn processContent(allocator: std.mem.Allocator, content: []const u8) !struct { count: usize } {
-    var chunk_count: usize = 0;
-    
-    var chunk_words = std.ArrayList([]const u8).initCapacity(allocator, 1024) catch {
-        return error.OutOfMemory;
-    };
-    defer chunk_words.deinit(allocator);
-    
-    // Process chunks with proper error handling
-    const chunk_content = std.mem.join(allocator, " ", chunk_words.items) catch {
-        return error.OutOfMemory;
-    };
-    defer allocator.free(chunk_content);
-    
-    return .{ .count = chunk_count };
-}
-
-// Embedding simulation (same algorithm across languages)
-fn generateEmbedding(content: []const u8) [EMBEDDING_DIM]f32 {
-    var embedding: [EMBEDDING_DIM]f32 = undefined;
-    const hash = hashString(content);
-    
-    for (0..EMBEDDING_DIM) |i| {
-        // Generate pseudo-random values based on hash
-        var seed = hash ^ @as(u64, @intCast(i));
-        // ... hash calculations ...
-        embedding[i] = (@as(f32, @floatFromInt(seed & 0x7fffffff)) / @as(f32, @floatFromInt(std.math.maxInt(u32))) * 2.0 - 1.0;
-    }
-    return embedding;
-}
-```
-
-### Benchmark Methodology
-
-```bash
-# 5 runs total: 1 warm-up + 4 measured
-RUNS=5
-WARMUP=1
-
-run_benchmark() {
-    local times=()
-    
-    for i in $(seq 1 $RUNS); do
-        start=$(date +%s%N)
-        # Run benchmark
-        if docker run ...; then
-            end=$(date +%s%N)
-            elapsed=$(( (end - start) / 1000000 ))
-            
-            if [ "$i" -le "$WARMUP" ]; then
-                echo "  Run $i (warm-up): ${elapsed}ms"
-            else
-                echo "  Run $i           : ${elapsed}ms"
-                times+=("$elapsed")
-            fi
-        fi
-    done
-    
-    # Calculate statistics
-    if [ ${#times[@]} -gt 0 ]; then
-        local total=0 min=${times[0]} max=${times[0]}
-        for t in "${times[@]}"; do
-            total=$((total + t))
-            [ "$t" -lt "$min" ] && min=$t
-            [ "$t" -gt "$max" ] && max=$t
-        done
-        echo "  Avg: $((total / ${#times[@]}))ms | Min: ${min}ms | Max: ${max}ms"
-    fi
-}
-```
+> field names ปรับตาม domain (chunks/requests/lines ฯลฯ) แต่โครงสร้างเหมือนกัน
 
 ---
 
-## โครงสร้างมาตรฐาน
+## Code Principles (ทุกภาษา)
 
-```
-<project-name>/
-├── go/main.go + go.mod + Dockerfile
-├── rust/src/main.rs + Cargo.toml + Dockerfile
-├── zig/src/main.zig + build.zig + Dockerfile
-├── test-data/           # gitignored — generate ด้วย ffmpeg
-├── benchmark/run.sh     # Docker-based เสมอ
-└── README.md            # ต้องมีตาราง comparison + ผลจริงจาก Docker benchmark
-```
+1. **`main()` orchestrates only** — read args → config → init → run → print stats
+2. **Stats struct แยกออกมาเสมอ** — มี method `avgLatencyMs()` / `throughput()` — ไม่ใช้ closure-captured mutable vars
+3. **Helper functions แยกชัดเจน** — `printConfig()`, `printStats()`, domain logic ต่างหาก
+4. **ไม่คำนวณ inline ซ้ำๆ** — wrap ใน helper function เสมอ
+
+### Go
+- method names lowercase (unexported) เสมอ
+- error wrapping: `fmt.Errorf("context: %w", err)`
+- ใช้ integer ms constants แทน `time.Duration.Seconds()` เมื่อคำนวณ samples/bytes
+
+### Rust
+- ใช้ integer ms constants แทน `Duration::as_secs()` (truncates sub-second → bug)
+- ไม่ใช้ `.unwrap()` บน channel send — ใช้ `.is_err()` แทน
+- ลบ empty methods ออก
+
+### Zig
+- `std.debug.print` → stderr, ต้องใช้ `2>&1` ใน benchmark
+- buffer shift ใช้ `std.mem.copyForwards` ป้องกัน overlapping memory
+- struct ไม่เก็บ allocator — ส่งผ่าน parameter แทน
 
 ---
 
@@ -194,33 +82,61 @@ run_benchmark() {
 | video-frame-extractor | `vfe-go` | `vfe-rust` | `vfe-zig` |
 | hls-stream-segmenter | `hls-go` | `hls-rust` | `hls-zig` |
 | subtitle-burn-in-engine | `sbe-go` | `sbe-rust` | `sbe-zig` |
+| high-perf-reverse-proxy | `rp-go` | `rp-rust` | `rp-zig` |
 | lightweight-api-gateway | `gw-go` | `gw-rust` | `gw-zig` |
 | realtime-audio-chunker | `rac-go` | `rac-rust` | `rac-zig` |
-| **vector-db-ingester** | **`vdi-go`** | **`vdi-rust`** | **`vdi-zig`** |
+| custom-log-masker | `clm-go` | `clm-rust` | `clm-zig` |
+| vector-db-ingester | `vdi-go` | `vdi-rust` | `vdi-zig` |
+
+> Project ใหม่: เพิ่ม row นี้ก่อน implement
 
 ---
 
 ## Dockerfile Standards
 
-### Go
-- `CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags='-s -w'` → static binary
-- `mkdir -p /out` ก่อน build เสมอ
+### Go (non-CGO)
+```dockerfile
+FROM golang:1.25-bookworm AS builder
+RUN mkdir -p /out
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags='-s -w' -o /out/<binary> .
+
+FROM debian:bookworm-slim
+COPY --from=builder /out/<binary> /usr/local/bin/<binary>
+ENTRYPOINT ["<binary>"]
+```
+
+### Go + FFmpeg (CGO) — ใช้ Alpine เท่านั้น
+```dockerfile
+FROM golang:1.25-alpine AS builder
+RUN apk add --no-cache pkgconfig ffmpeg-dev gcc musl-dev
+
+FROM alpine:3.21
+RUN apk add --no-cache ffmpeg-libs
+```
+> bookworm arm64 มี `C.SwsContext` opaque struct issue → Alpine + musl เท่านั้น
 
 ### Rust
-- Builder: `rust:<version>-bookworm`
-- dependency cache layer ก่อน copy real source
-- `strip target/release/<binary>` หลัง build
+```dockerfile
+FROM rust:1.83-bookworm AS builder
+# dependency cache layer ก่อน (copy Cargo.toml + dummy main → build → copy real src → build)
+RUN strip target/release/<binary>
+
+FROM debian:bookworm-slim
+```
 
 ### Zig
-- Builder: `debian:bookworm-slim` + wget Zig tarball
-- `ARG TARGETARCH`: `arm64` → `aarch64`, else → `x86_64`
-- URL format (0.15+): `zig-${ZIG_ARCH}-linux-<ver>.tar.xz`
-
-### Go + FFmpeg (CGO)
-- ใช้ **Alpine** เท่านั้น (`golang:1.2x-alpine`) — bookworm arm64 มี `C.SwsContext` issue
+```dockerfile
+FROM debian:bookworm-slim AS builder
+ARG TARGETARCH
+RUN ZIG_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") \
+    && wget -q https://ziglang.org/download/0.15.2/zig-${ZIG_ARCH}-linux-0.15.2.tar.xz \
+    && tar -xf zig-${ZIG_ARCH}-linux-0.15.2.tar.xz \
+    && mv zig-${ZIG_ARCH}-linux-0.15.2 /usr/local/zig
+```
+> Docker Desktop on Mac = linux/arm64 → ต้องเป็น `aarch64`
 
 ### FFmpeg runtime packages (bookworm arm64)
-`libavformat59`, `libavcodec59`, `libavutil57`, `libswscale6`, `libavfilter8`
+`libavformat59 libavcodec59 libavutil57 libswscale6 libavfilter8`
 
 ---
 
@@ -228,37 +144,10 @@ run_benchmark() {
 
 | ภาษา | Bug | Fix |
 |------|-----|-----|
-| **Rust** | `Duration::as_secs()` truncates sub-second duration → samples = 0 | ใช้ `as_millis() / 1000` หรือ integer ms constants |
-| **Zig** | `AudioChunk` เก็บ `allocator` ใน struct → ต้อง manage lifecycle ซับซ้อน | ใช้ stack value + ส่ง allocator ผ่าน `deinit(allocator)` |
-| **Zig** | loop shift buffer ด้วย index อาจ overlap | ใช้ `std.mem.copyForwards` เสมอ |
-| **Go** | `time.Duration.Seconds()` คืน float → int truncation สำหรับ < 1s | ใช้ integer ms arithmetic |
+| **Rust** | `Duration::as_secs()` truncates sub-second → value = 0 | ใช้ `as_millis() / 1000` หรือ integer ms constants |
+| **Go** | `time.Duration.Seconds()` float → int truncation สำหรับ < 1s | ใช้ integer ms arithmetic |
 | **Zig** | `std.debug.print` → stderr ไม่ใช่ stdout | benchmark script ต้อง `2>&1` |
-
----
-
-## benchmark/run.sh Standards
-
-### Non-HTTP Projects (Audio, FFmpeg, CLI)
-```bash
-# build images ก่อนเสมอ
-docker build -q -t "$tag" "$ctx"
-
-# รัน + capture stdout+stderr
-output=$(docker run --rm -v "$INPUT_DIR":/data:ro "$image" "/data/$INPUT_FILE" 2>&1)
-
-# parse ด้วย awk ไม่ใช่ sed
-avg=$(echo "$output" | grep "Average latency:" | awk -F': ' '{print $2}')
-
-# binary size
-cid=$(docker create "$image")
-size=$(docker cp "$cid:/usr/local/bin/<binary>" - | wc -c)
-docker rm "$cid"
-```
-
-### HTTP Throughput Projects
-- `wrk -t4 -c50 -d3s` + Docker network
-- cleanup `docker network rm` เสมอ
-
-### ทั้งสอง
-- `SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)`
-- auto-save: `exec > >(tee -a "$RESULT_FILE")`
+| **Zig** | loop shift buffer ด้วย index อาจ overlap | ใช้ `std.mem.copyForwards` เสมอ |
+| **Zig** | `build.zig.zon` `.name` ต้องเป็น bare identifier | `.name = .my_project` ไม่ใช่ `"my-project"` |
+| **Rust** | `:8080` parse เป็น SocketAddr ไม่ได้ | ใช้ `0.0.0.0:8080` |
+| **Go CGO + bookworm arm64** | `*C.SwsContext` field ใน struct resolve ไม่ได้ | ใช้ C helper wrapper function แทน หรือ Alpine |
