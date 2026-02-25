@@ -21,19 +21,22 @@ compare-rust-go-zig/           ← repo root
 <project-name>/
 ├── go/
 │   ├── main.go         # Entry point
-│   └── go.mod          # module: <project-name>
+│   ├── go.mod          # module: <project-name>
+│   └── Dockerfile      # Multi-stage build → debian:bookworm-slim
 ├── rust/
 │   ├── src/
 │   │   └── main.rs     # Entry point
-│   └── Cargo.toml
+│   ├── Cargo.toml
+│   └── Dockerfile      # Multi-stage build → debian:bookworm-slim
 ├── zig/
 │   ├── src/
 │   │   └── main.zig    # Entry point
-│   └── build.zig       # Zig 0.15+ format (createModule + root_module)
+│   ├── build.zig       # Zig 0.15+ format (createModule + root_module)
+│   └── Dockerfile      # Multi-stage build → debian:bookworm-slim
 ├── test-data/           # ไฟล์ media สำหรับทดสอบ (gitignored — ไม่ commit)
 │   └── sample.mp4
 ├── benchmark/
-│   └── run.sh           # script สำหรับวัด performance ทั้ง 3 ภาษา
+│   └── run.sh           # script สำหรับวัด performance — รองรับ --docker flag
 └── README.md            # คำแนะนำ build/run + ตาราง comparison
 ```
 
@@ -101,15 +104,73 @@ compare-rust-go-zig/           ← repo root
 
 ## benchmark/run.sh มาตรฐาน
 
-- รับ args: `$1` = input file, `$2` = parameter (project-specific)
+- รับ args: `$1` = input file, `$2` = parameter (project-specific), `[--docker]` = docker mode
 - รัน 5 ครั้ง: 1 warm-up + 4 นับ average
 - วัด **Time**: `$(date +%s%N)` nanoseconds → แปลงเป็น ms
-- วัด **Memory**: `/usr/bin/time -l` → `maximum resident set size` (macOS)
+- วัด **Memory**: `/usr/bin/time -l` (macOS) หรือ `/usr/bin/time -v` (Linux) — `parse_mem_kb()` helper รองรับทั้งคู่
 - วัด **Binary Size**: `ls -lh`
 - วัด **Code Lines**: `wc -l`
 - แสดงผล Avg / Min / Max แยก warm-up ออก
 - ใช้ `SCRIPT_DIR` + `PROJECT_DIR` เพื่อรันจาก directory ใดก็ได้
 - Build ทุก version ก่อน benchmark เสมอ
+- รองรับ `--docker` flag: build Docker images แล้ว run ผ่าน `docker run`
+
+---
+
+## Docker Standards
+
+### Dockerfile Pattern (Multi-stage)
+ทุก `go/Dockerfile`, `rust/Dockerfile`, `zig/Dockerfile` ใช้ multi-stage build:
+
+```dockerfile
+# Stage 1: builder — มี compiler + dev libs
+FROM golang:1.23-bookworm AS builder
+# ... build steps ...
+RUN go build -o /out/<binary> .
+
+# Stage 2: runtime — minimal image
+FROM debian:bookworm-slim
+COPY --from=builder /out/<binary> /usr/local/bin/<binary>
+ENTRYPOINT ["<binary>"]
+```
+
+### Image Naming Convention
+แต่ละ project ใช้ prefix ย่อ:
+| Project | Go | Rust | Zig |
+|---------|-----|------|-----|
+| video-frame-extractor | `vfe-go` | `vfe-rust` | `vfe-zig` |
+| hls-stream-segmenter | `hls-go` | `hls-rust` | `hls-zig` |
+| subtitle-burn-in-engine | `sbe-go` | `sbe-rust` | `sbe-zig` |
+| lightweight-api-gateway | `gw-go` | `gw-rust` | `gw-zig` |
+
+### Docker Build Commands
+```bash
+# Build ทุก image สำหรับ project
+docker build -t <prefix>-go   go/
+docker build -t <prefix>-rust rust/
+docker build -t <prefix>-zig  zig/
+
+# Run benchmark ผ่าน Docker
+bash benchmark/run.sh --docker
+
+# Run benchmark แบบ local (default เดิม)
+bash benchmark/run.sh
+```
+
+### Zig + Zap Docker Notes
+- Zap ใช้ `facil.io` เป็น shared lib → Dockerfile copy `.so` ไปไว้ใน `/usr/local/lib/facil/`
+- ต้องรัน `ldconfig` ใน runtime stage เพื่อ register shared lib path
+- บน Linux container ไม่มีปัญหา `DYLD_LIBRARY_PATH` (เป็น macOS-only)
+
+### FFmpeg Projects (Groups 1–2)
+- Builder stage ต้องติดตั้ง: `libavformat-dev libavcodec-dev libavutil-dev libswscale-dev`
+- Runtime stage ติดตั้ง runtime libs เท่านั้น: `libavformat60 libavcodec60 libavutil58 libswscale7`
+- Rust builder ต้องเพิ่ม `clang llvm` สำหรับ bindgen
+- Zig builder ต้อง download `zig-linux-x86_64-0.15.0.tar.xz` จาก ziglang.org
+
+### Non-FFmpeg Projects (Groups 3+)
+- Go/Rust: ไม่ต้อง install dev libs พิเศษ — builder images มี compiler พร้อมแล้ว
+- Runtime stage: `debian:bookworm-slim` เปล่าๆ (Go/Rust) หรือ + ldconfig (Zig+Zap)
 
 ---
 

@@ -107,19 +107,35 @@ sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
 ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p test-data/sample.mp4
 ```
 
-### Run Benchmark (Media Projects)
+### Run Benchmark (Local)
 ```bash
 cd <project-name>
 bash benchmark/run.sh test-data/sample.mp4 [param]
-```
 
-### Run Benchmark (API Gateway)
-```bash
-# ต้องติดตั้ง wrk ก่อน
-brew install wrk
+# API Gateway
 cd lightweight-api-gateway
 bash benchmark/run.sh
 ```
+
+### Run Benchmark via Docker
+```bash
+# ต้องมี Docker ติดตั้งแล้ว — ไม่ต้อง install toolchain ในเครื่อง
+cd <project-name>
+bash benchmark/run.sh --docker
+
+# หรือ build images เองก่อนแล้วรัน
+docker build -t <prefix>-go   go/
+docker build -t <prefix>-rust rust/
+docker build -t <prefix>-zig  zig/
+bash benchmark/run.sh --docker
+```
+
+| Project | Go image | Rust image | Zig image |
+|---------|----------|------------|-----------|
+| video-frame-extractor | `vfe-go` | `vfe-rust` | `vfe-zig` |
+| hls-stream-segmenter | `hls-go` | `hls-rust` | `hls-zig` |
+| subtitle-burn-in-engine | `sbe-go` | `sbe-rust` | `sbe-zig` |
+| lightweight-api-gateway | `gw-go` | `gw-rust` | `gw-zig` |
 
 ---
 
