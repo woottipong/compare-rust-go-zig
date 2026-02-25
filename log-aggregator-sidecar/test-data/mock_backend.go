@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -28,7 +29,7 @@ var stats Stats
 
 func main() {
 	stats.startTime = time.Now()
-	
+
 	listenAddr := ":9200"
 	if len(os.Args) > 1 {
 		listenAddr = os.Args[1]
@@ -50,13 +51,13 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 func handleStats(w http.ResponseWriter, r *http.Request) {
 	elapsed := time.Since(stats.startTime).Seconds()
 	throughput := float64(atomic.LoadInt64(&stats.totalReceived)) / elapsed
-	
+
 	response := map[string]interface{}{
-		"total_received": atomic.LoadInt64(&stats.totalReceived),
+		"total_received":  atomic.LoadInt64(&stats.totalReceived),
 		"processing_time": elapsed,
-		"throughput": throughput,
+		"throughput":      throughput,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -67,17 +68,22 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var entry LogEntry
-	if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
-		// Try to parse as array of entries
-		var entries []LogEntry
-		if err := json.NewDecoder(r.Body).Decode(&entries); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
-			return
-		}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Read error", http.StatusBadRequest)
+		return
+	}
+
+	// Try array first, then single entry
+	var entries []LogEntry
+	if err := json.Unmarshal(body, &entries); err == nil {
 		atomic.AddInt64(&stats.totalReceived, int64(len(entries)))
 	} else {
-		atomic.AddInt64(&stats.totalReceived, 1)
+		var entry LogEntry
+		if err := json.Unmarshal(body, &entry); err == nil {
+			atomic.AddInt64(&stats.totalReceived, 1)
+		}
+		// ignore unparseable — just acknowledge
 	}
 
 	w.Header().Set("Content-Type", "application/json")

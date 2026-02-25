@@ -1,21 +1,20 @@
-use clap::Parser;
+use clap::{Parser, ArgAction};
 use chrono::Utc;
 use lazy_static::lazy_static;
-use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Config as NotifyConfig, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use regex::Regex;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
+use tokio::net::TcpListener;
 use axum::{extract::State, response::Json, routing::get, Router};
-use std::net::SocketAddr;
 
 // ============================================================================
 // Data Structures
@@ -46,6 +45,14 @@ struct Stats {
 }
 
 impl Stats {
+    fn print_stats(&self) {
+        let s = self.get_stats();
+        println!("--- Statistics ---");
+        println!("Total processed: {}", s.total_processed);
+        println!("Processing time: {:.3}s", s.processing_time);
+        println!("Throughput: {:.2} lines/sec", s.throughput);
+    }
+
     fn new() -> Self {
         Self {
             total_processed: AtomicU64::new(0),
@@ -83,7 +90,7 @@ impl Stats {
 // Configuration
 // ============================================================================
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]
 struct Config {
     /// Input log file to watch
@@ -101,6 +108,10 @@ struct Config {
     /// Number of worker tasks
     #[arg(short, long, default_value = "4")]
     workers: usize,
+
+    /// Process file once, print stats, then exit
+    #[arg(long, action = ArgAction::SetTrue)]
+    one_shot: bool,
 }
 
 fn print_config(config: &Config) {
@@ -164,14 +175,15 @@ impl Forwarder {
             .build()
             .unwrap();
 
+        let shared_rx = Arc::new(Mutex::new(buffer_rx));
         let mut workers_handles = Vec::new();
-        for i in 0..workers {
-            let rx = buffer_rx.clone();
+        for _ in 0..workers {
+            let rx = shared_rx.clone();
             let client = client.clone();
             let output_url = output_url.clone();
-            
+
             let worker = tokio::spawn(async move {
-                Self::worker(i, rx, &client, &output_url).await;
+                Self::worker(rx, &client, &output_url).await;
             });
             workers_handles.push(worker);
         }
@@ -186,14 +198,22 @@ impl Forwarder {
     }
 
     async fn worker(
-        _id: usize,
-        mut rx: mpsc::Receiver<Vec<u8>>,
+        rx: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>,
         client: &Client,
         output_url: &str,
     ) {
-        while let Some(batch) = rx.recv().await {
-            if let Err(e) = Self::send_batch(client, output_url, batch).await {
-                eprintln!("Failed to send batch: {}", e);
+        loop {
+            let batch = {
+                let mut guard = rx.lock().await;
+                guard.recv().await
+            };
+            match batch {
+                Some(data) => {
+                    if let Err(e) = Self::send_batch(client, output_url, data).await {
+                        eprintln!("Failed to send batch: {}", e);
+                    }
+                }
+                None => break,
             }
         }
     }
@@ -238,17 +258,17 @@ async fn watch_file(
     forwarder: Forwarder,
     stats: Arc<Stats>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (tx, mut rx) = mpsc::channel::<()>();
-    let input_path = Path::new(&config.input);
-    let input_dir = input_path.parent().unwrap_or_else(|| Path::new("."));
+    let (tx, mut rx) = mpsc::channel::<()>(16);
+    let input_path: PathBuf = PathBuf::from(&config.input);
+    let input_dir = input_path.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
 
     let mut watcher = RecommendedWatcher::new(
         move |res: Result<Event, notify::Error>| {
             match res {
                 Ok(event) => {
-                    if event.kind == EventKind::Modify {
+                    if matches!(event.kind, EventKind::Modify(_)) {
                         if let Some(path) = event.paths.first() {
-                            if path == input_path {
+                            if path == &input_path {
                                 let _ = tx.blocking_send(());
                             }
                         }
@@ -257,10 +277,11 @@ async fn watch_file(
                 Err(e) => eprintln!("Watch error: {:?}", e),
             }
         },
-        Config::default(),
-    )?;
+        NotifyConfig::default(),
+    )?
+    ;
 
-    watcher.watch(input_dir, RecursiveMode::NonRecursive)?;
+    watcher.watch(&input_dir, RecursiveMode::NonRecursive)?;
 
     // Process existing file first
     if let Err(e) = process_file(&config.input, &forwarder, &stats).await {
@@ -281,7 +302,7 @@ async fn watch_file(
 async fn process_file(
     filename: &str,
     forwarder: &Forwarder,
-    stats: &Arc<Stats>,
+    _stats: &Arc<Stats>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let file = File::open(filename)?;
     let reader = BufReader::new(file);
@@ -328,14 +349,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stats = Arc::new(Stats::new());
     let forwarder = Forwarder::new(config.output.clone(), config.buffer, stats.clone(), config.workers);
 
+    if config.one_shot {
+        process_file(&config.input, &forwarder, &stats).await?;
+        forwarder.stop().await;
+        stats.print_stats();
+        return Ok(());
+    }
+
     // Start HTTP server for stats
     let app = Router::new()
         .route("/health", get(health_handler))
-        .route("/stats", get(stats_handler));
-    
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
-    let server = axum::Server::bind(&addr);
-    let server_handle = tokio::spawn(server.serve(app.into_make_service()));
+        .route("/stats", get(stats_handler))
+        .with_state(stats.clone());
+
+    let listener = TcpListener::bind("0.0.0.0:8080").await?;
+    let server_handle = tokio::spawn(async move { axum::serve(listener, app).await });
 
     // Start file watcher in background
     let stats_clone = stats.clone();

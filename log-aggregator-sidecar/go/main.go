@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -61,6 +62,14 @@ func (s *Stats) getStats() map[string]interface{} {
 	}
 }
 
+func (s *Stats) printStats() {
+	stats := s.getStats()
+	fmt.Printf("--- Statistics ---\n")
+	fmt.Printf("Total processed: %v\n", stats["total_processed"])
+	fmt.Printf("Processing time: %.3fs\n", stats["processing_time"])
+	fmt.Printf("Throughput: %.2f lines/sec\n", stats["throughput"])
+}
+
 func (s *Stats) getStatsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(s.getStats())
@@ -80,6 +89,7 @@ type Config struct {
 	outputURL  string
 	bufferSize int
 	workers    int
+	oneShot    bool
 }
 
 func parseConfig() *Config {
@@ -88,6 +98,7 @@ func parseConfig() *Config {
 	flag.StringVar(&config.outputURL, "output", "", "Output URL to send logs")
 	flag.IntVar(&config.bufferSize, "buffer", 1000, "Buffer size for batch processing")
 	flag.IntVar(&config.workers, "workers", 4, "Number of worker goroutines")
+	flag.BoolVar(&config.oneShot, "one-shot", false, "Process file once, print stats, then exit")
 	flag.Parse()
 
 	if config.inputFile == "" || config.outputURL == "" {
@@ -160,8 +171,14 @@ type Forwarder struct {
 }
 
 func NewForwarder(outputURL string, bufferSize int, stats *Stats) *Forwarder {
+	transport := &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 100,
+		IdleConnTimeout:     90 * time.Second,
+		DisableKeepAlives:   false,
+	}
 	return &Forwarder{
-		client:    &http.Client{Timeout: 5 * time.Second},
+		client:    &http.Client{Timeout: 5 * time.Second, Transport: transport},
 		outputURL: outputURL,
 		buffer:    make(chan []byte, bufferSize),
 		stats:     stats,
@@ -197,7 +214,8 @@ func (f *Forwarder) sendBatch(batch []byte) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
@@ -214,12 +232,8 @@ func (f *Forwarder) send(entry *LogEntry) error {
 
 	f.stats.addEntry(len(data))
 
-	select {
-	case f.buffer <- data:
-		return nil
-	default:
-		return fmt.Errorf("buffer full")
-	}
+	f.buffer <- data
+	return nil
 }
 
 func (f *Forwarder) stop() {
@@ -250,6 +264,9 @@ func watchFile(config *Config, forwarder *Forwarder, stats *Stats) error {
 	}
 
 	fmt.Printf("Watching %s for changes...\n", config.inputFile)
+
+	// Print initial stats
+	fmt.Printf("Processed %d lines so far\n", atomic.LoadInt64(&stats.totalProcessed))
 
 	for {
 		select {
@@ -324,6 +341,16 @@ func main() {
 
 	stats := &Stats{startTime: time.Now()}
 	forwarder := NewForwarder(config.outputURL, config.bufferSize, stats)
+
+	if config.oneShot {
+		forwarder.start(config.workers)
+		if err := processFile(config.inputFile, forwarder, stats); err != nil {
+			log.Fatalf("Error processing file: %v", err)
+		}
+		forwarder.stop()
+		stats.printStats()
+		return
+	}
 
 	// Start HTTP server for stats
 	http.HandleFunc("/stats", stats.getStatsHandler)

@@ -1,12 +1,12 @@
 #!/bin/bash
 # Benchmark script for Log Aggregator Sidecar
-# Usage: ./benchmark/run.sh
+# Usage: bash benchmark/run.sh
 # Run from: log-aggregator-sidecar/ directory
 
 set -e
 
-RUNS=5         # จำนวนรอบ (รอบแรกถือเป็น warm-up)
-WARMUP=1       # จำนวน warm-up runs ที่ไม่นับ average
+RUNS=5
+WARMUP=1
 TEST_FILE="test-data/app.log"
 MOCK_PORT=9200
 NETWORK_NAME="las-bench-net"
@@ -17,7 +17,6 @@ RESULTS_DIR="$SCRIPT_DIR/results"
 mkdir -p "$RESULTS_DIR"
 RESULT_FILE="$RESULTS_DIR/log-aggregator-sidecar_$(date +%Y%m%d_%H%M%S).txt"
 
-# Tee all output to result file
 exec > >(tee -a "$RESULT_FILE") 2>&1
 
 echo "╔══════════════════════════════════════════╗"
@@ -26,15 +25,15 @@ echo "╚═══════════════════════�
 echo "  Test File: $TEST_FILE"
 echo "  Mock Port : $MOCK_PORT"
 echo "  Runs      : ${RUNS} (${WARMUP} warm-up)"
-echo "  Mode      : Docker"
+echo "  Mode      : Docker (one-shot)"
 echo ""
 
-# ─── Generate test data if needed ────────────────────────────────────────
+# ─── Generate test data if needed ────────────────────────────────────────────
 if [ ! -f "$PROJECT_DIR/$TEST_FILE" ]; then
-    echo "── Generating Test Data ───────────────────────"
+    echo "── Generating Test Data ─────────────────────────"
     mkdir -p "$PROJECT_DIR/test-data"
     python3 -c "
-import random, time, json, sys
+import random, time
 levels = ['INFO', 'WARN', 'ERROR', 'DEBUG']
 apps = ['auth', 'payment', 'api', 'worker']
 for i in range(100000):
@@ -80,11 +79,11 @@ if ! curl -s http://localhost:$MOCK_PORT/health >/dev/null 2>&1; then
     docker network rm "$NETWORK_NAME" 2>/dev/null
     exit 1
 fi
-echo "  ✓ Backend running on port $MOCK_PORT (container: las-mock-backend)"
+echo "  ✓ Backend running on port $MOCK_PORT"
 
 # ─── Build ────────────────────────────────────────────────────────────────────
 echo ""
-echo "── Building ──────────────────────────────────"
+echo "── Building ──────────────────────────────────────"
 build_image() {
     local tag="$1" ctx="$2"
     printf "  [%-8s] " "$tag"
@@ -99,7 +98,7 @@ build_image "las-rust" "$PROJECT_DIR/rust"
 build_image "las-zig"  "$PROJECT_DIR/zig"
 echo ""
 
-# ─── Binary size from Docker image ────────────────────────────────────────────
+# ─── Binary size ──────────────────────────────────────────────────────────────
 image_binary_size() {
     local image="$1" binary="$2"
     local cid tmp
@@ -117,81 +116,50 @@ image_binary_size() {
     fi
 }
 
-# ─── Benchmark function ───────────────────────────────────────────────────────
+# ─── Benchmark function (one-shot mode) ──────────────────────────────────────
 run_benchmark() {
     local name="$1"
     local image="$2"
     local binary="$3"
-    local lines_list=()
-    local CONTAINER_NAME="las-bench-$$"
+    local throughputs=()
 
-    printf "── %-6s ──────────────────────────────────────\n" "$name"
-
-    docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
-    docker run -d --name "$CONTAINER_NAME" \
-        --network "$NETWORK_NAME" \
-        -v "$PROJECT_DIR/test-data:/logs:ro" \
-        "$image" \
-        --input "/logs/app.log" \
-        --output "http://las-mock-backend:9200" \
-        --workers 4 \
-        --buffer 1000 >/dev/null 2>&1
-    
-    # Wait for processing to complete
-    sleep 3
-    
-    # Get stats from container
-    local stats_json
-    stats_json=$(docker exec "$CONTAINER_NAME" curl -s http://localhost:8080/stats 2>/dev/null || echo "{}")
-    
-    # Parse stats (simplified)
-    local lines_processed
-    lines_processed=$(echo "$stats_json" | grep -o '"total_processed":[0-9]*' | cut -d: -f2)
-    if [ -z "$lines_processed" ]; then
-        lines_processed=0
-    fi
-    
-    local mem_kb
-    mem_kb=$(docker stats --no-stream --format '{{.MemUsage}}' "$CONTAINER_NAME" 2>/dev/null | \
-        awk '{gsub(/MiB/,""); printf "%.0f", $1*1024}')
+    printf "── %-6s ────────────────────────────────────────\n" "$name"
 
     for i in $(seq 1 $RUNS); do
-        # Simulate multiple runs by restarting the container
-        docker restart "$CONTAINER_NAME" >/dev/null 2>&1
-        sleep 2
-        
-        local current_lines
-        current_lines=$(docker exec "$CONTAINER_NAME" curl -s http://localhost:8080/stats 2>/dev/null | \
-            grep -o '"total_processed":[0-9]*' | cut -d: -f2)
-        
-        if [ -z "$current_lines" ]; then
-            current_lines=0
+        local output
+        output=$(docker run --rm \
+            --network "$NETWORK_NAME" \
+            -v "$PROJECT_DIR/test-data:/logs:ro" \
+            "$image" \
+            --input "/logs/app.log" \
+            --output "http://las-mock-backend:9200" \
+            --workers 4 \
+            --buffer 10000 \
+            --one-shot 2>&1)
+
+        local throughput
+        throughput=$(echo "$output" | grep "Throughput:" | awk -F': ' '{print $2}' | awk '{print $1}')
+        if [ -z "$throughput" ]; then
+            throughput="0"
         fi
-        
+
         if [ "$i" -le "$WARMUP" ]; then
-            printf "  Run %d (warm-up): %d lines\n" "$i" "$current_lines"
+            printf "  Run %d (warm-up): %s lines/sec\n" "$i" "$throughput"
         else
-            printf "  Run %d           : %d lines\n" "$i" "$current_lines"
-            lines_list+=("$current_lines")
+            printf "  Run %d           : %s lines/sec\n" "$i" "$throughput"
+            throughputs+=("$throughput")
         fi
     done
 
-    docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1
-    sleep 1
-
-    if [ ${#lines_list[@]} -gt 0 ]; then
-        local total=0 min=${lines_list[0]} max=${lines_list[0]}
-        for l in "${lines_list[@]}"; do
-            total=$((total + l))
-            [ "$l" -lt "$min" ] && min=$l
-            [ "$l" -gt "$max" ] && max=$l
-        done
-        local avg=$((total / ${#lines_list[@]}))
+    if [ ${#throughputs[@]} -gt 0 ]; then
+        local avg min max
+        avg=$(printf '%s\n' "${throughputs[@]}" | awk '{s+=$1; n++} END{printf "%.0f", s/n}')
+        min=$(printf '%s\n' "${throughputs[@]}" | sort -n | head -1 | awk '{printf "%.0f", $1}')
+        max=$(printf '%s\n' "${throughputs[@]}" | sort -n | tail -1 | awk '{printf "%.0f", $1}')
         local bin_size
         bin_size=$(image_binary_size "$image" "$binary")
-        printf "  ─────────────────────────────────────────\n"
-        printf "  Avg: %d lines  |  Min: %d  |  Max: %d\n" "$avg" "$min" "$max"
-        printf "  Memory  : %s KB\n" "${mem_kb:-N/A}"
+        printf "  ─────────────────────────────────────────────\n"
+        printf "  Avg: %s l/s  |  Min: %s  |  Max: %s\n" "$avg" "$min" "$max"
         printf "  Binary  : %s\n" "${bin_size:-N/A}"
     fi
     echo ""
@@ -203,14 +171,14 @@ run_benchmark "Rust" "las-rust" "/usr/local/bin/log-aggregator"
 run_benchmark "Zig"  "las-zig"  "/usr/local/bin/log-aggregator"
 
 # ─── Code Lines ───────────────────────────────────────────────────────────────
-echo "── Code Lines ────────────────────────────────"
+echo "── Code Lines ────────────────────────────────────"
 wc -l < "$PROJECT_DIR/go/main.go"       | awk '{printf "  Go  : %s lines\n", $1}'
 wc -l < "$PROJECT_DIR/rust/src/main.rs" | awk '{printf "  Rust: %s lines\n", $1}'
 wc -l < "$PROJECT_DIR/zig/src/main.zig" | awk '{printf "  Zig : %s lines\n", $1}'
 echo ""
 
 # ─── Cleanup ──────────────────────────────────────────────────────────────────
-echo "── Cleanup ────────────────────────────────────"
+echo "── Cleanup ───────────────────────────────────────"
 docker rm -f "$BACKEND_CONTAINER" >/dev/null 2>&1
 docker network rm "$NETWORK_NAME" >/dev/null 2>&1
 echo "  ✓ Done — results saved to: $RESULT_FILE"

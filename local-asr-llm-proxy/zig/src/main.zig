@@ -54,9 +54,11 @@ const Stats = struct {
         else
             0.0;
 
+        // JSON with format specifiers - use {{ to escape braces
         return std.fmt.allocPrint(alloc,
-            \\{{"total_processed":{},"processing_time_s":{d:.3},"average_latency_ms":{d:.3},"throughput":{d:.2}}}
-        , .{ total, elapsed_s, avg_latency_ms, throughput });
+            "{{\"total_processed\":{},\"processing_time_s\":{d:.3},\"average_latency_ms\":{d:.3},\"throughput\":{d:.2}}}",
+            .{ total, elapsed_s, avg_latency_ms, throughput }
+        );
     }
 };
 
@@ -80,7 +82,7 @@ pub fn main() !void {
     defer std.process.argsFree(g_allocator, args);
 
     const listen_addr = if (args.len > 1) args[1] else "0.0.0.0:8080";
-    _ = if (args.len > 2) args[2] else "http://localhost:3000"; // backend_url unused in simulation
+    _ = if (args.len > 2) args[2] else "http://localhost:3000"; // backend_url - unused in simulation mode
 
     const worker_count = std.Thread.getCpuCount() catch 4;
 
@@ -194,8 +196,9 @@ fn handleTranscribe(r: zap.Request) !void {
 
     // Create response
     const resp_json = try std.fmt.allocPrint(g_allocator,
-        \\{{"job_id":"{s}","status":"completed","transcription":"mock transcription from ASR proxy","processing_time_ms":{}}}
-    , .{ job_id, latency_ms });
+        "{{\"job_id\":\"{s}\",\"status\":\"completed\",\"transcription\":\"mock transcription from ASR proxy\",\"processing_time_ms\":{}}}",
+        .{ job_id, latency_ms }
+    );
 
     r.setHeader("Content-Type", "application/json") catch {};
     try r.sendBody(resp_json);
