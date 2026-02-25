@@ -11,7 +11,7 @@
 | 2.2 | Real-time Audio Chunker | ✅ Done | 4-5 µs | 5 µs | 17 ns |
 | 2.3 | Lightweight API Gateway | ✅ Done | 54,919 req/s | 57,056 req/s | 52,103 req/s |
 | 3.1 | Local ASR/LLM Proxy | ⬜ | — | — | — |
-| 3.2 | Vector DB Ingester | ⬜ | — | — | — |
+| 3.2 | Vector DB Ingester | ✅ Done | — | — | — |
 | 3.3 | Custom Log Masker | ✅ Done | 3.91 MB/s | **41.71 MB/s** | 11.68 MB/s |
 | 4.1 | Log Aggregator Sidecar | ⬜ | — | — | — |
 | 4.2 | Tiny Health Check Agent | ⬜ | — | — | — |
@@ -91,7 +91,7 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (7/27)
+### ✅ Completed Projects (8/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
@@ -99,6 +99,7 @@
 5. **Lightweight API Gateway** — HTTP throughput, 54.9K/57.1K/52.1K req/s
 6. **Real-time Audio Chunker** — Buffer management, 4-5µs / 5µs / 17ns latency
 7. **Custom Log Masker** — String processing, **41.71 MB/s (Rust)** vs 3.91 MB/s (Go)
+8. **Vector DB Ingester** — Document chunking, embedding generation, memory management
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -118,6 +119,6 @@
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 7 (25.9%)
+- **Completed**: 8 (29.6%)
 - **In Progress**: 0
-- **Remaining**: 20 (74.1%)
+- **Remaining**: 19 (70.4%)

@@ -1,0 +1,52 @@
+[
+    {
+        "id": "doc-001",
+        "content": "The quick brown fox jumps over the lazy dog. This is a classic pangram used in typing exercises. It contains every letter of the English alphabet at least once.",
+        "type": "txt"
+    },
+    {
+        "id": "doc-002",
+        "content": "Machine learning is a subset of artificial intelligence that focuses on the development of algorithms and statistical models that enable computers to perform tasks without explicit programming. Deep learning has revolutionized the field.",
+        "type": "txt"
+    },
+    {
+        "id": "doc-003",
+        "content": "Rust is a systems programming language that focuses on safety and performance. It provides memory safety without garbage collection through its ownership system. The language is known for preventing null pointer dereferences and data races at compile time.",
+        "type": "txt"
+    },
+    {
+        "id": "doc-004",
+        "content": "Go is an open-source programming language supported by Google. It is known for its simplicity, strong concurrency support through goroutines, and efficient compilation. Go is widely used in cloud-native applications and microservices.",
+        "type": "txt"
+    },
+    {
+        "id": "doc-005",
+        "content": "Zig is a general-purpose programming language designed for robustness, optimality, and maintainability. It provides manual memory management and compile-time execution. Zig is designed to replace C while offering modern language features.",
+        "type": "txt"
+    },
+    {
+        "id": "doc-006",
+        "content": "Vector databases are specialized database systems that store and query high-dimensional vector embeddings. They are commonly used in similarity search, recommendation systems, and AI applications including semantic search and generative AI retrieval augmented generation.",
+        "type": "txt"
+    },
+    {
+        "id": "doc-007",
+        "content": "Containerization is a lightweight form of virtualization that allows applications to run in isolated environments. Docker and Kubernetes have become standard tools for deploying and managing containerized applications at scale in modern cloud infrastructure.",
+        "type": "txt"
+    },
+    {
+        "id": "doc-008",
+        "content": "Natural language processing is a subfield of linguistics, computer science, and artificial intelligence concerned with the interactions between computers and human language. It focuses on programming computers to process and analyze large amounts of natural language data.",
+        "type": "txt"
+    },
+    {
+        "id": "doc-009",
+        "content": "Distributed systems are collections of independent computers that appear to users as a single coherent system. They offer scalability, fault tolerance, and high availability but also introduce complexity in consistency, coordination, and network partition handling.",
+        "type": "txt"
+    },
+    {
+        "id": "doc-010",
+        "content": "GraphQL is a query language for APIs that provides a complete description of the data in an API. It gives clients the power to ask for exactly what they need, making API development faster and more flexible compared to traditional REST APIs.",
+        "type": "txt"
+    }
+]
