@@ -55,8 +55,6 @@ struct Stats {
     total_processed: AtomicU64,
     total_latency_ns: AtomicU64,
     start_time: Instant,
-    // Shared HTTP client for connection pooling
-    client: reqwest::Client,
 }
 
 impl Stats {
@@ -65,12 +63,6 @@ impl Stats {
             total_processed: AtomicU64::new(0),
             total_latency_ns: AtomicU64::new(0),
             start_time: Instant::now(),
-            client: Client::builder()
-                .timeout(Duration::from_secs(3))
-                .pool_max_idle_per_host(100)
-                .pool_idle_timeout(Duration::from_secs(30))
-                .build()
-                .unwrap(),
         }
     }
 
@@ -103,13 +95,15 @@ impl Stats {
             throughput,
         }
     }
-
-    fn get_client(&self) -> &Client {
-        &self.client
-    }
 }
 
-type AppState = Arc<Stats>;
+struct AppStateInner {
+    stats: Stats,
+    client: Client,
+    backend_url: String,
+}
+
+type AppState = Arc<AppStateInner>;
 
 // ============================================================================
 // Main
@@ -118,31 +112,33 @@ type AppState = Arc<Stats>;
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let listen_addr = args.get(1).map(|s| s.as_str()).unwrap_or("0.0.0.0:8080");
-    let backend_url = args.get(2).map(|s| s.as_str()).unwrap_or("http://localhost:3000");
+    let listen_addr = args.get(1).map(|s| s.as_str()).unwrap_or("0.0.0.0:8080").to_string();
+    let backend_url = args.get(2).map(|s| s.as_str()).unwrap_or("http://localhost:3000").to_string();
 
-    print_config(listen_addr, backend_url);
+    print_config(&listen_addr, &backend_url);
 
-    let state = Arc::new(Stats::new());
-
-    // Store backend URL in a static for the handler
-    // This is a hack to avoid passing it through the state
-    BACKEND_URL.set(backend_url.to_string()).ok();
+    let state: AppState = Arc::new(AppStateInner {
+        stats: Stats::new(),
+        client: Client::builder()
+            .timeout(Duration::from_secs(3))
+            .pool_max_idle_per_host(100)
+            .pool_idle_timeout(Duration::from_secs(30))
+            .build()
+            .unwrap(),
+        backend_url,
+    });
 
     let app = Router::new()
         .route("/transcribe", post(handle_transcribe))
         .route("/health", get(handle_health))
         .route("/stats", get(handle_stats))
-        .with_state(state.clone());
+        .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind(listen_addr).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(&listen_addr).await.unwrap();
     println!("Server listening on {}", listen_addr);
 
     axum::serve(listener, app).await.unwrap();
 }
-
-// Global backend URL - set once at startup
-static BACKEND_URL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
 fn print_config(listen_addr: &str, backend_url: &str) {
     println!("── Configuration ─────────────────────");
@@ -161,15 +157,11 @@ async fn handle_transcribe(
     Json(req): Json<TranscriptionRequest>,
 ) -> Result<Json<TranscriptionResponse>, (StatusCode, String)> {
     let start = Instant::now();
-    
-    let backend_url = BACKEND_URL.get().unwrap();
 
-    // Forward to backend directly using shared connection pool
-    let result = forward_to_backend(state.get_client(), backend_url, &req).await;
+    let result = forward_to_backend(&state.client, &state.backend_url, &req).await;
 
-    // Record stats
     let latency_ns = start.elapsed().as_nanos() as u64;
-    state.add_request(latency_ns);
+    state.stats.add_request(latency_ns);
 
     match result {
         Ok(resp) => Ok(Json(resp)),
@@ -211,5 +203,5 @@ async fn handle_health() -> Json<HealthResponse> {
 }
 
 async fn handle_stats(State(state): State<AppState>) -> Json<StatsResponse> {
-    Json(state.get_stats())
+    Json(state.stats.get_stats())
 }

@@ -69,6 +69,7 @@ const Stats = struct {
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var g_allocator: Allocator = undefined;
 var g_stats: Stats = undefined;
+var g_backend_url: []const u8 = undefined;
 
 // ============================================================================
 // Main
@@ -82,7 +83,7 @@ pub fn main() !void {
     defer std.process.argsFree(g_allocator, args);
 
     const listen_addr = if (args.len > 1) args[1] else "0.0.0.0:8080";
-    _ = if (args.len > 2) args[2] else "http://localhost:3000"; // backend_url - unused in simulation mode
+    g_backend_url = if (args.len > 2) args[2] else "http://localhost:3000";
 
     const worker_count = std.Thread.getCpuCount() catch 4;
 
@@ -157,6 +158,27 @@ fn handleStats(r: zap.Request) !void {
     try r.sendBody(stats_json);
 }
 
+fn forwardToBackend(body: []const u8) ![]u8 {
+    var client = std.http.Client{ .allocator = g_allocator };
+    defer client.deinit();
+
+    const url_str = try std.fmt.allocPrint(g_allocator, "{s}/transcribe", .{g_backend_url});
+    defer g_allocator.free(url_str);
+
+    var aw: std.Io.Writer.Allocating = .init(g_allocator);
+    defer aw.deinit();
+
+    _ = try client.fetch(.{
+        .location = .{ .url = url_str },
+        .method = .POST,
+        .payload = body,
+        .extra_headers = &.{.{ .name = "Content-Type", .value = "application/json" }},
+        .response_writer = &aw.writer,
+    });
+
+    return aw.toOwnedSlice();
+}
+
 fn handleTranscribe(r: zap.Request) !void {
     const method = r.method orelse "";
     if (!std.mem.eql(u8, method, "POST")) {
@@ -171,36 +193,29 @@ fn handleTranscribe(r: zap.Request) !void {
         return;
     };
 
-    // Parse but ignore the actual content - just simulate backend delay
-    var parsed = std.json.parseFromSlice(TranscriptionRequest, g_allocator, body, .{
-        .allocate = .alloc_always,
-    }) catch {
-        r.setStatus(.bad_request);
-        try r.sendBody("Invalid JSON");
+    const start = std.time.nanoTimestamp();
+
+    const backend_resp = forwardToBackend(body) catch |err| {
+        std.debug.print("Backend error: {}\n", .{err});
+        r.setStatus(.bad_gateway);
+        try r.sendBody("Backend error");
         return;
     };
-    defer parsed.deinit();
+    defer g_allocator.free(backend_resp);
 
-    // Generate job ID
+    const latency_ns = std.time.nanoTimestamp() - start;
+    g_stats.addRequest(@intCast(latency_ns));
+
     const job_id = try std.fmt.allocPrint(g_allocator, "{}", .{std.time.nanoTimestamp()});
     defer g_allocator.free(job_id);
 
-    // Simulate backend processing (10-50ms delay like mock backend)
-    const start = std.time.nanoTimestamp();
-    const delay_ns = 10_000_000 + (@as(u64, @intCast(std.time.nanoTimestamp())) % 40_000_000);
-    std.Thread.sleep(delay_ns);
-    const latency_ns = std.time.nanoTimestamp() - start;
-    
-    g_stats.addRequest(@intCast(latency_ns));
     const latency_ms = @divTrunc(latency_ns, 1_000_000);
-
-    // Create response
     const resp_json = try std.fmt.allocPrint(g_allocator,
-        "{{\"job_id\":\"{s}\",\"status\":\"completed\",\"transcription\":\"mock transcription from ASR proxy\",\"processing_time_ms\":{}}}",
+        "{{\"job_id\":\"{s}\",\"status\":\"completed\",\"transcription\":\"forwarded\",\"processing_time_ms\":{}}}",
         .{ job_id, latency_ms }
     );
+    defer g_allocator.free(resp_json);
 
     r.setHeader("Content-Type", "application/json") catch {};
     try r.sendBody(resp_json);
-    g_allocator.free(resp_json);
 }

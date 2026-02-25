@@ -116,12 +116,14 @@ func main() {
 }
 
 func parseArgs() *Config {
-	listenAddr := ":8080"
+	listenAddr := "0.0.0.0:8080"
 	backendURL := "http://localhost:3000"
 	workerCount := runtime.NumCPU()
 	queueSize := 1000
 
+	// Support positional args: <listen_addr> <backend_url>
 	args := os.Args[1:]
+	positional := 0
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-listen", "-l":
@@ -143,6 +145,16 @@ func parseArgs() *Config {
 			if i+1 < len(args) {
 				fmt.Sscanf(args[i+1], "%d", &queueSize)
 				i++
+			}
+		default:
+			if len(args[i]) > 0 && args[i][0] != '-' {
+				switch positional {
+				case 0:
+					listenAddr = args[i]
+				case 1:
+					backendURL = args[i]
+				}
+				positional++
 			}
 		}
 	}

@@ -176,16 +176,16 @@ Response:
 
 ## การเปรียบเทียบ
 
-| Aspect | Go | Rust | Zig |
+| Metric | Go | Rust | Zig |
 |--------|----|------|-----|
-| **HTTP Server** | net/http | axum + hyper | Zap (facil.io) |
-| **Concurrency** | goroutines + channels | tokio + mpsc | threads + mutex |
-| **Queue** | buffered channel | mpsc channel | lock-free queue |
-| **Stats** | sync/atomic | Arc<AtomicU64> | std.atomic.Value |
-| **Performance** | 11,051 req/s 🏆 | 1,522 req/s | 119 req/s |
-| **Memory Usage** | 2,948 KB | 16,343 KB | 67,103 KB |
-| **Binary Size** | 5.4MB | 3.6MB | 2.4MB |
-| **Code Lines** | 305 | 280 | 264 |
+| **Throughput (Avg)** | ~242 req/s | ~1,526 req/s 🏆 | ~115 req/s |
+| **Avg Latency** | ~191ms | ~31ms | ~402ms |
+| **Memory Usage** | 2,968 KB | 1,248 KB | 72,499 KB |
+| **Binary Size** | 5.7MB | 3.8MB | 7.5MB |
+| **Code Lines** | 317 | 207 | 221 |
+| **HTTP Server** | net/http | axum 0.8 + hyper | Zap (facil.io) |
+| **Concurrency** | goroutines + channels | tokio async | zap threads |
+| **HTTP Client** | net/http | reqwest + rustls | std.http.Client |
 
 ## ผลการวัด (Benchmark Results)
 
@@ -195,63 +195,64 @@ Response:
 ╚══════════════════════════════════════════╝
   Tool     : wrk -t4 -c50 -d3s
   Mode     : Docker network
+  Backend  : mock ASR (10-50ms delay per request)
 
-── Go ─────────────────────────────────────────
-  Run 1 (warm-up): 11548 req/s  latency 4.21ms
-  Run 2           : 11081 req/s  latency 8.84ms
-  Run 3           : 11468 req/s  latency 5.39ms
-  Run 4           : 8661 req/s  latency 8.50ms
-  Run 5           : 12994 req/s  latency 3.71ms
+── Go     ──────────────────────────────────────
+  Run 1 (warm-up): 253 req/s  latency 181.89ms
+  Run 2           : 244 req/s  latency 190.02ms
+  Run 3           : 243 req/s  latency 191.05ms
+  Run 4           : 245 req/s  latency 189.34ms
+  Run 5           : 238 req/s  latency 194.92ms
   ─────────────────────────────────────────
-  Avg: 11051 req/s  |  Min: 8661  |  Max: 12994
-  Memory  : 5004 KB
-  Binary  : 5.4MB
+  Avg: 242 req/s  |  Min: 238  |  Max: 245
+  Memory  : 2,968 KB
+  Binary  : 5.7MB
 
-── Rust ────────────────────────────────────────
-  Run 1 (warm-up): 1482 req/s  latency 31.42ms
-  Run 2           : 1537 req/s  latency 30.98ms
-  Run 3           : 1534 req/s  latency 31.06ms
-  Run 4           : 1487 req/s  latency 32.19ms
-  Run 5           : 1530 req/s  latency 31.08ms
+── Rust   ──────────────────────────────────────
+  Run 1 (warm-up): 1514 req/s  latency 31.51ms
+  Run 2           : 1522 req/s  latency 31.30ms
+  Run 3           : 1521 req/s  latency 31.35ms
+  Run 4           : 1551 req/s  latency 30.71ms
+  Run 5           : 1511 req/s  latency 31.00ms
   ─────────────────────────────────────────
-  Avg: 1522 req/s  |  Min: 1487  |  Max: 1537
-  Memory  : 4048 KB
-  Binary  : 3.5MB
+  Avg: 1,526 req/s  |  Min: 1,511  |  Max: 1,551
+  Memory  : 1,248 KB
+  Binary  : 3.8MB
 
-── Zig ──────────────────────────────────────────
-  Run 1 (warm-up): 117 req/s  latency 394.29ms
-  Run 2           : 121 req/s  latency 377.76ms
-  Run 3           : 124 req/s  latency 374.49ms
-  Run 4           : 119 req/s  latency 387.95ms
-  Run 5           : 114 req/s  latency 407.60ms
+── Zig    ──────────────────────────────────────
+  Run 1 (warm-up): 123 req/s  latency 376.85ms
+  Run 2           : 120 req/s  latency 387.55ms
+  Run 3           : 110 req/s  latency 425.41ms
+  Run 4           : 120 req/s  latency 390.81ms
+  Run 5           : 113 req/s  latency 405.90ms
   ─────────────────────────────────────────
-  Avg: 119 req/s  |  Min: 114  |  Max: 124
-  Memory  : 67113 KB
-  Binary  : 2.4MB
+  Avg: 115 req/s  |  Min: 110  |  Max: 120
+  Memory  : 72,499 KB
+  Binary  : 7.5MB
 
 ── Code Lines ────────────────────────────────
-  Go  : 305 lines
-  Rust: 215 lines
-  Zig : 203 lines
+  Go  : 317 lines
+  Rust: 207 lines
+  Zig : 221 lines
 ```
 
-**Key insight**: Go ชนะ 7x จาก Rust เพราะ goroutine pool มี overhead ต่ำกว่า แต่หลัง refactor Rust ดีขึ้น 7 เท่า (221 → 1,522 req/s)
+**Key insight**: **Rust ชนะขาด ~6.3x เหนือ Go และ ~13x เหนือ Zig** เพราะ `tokio` async I/O multiplexes requests บน thread pool โดยไม่บล็อก — 50 concurrent connections ถูก handle โดยไม่ต้องรอ thread ว่าง
 
-**หมายเหตุ Zig**: Zig ทำงานใน simulation mode (แทนที่จะ forward HTTP ไป backend จริงๆ ใช้ `std.Thread.sleep` สำหรับ 10-50ms delay) เนื่องจาก `std.http.Client` มี API complexity ตอน compile ถ้าต้องการ performance ที่แท้จริง ต้อง implement HTTP forwarding จริงๆ
+**Zig ช้าเพราะ**: `std.http.Client` ใน Zig 0.15 สร้าง client ใหม่ทุก request + Zap (facil.io) ใช้ memory สูง (~72MB) เนื่องจาก thread stack allocation
 
 ## สรุปผล
 
-- **Go**: 12,951 req/s — ซึ่งเร็วที่สุด เพราะ goroutine pool มีประสิทธิภาพสูงสุดสำหรับ I/O bound work
-- **Rust**: 221 req/s — ช้ากว่า Go 58x เนื่องจาก async overhead
-- **Zig**: 115 req/s — ใช้ simulation เนื่องจาก std.http.Client มีความซับซ้อน
+- **Go**: 242 req/s — worker pool + buffered channel ใช้ได้แต่ channel เป็น bottleneck เมื่อ backend latency สูง
+- **Rust**: 1,526 req/s — async tokio สามารถรับ request ใหม่ขณะรอ backend ได้ ทำให้ throughput สูงสุด
+- **Zig**: 115 req/s — `std.http.Client` สร้างใหม่ทุก request มี overhead สูง, Zap framework ใช้ memory สูงมาก
 
 ## หมายเหตุ
 
-- **Go**: ใช้ standard library `net/http` — worker pool กับ buffered channels
-- **Rust**: ใช้ `axum` + `tokio` — async worker pool กับ `mpsc` channel
-- **Zig**: ใช้ Zap (facil.io C library) — thread pool กับ lock-free queue
-- **Mock Backend**: simulate ASR processing time 10-50ms
-- **Benchmark**: วัด throughput (req/s) — metric หลักสำหรับ Proxy server
+- **Go**: ใช้ standard library `net/http` — worker pool กับ buffered channels, 1 goroutine ต่อ request
+- **Rust**: ใช้ `axum 0.8` + `tokio` async, `reqwest` with `rustls-tls` (no libssl dependency)
+- **Zig**: ใช้ Zap (facil.io) + `std.http.Client.fetch` forward ไป backend จริง
+- **Mock Backend**: simulate ASR processing time 10-50ms per request
+- **Benchmark**: `wrk -t4 -c50 -d3s` วัด throughput (req/s) + latency
 
 ## ทักษะที่ฝึก
 
