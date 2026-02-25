@@ -11,7 +11,7 @@
 | 2.2 | Real-time Audio Chunker | ✅ Done | 4-5 µs | 5 µs | 17 ns |
 | 2.3 | Lightweight API Gateway | ✅ Done | 54,919 req/s | 57,056 req/s | 52,103 req/s |
 | 3.1 | Local ASR/LLM Proxy | ⬜ | — | — | — |
-| 3.2 | Vector DB Ingester | ✅ Done | — | — | — |
+| 3.2 | Vector DB Ingester | ✅ Done | 23,157 chunks/s | 30,832 chunks/s | **36,162 chunks/s** |
 | 3.3 | Custom Log Masker | ✅ Done | 3.91 MB/s | **41.71 MB/s** | 11.68 MB/s |
 | 4.1 | Log Aggregator Sidecar | ⬜ | — | — | — |
 | 4.2 | Tiny Health Check Agent | ⬜ | — | — | — |
@@ -50,6 +50,7 @@
 - ⬜ **Local ASR/LLM Proxy:** ตัวจัดการคิว (Queue) รับไฟล์เสียงส่งไปประมวลผลที่ Gemini/Whisper
 - ⬜ **Vector DB Ingester:** ตัวอ่านเอกสารขนาดใหญ่และแปลงเป็น Vector เพื่อเก็บลง Database (ฝึก Memory Management)
 - ✅ **Custom Log Masker:** กรองข้อมูล Sensitive ออกจาก Log ด้วยความเร็วสูง (ฝึก String Processing) — **Rust ชนะ 10x** (41.71 MB/s vs Go 3.91 MB/s)
+- ✅ **Vector DB Ingester:** แปลงเอกสารเป็น Vector Embeddings (ฝึก Memory Management) — **Zig ชนะ 1.56x** (36,162 chunks/s vs Go 23,157 chunks/s)
 
 ## 4. กลุ่มงาน DevOps และ Cloud-Native (DevOps Tools)
 *เน้นความประหยัดทรัพยากรและขนาดไฟล์ที่เล็ก (Static Binary)*
@@ -99,7 +100,7 @@
 5. **Lightweight API Gateway** — HTTP throughput, 54.9K/57.1K/52.1K req/s
 6. **Real-time Audio Chunker** — Buffer management, 4-5µs / 5µs / 17ns latency
 7. **Custom Log Masker** — String processing, **41.71 MB/s (Rust)** vs 3.91 MB/s (Go)
-8. **Vector DB Ingester** — Document chunking, embedding generation, memory management
+8. **Vector DB Ingester** — Memory management, **36,162 chunks/s (Zig)** vs 23,157 chunks/s (Go)
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -110,10 +111,11 @@
 - **Connection pooling** สำคัญ — Go reverse proxy ชนะขาด (10K vs 3.6K/2.7K req/s)
 - **Framework choice** สำคัญมาก — Zig manual HTTP 8K req/s → Zap 52K req/s
 - **Regex engine** สำคัญ — Rust `regex` crate เร็วกว่า Go RE2 ถึง 10x (41.71 vs 3.91 MB/s)
-- **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช้ Alpine)
+- **Memory model** สำคัญ — Zig manual memory ชนะใน Vector DB (1.56x), Rust regex engine ชนะใน Log Masker (10x)
+- **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช่ Alpine)
 
 ### 🎯 ถัดไป (Next Projects)
-- **กลุ่ม 3**: Local ASR/LLM Proxy (AI pipeline)
+- **กลุ่ม 3**: Local ASR/LLM Proxy (AI pipeline) - เหลือ 1 project
 - **กลุ่ม 7**: DNS Resolver (low-level networking)  
 - **กลุ่ม 8**: PNG Encoder from Scratch (pure algorithms)
 

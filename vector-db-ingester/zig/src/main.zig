@@ -28,55 +28,76 @@ fn printStats(total_docs: usize, total_chunks: usize, processing_ns: u64) void {
 fn hashString(s: []const u8) u64 {
     var h: u64 = 14695981039346656037;
     for (s) |byte| {
-        h ^= byte;
-        h = h *% 1099511628211;
+        h ^= @as(u64, byte);
+        h *= 1099511628211;
     }
     return h;
 }
 
-// Generate simple embedding
-fn simpleEmbedding(text: []const u8) [EMBEDDING_DIM]f32 {
-    const text_hash = hashString(text);
+// Simulate embedding generation
+fn generateEmbedding(content: []const u8) [EMBEDDING_DIM]f32 {
     var embedding: [EMBEDDING_DIM]f32 = undefined;
+    const hash = hashString(content);
     
-    for (0..EMBEDDING_DIM) |i| {
-        embedding[i] = @as(f32, @floatFromInt(@as(u32, @truncate((text_hash >> @truncate(i % 32)) & 0xFF)))) / 255.0;
+    var i: usize = 0;
+    while (i < EMBEDDING_DIM) : (i += 1) {
+        // Generate pseudo-random values based on hash
+        var seed = hash ^ @as(u64, @intCast(i));
+        seed ^= seed >> 33;
+        seed *= 0xff51afd7ed558ccd;
+        seed ^= seed >> 33;
+        seed *= 0xc4ceb9fe1a85ec53;
+        seed ^= seed >> 33;
+        
+        // Convert to float between -1 and 1
+        embedding[i] = (@as(f32, @floatFromInt(seed & 0x7fffffff)) / @as(f32, @floatFromInt(std.math.maxInt(u32)))) * 2.0 - 1.0;
     }
     
     return embedding;
 }
 
-// Process content - count chunks and generate embeddings
-fn processContent(_: std.mem.Allocator, content: []const u8) !struct { count: usize } {
-    // Count words
-    var word_count: usize = 0;
-    var tokenizer = std.mem.tokenizeScalar(u8, content, ' ');
-    while (tokenizer.next()) |_| {
-        word_count += 1;
-    }
-    
-    if (word_count == 0) {
-        return .{ .count = 0 };
-    }
-    
+// Process content into chunks
+fn processContent(allocator: std.mem.Allocator, content: []const u8) !struct { count: usize } {
     var chunk_count: usize = 0;
     
-    // Process chunks
+    // Simple word-based chunking
+    var words = std.mem.tokenizeScalar(u8, content, ' ');
     var word_idx: usize = 0;
-    while (word_idx < word_count) {
-        // Find chunk end
-        var chunk_word_end = word_idx + CHUNK_SIZE;
-        if (chunk_word_end > word_count) {
-            chunk_word_end = word_count;
+    var chunk_words = std.ArrayList([]const u8).initCapacity(allocator, 1024) catch unreachable;
+    defer chunk_words.deinit(allocator);
+    
+    while (words.next()) |word| {
+        try chunk_words.append(allocator, word);
+        word_idx += 1;
+        
+        // Create chunk when we reach CHUNK_SIZE
+        if (chunk_words.items.len >= CHUNK_SIZE) {
+            // Simulate embedding generation
+            const chunk_content = std.mem.join(allocator, " ", chunk_words.items) catch "";
+            defer allocator.free(chunk_content);
+            _ = generateEmbedding(chunk_content);
+            
+            chunk_count += 1;
+            
+            // Keep overlap for next chunk
+            if (CHUNK_OVERLAP > 0 and chunk_words.items.len > CHUNK_OVERLAP) {
+                const overlap_start = chunk_words.items.len - CHUNK_OVERLAP;
+                for (0..CHUNK_OVERLAP) |i| {
+                    chunk_words.items[i] = chunk_words.items[overlap_start + i];
+                }
+                chunk_words.shrinkRetainingCapacity(CHUNK_OVERLAP);
+            } else {
+                chunk_words.clearRetainingCapacity();
+            }
         }
-        
-        // Generate embedding for this chunk
-        _ = simpleEmbedding(content);
-        
+    }
+    
+    // Process remaining words
+    if (chunk_words.items.len > 0) {
+        const chunk_content = std.mem.join(allocator, " ", chunk_words.items) catch "";
+        defer allocator.free(chunk_content);
+        _ = generateEmbedding(chunk_content);
         chunk_count += 1;
-        
-        if (chunk_word_end >= word_count) break;
-        word_idx += CHUNK_SIZE - CHUNK_OVERLAP;
     }
     
     return .{ .count = chunk_count };
@@ -85,21 +106,18 @@ fn processContent(_: std.mem.Allocator, content: []const u8) !struct { count: us
 pub fn main() !void {
     var input_file: []const u8 = "test.json";
     var args = std.process.args();
-    _ = args.next();
+    _ = args.next(); // skip program name
     
-    while (args.next()) |arg| {
-        if (std.mem.eql(u8, arg, "-input") or std.mem.eql(u8, arg, "--input")) {
-            if (args.next()) |v| {
-                input_file = v;
-            }
-        }
+    // First positional argument is input file
+    if (args.next()) |arg| {
+        input_file = arg;
     }
     
     printConfig(input_file);
     
     var timer = try std.time.Timer.start();
     
-    const file = try std.fs.cwd().openFile(input_file, .{});
+    const file = try std.fs.openFileAbsolute(input_file, .{});
     defer file.close();
     
     const stat = try file.stat();
@@ -110,67 +128,57 @@ pub fn main() !void {
     var chunk_count: usize = 0;
     
     const trimmed = std.mem.trim(u8, data, &[_]u8{ ' ', '\n', '\r', '\t' });
-    if (std.mem.startsWith(u8, trimmed, "[")) {
-        var search_idx: usize = 0;
-        while (search_idx < data.len) {
-            const obj_start = std.mem.indexOfScalarPos(u8, data, search_idx, '{') orelse break;
-            const obj_end = std.mem.indexOfScalarPos(u8, data, obj_start, '}') orelse break;
-            
-            const obj_data = data[obj_start..obj_end+1];
-            
-            if (std.mem.indexOf(u8, obj_data, "\"content\"")) |content_pos| {
-                const after_content = obj_data[content_pos+9..];
-                const colon = std.mem.indexOfScalar(u8, after_content, ':') orelse {
-                    search_idx = obj_end + 1;
-                    continue;
-                };
-                const after_colon = after_content[colon+1..];
-                const quote = std.mem.indexOfScalar(u8, after_colon, '"') orelse {
-                    search_idx = obj_end + 1;
-                    continue;
-                };
-                const after_quote = after_colon[quote+1..];
-                const end_quote = std.mem.indexOfScalar(u8, after_quote, '"') orelse {
-                    search_idx = obj_end + 1;
-                    continue;
-                };
-                const content = after_quote[0..end_quote];
-                
-                doc_count += 1;
-                const result = try processContent(std.heap.page_allocator, content);
-                chunk_count += result.count;
-            }
-            
-            search_idx = obj_end + 1;
-        }
-    } else if (std.mem.containsAtLeast(u8, data, 1, "\"content\"")) {
-        if (std.mem.indexOf(u8, data, "\"content\"")) |content_pos| {
-            const after_content = data[content_pos+9..];
-            const colon = std.mem.indexOfScalar(u8, after_content, ':');
-            const after_colon = if (colon) |c| after_content[c+1..] else data;
-            const quote = std.mem.indexOfScalar(u8, after_colon, '"');
-            const after_quote = if (quote) |q| after_colon[q+1..] else data;
-            const end_quote = std.mem.indexOfScalar(u8, after_quote, '"');
-            
-            if (end_quote) |eq| {
-                const content = after_quote[0..eq];
-                doc_count = 1;
-                const result = try processContent(std.heap.page_allocator, content);
-                chunk_count = result.count;
-                
-                const elapsed_ns = timer.read();
-                printStats(doc_count, chunk_count, elapsed_ns);
+    
+    // Check for new format: {"metadata": {...}, "documents": [...]}
+    var search_start: usize = 0;
+    if (std.mem.startsWith(u8, trimmed, "{")) {
+        // Look for "documents" array
+        if (std.mem.indexOf(u8, data, "\"documents\"")) |docs_pos| {
+            const after_docs = data[docs_pos+11..];
+            const bracket = std.mem.indexOfScalar(u8, after_docs, '[') orelse {
+                std.debug.print("Error: Invalid JSON format - missing documents array\n", .{});
                 return;
-            }
+            };
+            const documents_start = docs_pos + 11 + bracket + 1;
+            search_start = documents_start;
+        }
+    } else if (std.mem.startsWith(u8, trimmed, "[")) {
+        search_start = 0;
+    } else {
+        std.debug.print("Error: Invalid JSON format\n", .{});
+        return;
+    }
+    
+    while (search_start < data.len) {
+        const obj_start = std.mem.indexOfScalarPos(u8, data, search_start, '{') orelse break;
+        const obj_end = std.mem.indexOfScalarPos(u8, data, obj_start, '}') orelse break;
+        
+        const obj_data = data[obj_start..obj_end+1];
+        
+        if (std.mem.indexOf(u8, obj_data, "\"content\"")) |content_pos| {
+            const after_content = obj_data[content_pos+9..];
+            const colon = std.mem.indexOfScalar(u8, after_content, ':') orelse {
+                search_start = obj_end + 1;
+                continue;
+            };
+            const after_colon = after_content[colon+1..];
+            const quote = std.mem.indexOfScalar(u8, after_colon, '"') orelse {
+                search_start = obj_end + 1;
+                continue;
+            };
+            const after_quote = after_colon[quote+1..];
+            const end_quote = std.mem.indexOfScalar(u8, after_quote, '"') orelse {
+                search_start = obj_end + 1;
+                continue;
+            };
+            const content = after_quote[0..end_quote];
+            
+            doc_count += 1;
+            const result = try processContent(std.heap.page_allocator, content);
+            chunk_count += result.count;
         }
         
-        doc_count = 1;
-        const result = try processContent(std.heap.page_allocator, data);
-        chunk_count = result.count;
-    } else {
-        doc_count = 1;
-        const result = try processContent(std.heap.page_allocator, data);
-        chunk_count = result.count;
+        search_start = obj_end + 1;
     }
     
     const elapsed_ns = timer.read();

@@ -131,12 +131,23 @@ fn chunk_text(text: &str, chunk_size: usize, overlap: usize) -> Vec<Chunk> {
     chunks
 }
 
-// Parse input file (JSON array or single document or plain text)
+// Parse input file (new format with metadata wrapper, or JSON array, or single document, or plain text)
 fn parse_input_file(filename: &str) -> Result<Vec<Document>, String> {
     let data = std::fs::read(filename)
         .map_err(|e| format!("failed to read file: {}", e))?;
     
-    // Try JSON array
+    // Try new format: {"metadata": {...}, "documents": [...]}
+    #[derive(Deserialize)]
+    struct NewFormat {
+        documents: Vec<Document>,
+    }
+    if let Ok(new_format) = serde_json::from_slice::<NewFormat>(&data) {
+        if !new_format.documents.is_empty() {
+            return Ok(new_format.documents);
+        }
+    }
+    
+    // Try JSON array (old format)
     if let Ok(docs) = serde_json::from_slice::<Vec<Document>>(&data) {
         return Ok(docs);
     }
@@ -235,4 +246,8 @@ fn main() {
     
     // Print stats
     print_stats(&stats);
+    
+    // Explicitly flush stdout
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
 }

@@ -134,7 +134,15 @@ func parseInputFile(filename string) ([]Document, error) {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// Try parsing as JSON array
+	// Try parsing as new format: {"metadata": {...}, "documents": [...]}
+	var newFormat struct {
+		Documents []Document `json:"documents"`
+	}
+	if err := json.Unmarshal(data, &newFormat); err == nil && len(newFormat.Documents) > 0 {
+		return newFormat.Documents, nil
+	}
+
+	// Try parsing as JSON array (old format)
 	var docs []Document
 	if err := json.Unmarshal(data, &docs); err == nil {
 		return docs, nil
@@ -147,16 +155,20 @@ func parseInputFile(filename string) ([]Document, error) {
 	}
 
 	// Try parsing as plain text
-	content := string(data)
-	if !strings.Contains(content, "{") {
-		return []Document{{
-			ID:      "doc-1",
-			Content: content,
+	lines := strings.Split(string(data), "\n")
+	docs = make([]Document, 0, len(lines))
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		docs = append(docs, Document{
+			ID:      fmt.Sprintf("doc-%03d", i+1),
+			Content: line,
 			Type:    "txt",
-		}}, nil
+		})
 	}
-
-	return nil, fmt.Errorf("failed to parse input file")
+	return docs, nil
 }
 
 func main() {

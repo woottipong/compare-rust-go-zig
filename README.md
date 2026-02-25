@@ -16,6 +16,7 @@ compare-rust-go-zig/
 ├── lightweight-api-gateway/  ✅ API Gateway: JWT, rate limiting, reverse proxy
 ├── realtime-audio-chunker/   ✅ Real-time Audio Chunker (buffer management)
 ├── custom-log-masker/        ✅ Log PII masking (string processing)
+├── vector-db-ingester/       ✅ Vector embeddings generation (memory management)
 ├── <project-name>/           ⬜ projects ถัดไป
 ├── plan.md                   # รายการ projects ทั้งหมด + สถานะ
 └── .windsurf/rules/          # Coding rules สำหรับแต่ละภาษา
@@ -124,6 +125,18 @@ HTTP API Gateway พร้อม JWT validation, rate limiting, middleware chain
 | **Code Lines** | 183 | **127** | 473 |
 
 **Key insight**: Rust `regex` crate ใช้ SIMD optimizations + DFA engine — เร็วกว่า Go RE2 ถึง 10 เท่า
+
+### 8. Vector DB Ingester
+แปลงเอกสารเป็น Vector Embeddings สำหรับ Vector Database — Memory Management benchmark
+
+| Metric | Go | **Rust** | **Zig** 🏆 |
+|--------|-----|----------|-----------|
+| **Throughput** | 23,157 chunks/s | 30,832 chunks/s | **36,162 chunks/s** |
+| **Avg Latency** | 0.043ms | 0.032ms | **0.028ms** |
+| **Processing Time** | 0.040s | 0.030s | **0.026s** |
+| **Speedup vs Go** | 1.0x | 1.33x | **1.56x** |
+
+**Key insight**: Zig manual memory management ชนะด้วยไม่มี GC overhead — เหมาะกับ high-throughput data processing
 
 ---
 

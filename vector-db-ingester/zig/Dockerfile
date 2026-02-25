@@ -4,6 +4,7 @@ FROM debian:bookworm-slim AS builder
 # Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
+    xz-utils \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -19,8 +20,9 @@ ENV PATH="/usr/local/zig:$PATH"
 
 WORKDIR /build
 
-# Copy source
-COPY build.zig src/ ./
+# Copy all source files
+COPY build.zig ./
+COPY src/ ./src/
 
 # Build
 RUN zig build -Doptimize=ReleaseFast
@@ -30,11 +32,7 @@ FROM debian:bookworm-slim
 
 WORKDIR /app
 
-COPY --from=builder /build/zig-0.15.2/zig-0.15.2 /usr/local/zig
+# Copy the built binary
+COPY --from=builder /build/zig-out/bin/vdi-zig /usr/local/bin/vdi-zig
 
-ENV PATH="/usr/local/zig:$PATH"
-
-RUN mkdir -p /data
-
-ENTRYPOINT ["zig", "build", "-Doptimize=ReleaseFast"]
-CMD []
+ENTRYPOINT ["vdi-zig"]
