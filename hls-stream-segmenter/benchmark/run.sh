@@ -10,6 +10,11 @@ WARMUP=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+RESULTS_DIR="$SCRIPT_DIR/results"
+RESULT_FILE="$RESULTS_DIR/hls-stream-segmenter_$(date +%Y%m%d_%H%M%S).txt"
+
+mkdir -p "$RESULTS_DIR"
+exec > >(tee -a "$RESULT_FILE")
 
 if [ ! -f "$PROJECT_DIR/$INPUT_VIDEO" ] && [ ! -f "$INPUT_VIDEO" ]; then
     echo "Error: Input video not found: $INPUT_VIDEO"
@@ -87,11 +92,8 @@ run_benchmark() {
             [ "$t" -lt "$min" ] && min=$t
             [ "$t" -gt "$max" ] && max=$t
         done
-        local img_mb
-        img_mb=$(docker image inspect "$image" --format='{{.Size}}' 2>/dev/null | awk '{printf "%.0f", $1/1024/1024}')
         printf "  ─────────────────────────────────────────\n"
         printf "  Avg: %dms  |  Min: %dms  |  Max: %dms\n" "$((total / ${#times[@]}))" "$min" "$max"
-        printf "  Image Size: %sMB\n" "$img_mb"
     fi
     echo ""
 }
@@ -101,9 +103,29 @@ run_benchmark "Go"   "hls-go"
 run_benchmark "Rust" "hls-rust"
 run_benchmark "Zig"  "hls-zig"
 
+# ─── Binary Size ──────────────────────────────────────────────────────────────
+get_binary_size() {
+    local image="$1" binary="$2"
+    local cid
+    cid=$(docker create "$image" 2>/dev/null) || { echo "N/A"; return; }
+    local size
+    size=$(docker cp "$cid:$binary" - 2>/dev/null | wc -c)
+    docker rm "$cid" >/dev/null 2>&1
+    awk -v b="$size" 'BEGIN { if (b >= 1048576) printf "%.1fMB", b/1048576; else printf "%dKB", b/1024 }'
+}
+
+echo "── Binary Size ───────────────────────────────"
+printf "  Go  : %s\n" "$(get_binary_size hls-go   /usr/local/bin/segmenter-go)"
+printf "  Rust: %s\n" "$(get_binary_size hls-rust  /usr/local/bin/segmenter-rust)"
+printf "  Zig : %s\n" "$(get_binary_size hls-zig   /usr/local/bin/segmenter-zig)"
+echo ""
+
 # ─── Code Lines ───────────────────────────────────────────────────────────────
 echo "── Code Lines ────────────────────────────────"
 wc -l < "$PROJECT_DIR/go/main.go"       | awk '{printf "  Go  : %s lines\n", $1}'
 wc -l < "$PROJECT_DIR/rust/src/main.rs" | awk '{printf "  Rust: %s lines\n", $1}'
 wc -l < "$PROJECT_DIR/zig/src/main.zig" | awk '{printf "  Zig : %s lines\n", $1}'
 echo ""
+
+echo "── Results saved to ──────────────────────────"
+echo "  $RESULT_FILE"

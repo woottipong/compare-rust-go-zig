@@ -9,6 +9,16 @@ package main
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+static void* hls_sws_create(int w, int h, int src_fmt, int dst_fmt) {
+    return sws_getContext(w, h, src_fmt, w, h, dst_fmt, SWS_BILINEAR, NULL, NULL, NULL);
+}
+static void hls_sws_scale(void* ctx, AVFrame* src, AVFrame* dst) {
+    sws_scale(ctx,
+        (const uint8_t* const*)src->data, src->linesize, 0, src->height,
+        dst->data, dst->linesize);
+}
+static void hls_sws_free(void* ctx) { sws_freeContext(ctx); }
 */
 import "C"
 import (
@@ -103,7 +113,7 @@ type HLSegmenter struct {
 	frame    *C.AVFrame
 
 	// Scaling
-	swsCtx   *C.SwsContext
+	swsCtx   unsafe.Pointer
 	rgbFrame *C.AVFrame
 
 	// Segmenting
@@ -141,11 +151,7 @@ func (h *HLSegmenter) initialize() error {
 	// Setup scaling context
 	width := h.codecCtx.width
 	height := h.codecCtx.height
-	h.swsCtx = C.sws_getContext(
-		width, height, h.codecCtx.pix_fmt,
-		width, height, C.AV_PIX_FMT_YUV420P,
-		C.SWS_BILINEAR, nil, nil, nil,
-	)
+	h.swsCtx = C.hls_sws_create(width, height, C.int(h.codecCtx.pix_fmt), C.int(C.AV_PIX_FMT_YUV420P))
 	if h.swsCtx == nil {
 		return fmt.Errorf("could not create sws context")
 	}
@@ -168,7 +174,7 @@ func (h *HLSegmenter) cleanup() {
 		h.segmentFile = nil
 	}
 	if h.swsCtx != nil {
-		C.sws_freeContext(h.swsCtx)
+		C.hls_sws_free(h.swsCtx)
 	}
 	if h.rgbFrame != nil {
 		C.av_frame_free(&h.rgbFrame)
@@ -267,14 +273,7 @@ func (h *HLSegmenter) writeFrame() error {
 		return fmt.Errorf("no segment file open")
 	}
 
-	C.sws_scale(h.swsCtx,
-		(**C.uint8_t)(unsafe.Pointer(&h.frame.data[0])),
-		(*C.int)(unsafe.Pointer(&h.frame.linesize[0])),
-		0,
-		h.codecCtx.height,
-		(**C.uint8_t)(unsafe.Pointer(&h.rgbFrame.data[0])),
-		(*C.int)(unsafe.Pointer(&h.rgbFrame.linesize[0])),
-	)
+	C.hls_sws_scale(h.swsCtx, h.frame, h.rgbFrame)
 
 	width := int(h.codecCtx.width)
 	height := int(h.codecCtx.height)

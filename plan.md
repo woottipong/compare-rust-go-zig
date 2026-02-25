@@ -4,9 +4,9 @@
 
 | # | Project | สถานะ | Go | Rust | Zig |
 |---|---------|--------|-----|------|-----|
-| 1.1 | Video Frame Extractor | ✅ Done | 50ms | 76ms | 51ms |
-| 1.2 | HLS Stream Segmenter | ✅ Done | 1452ms | 1395ms | 1380ms |
-| 1.3 | Subtitle Burn-in Engine | ✅ Done | 503ms | 419ms | 392ms |
+| 1.1 | Video Frame Extractor | ✅ Done | 517ms* | 545ms* | 583ms* |
+| 1.2 | HLS Stream Segmenter | ✅ Done | 20874ms* | 16261ms* | 15572ms* |
+| 1.3 | Subtitle Burn-in Engine | ✅ Done | 1869ms* | 1625ms* | 1350ms* |
 | 2.1 | High-Performance Reverse Proxy | ⬜ | — | — | — |
 | 2.2 | Real-time Audio Chunker | ⬜ | — | — | — |
 | 2.3 | Lightweight API Gateway | ✅ Done | 54,919 req/s | 57,056 req/s | 52,103 req/s |
@@ -92,16 +92,19 @@
 ## สรุปความคืบหน้า (Progress Summary)
 
 ### ✅ Completed Projects (4/27)
-1. **Video Frame Extractor** — FFmpeg C interop, 50ms/76ms/51ms
-2. **HLS Stream Segmenter** — I/O bound streaming, ~1.4s all languages  
-3. **Subtitle Burn-in Engine** — Pixel manipulation, 503ms/419ms/392ms
+1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
+2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
+3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
 4. **Lightweight API Gateway** — HTTP throughput, 54.9K/57.1K/52.1K req/s
 
+> *Docker overhead included (~400-500ms container startup)
+
 ### 📊 Performance Insights
-- **Rust** ชนะใน CPU-bound tasks (subtitle burn-in, API gateway)
-- **Zig** ชนะใน I/O-bound tasks และ binary size เล็กสุด  
-- **Go** อยู่ในกลางเสมอ แต่ binary ใหญ่ที่สุดเมื่อใช้ dependencies
+- **Zig** เร็วสุดใน FFmpeg projects (vfe, hls, sbe) — variance ต่ำสุด
+- **Rust** เร็วรองมาและ binary size เล็กที่สุด (388KB) ใน FFmpeg projects
+- **Go** ช้ากว่าใน Docker เพราะ bookworm + glibc FFmpeg decode overhead
 - **Framework choice** สำคัญมาก — Zig manual HTTP 8K req/s → Zap 52K req/s
+- **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช้ Alpine)
 
 ### 🎯 ถัดไป (Next Projects)
 - **กลุ่ม 2**: High-Performance Reverse Proxy (networking benchmark)

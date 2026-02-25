@@ -6,19 +6,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     clang llvm \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /out
 WORKDIR /src
-COPY Cargo.toml Cargo.lock* ./
-RUN mkdir src && echo "fn main(){}" > src/main.rs
-RUN cargo build --release
-RUN rm -rf src
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir src && echo 'fn main(){}' > src/main.rs \
+    && cargo build --release \
+    && rm -rf src
 
 COPY src ./src
-RUN touch src/main.rs && cargo build --release
-RUN cp target/release/hls-stream-segmenter /out/segmenter-rust
+RUN touch src/main.rs \
+    && cargo build --release \
+    && strip target/release/hls-stream-segmenter
 
-FROM alpine:3.21
-RUN apk add --no-cache ffmpeg-libs
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libavformat59 libavcodec59 libavutil57 libswscale6 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /out/segmenter-rust /usr/local/bin/segmenter-rust
+COPY --from=builder /src/target/release/hls-stream-segmenter /usr/local/bin/segmenter-rust
 ENTRYPOINT ["segmenter-rust"]

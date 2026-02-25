@@ -63,17 +63,11 @@ zig build -Doptimize=ReleaseFast
 
 ## Benchmark
 ```bash
-cd benchmark
-./run.sh ../test-data/sample.mp4 5.0
-
-# Save results with timestamp
-./results/save-results.sh video-frame-extractor
+cd video-frame-extractor
+bash benchmark/run.sh
 ```
 
-### ผลการวัดที่เก็บไว้
-- **Full results**: `benchmark/results/video-frame-extractor_YYYYMMDD_HHMMSS.txt`
-- **Summary CSV**: `benchmark/results/video-frame-extractor_summary.csv`
-- ทุกครั้งที่รัน benchmark ควร save results เพื่อ tracking performance ข้ามเวลา
+ผลลัพธ์จะถูก save อัตโนมัติลง `benchmark/results/video-frame-extractor_YYYYMMDD_HHMMSS.txt`
 
 ## การเปรียบเทียบ
 
@@ -81,11 +75,12 @@ cd benchmark
 |--------|----|------|-----|
 | **C Interop** | CGO | ffmpeg-sys-next 8.0 | @cImport |
 | **Memory Safety** | GC + Manual (CGO) | Ownership + scopeguard | Manual |
-| **Binary Size** | 2.7MB | 451KB | **271KB** |
-| **Performance** | **50ms avg** | 76ms avg | 51ms avg |
-| **Memory Usage** | 20MB peak | 19MB peak | **19MB peak** |
+| **Binary Size** | 1.6MB | **388KB** | 1.4MB |
+| **Performance** | 517ms avg* | **545ms avg*** | 583ms avg* |
 | **Code Lines** | 182 | 192 | **169** |
 | **Build Time** | Fast | Medium (env vars) | Fast |
+
+> *Docker container overhead included (~400-500ms startup). ทุกภาษาเร็วใกล้เคียงกัน — FFmpeg I/O เป็น bottleneck
 
 ## ผลการวัด (Benchmark Results)
 
@@ -93,44 +88,42 @@ cd benchmark
 ╔══════════════════════════════════════════╗
 ║    Video Frame Extractor Benchmark       ║
 ╚══════════════════════════════════════════╝
-  Input    : test-data/sample.mp4 (30s, 640x360, H.264)
+  Input    : test-data/sample.mp4
   Timestamp: 5.0s
   Runs     : 5 (1 warm-up)
+  Mode     : Docker
 
-── Go     ─────────────────────────────────────
-  Run 1 (warm-up): 513ms
-  Run 2           : 50ms
-  Run 3           : 50ms
-  Run 4           : 51ms
-  Run 5           : 50ms
+── Go   ───────────────────────────────────────
+  Run 1 (warm-up): 660ms
+  Run 2           : 479ms
+  Run 3           : 499ms
+  Run 4           : 460ms
+  Run 5           : 632ms
   ─────────────────────────────────────────
-  Avg: 50ms  |  Min: 50ms  |  Max: 51ms
-  Peak Memory: 20224 KB
+  Avg: 517ms  |  Min: 460ms  |  Max: 632ms
 
-── Rust   ─────────────────────────────────────
-  Run 1 (warm-up): 497ms
-  Run 2           : 52ms
-  Run 3           : 58ms
-  Run 4           : 53ms
-  Run 5           : 141ms
+── Rust ───────────────────────────────────────
+  Run 1 (warm-up): 1037ms
+  Run 2           : 628ms
+  Run 3           : 514ms
+  Run 4           : 520ms
+  Run 5           : 521ms
   ─────────────────────────────────────────
-  Avg: 76ms  |  Min: 52ms  |  Max: 141ms
-  Peak Memory: 19856 KB
+  Avg: 545ms  |  Min: 514ms  |  Max: 628ms
 
-── Zig    ─────────────────────────────────────
-  Run 1 (warm-up): 53ms
-  Run 2           : 51ms
-  Run 3           : 51ms
-  Run 4           : 51ms
-  Run 5           : 54ms
+── Zig  ───────────────────────────────────────
+  Run 1 (warm-up): 627ms
+  Run 2           : 499ms
+  Run 3           : 571ms
+  Run 4           : 756ms
+  Run 5           : 507ms
   ─────────────────────────────────────────
-  Avg: 51ms  |  Min: 51ms  |  Max: 54ms
-  Peak Memory: 19632 KB
+  Avg: 583ms  |  Min: 499ms  |  Max: 756ms
 
 ── Binary Size ───────────────────────────────
-  Go  : 2.7M
-  Rust: 451K
-  Zig : 271K
+  Go  : 1.6MB
+  Rust: 388KB
+  Zig : 1.4MB
 
 ── Code Lines ────────────────────────────────
   Go  : 182 lines
@@ -139,7 +132,7 @@ cd benchmark
 ```
 
 ## หมายเหตุ
-- **Go**: ต้อง `unset GOROOT` บนเครื่องที่มีหลาย Go versions, CGO memory leak ง่าย
+- **Go**: `golang:1.25-bookworm` + `debian:bookworm-slim` — ใช้ C helper wrapper แทน `*C.SwsContext` field โดยตรง
 - **Rust**: `ffmpeg-sys-next 8.0` รองรับ FFmpeg 8.x, ใช้ `scopeguard::guard()` สำหรับ RAII
-- **Zig**: Manual memory management แต่มี control สูง, binary เล็กที่สุด (10x เล็กกว่า Go)
-- **Performance**: ทุกภาษาใช้เวลาใกล้เคียงกัน ~50ms → FFmpeg operations เป็น bottleneck หลัก
+- **Zig**: Manual memory management แต่มี control สูง
+- **Docker overhead**: ตัวเลข benchmark รวม container startup (~400ms) ทำให้สูงกว่า native run (~50ms)

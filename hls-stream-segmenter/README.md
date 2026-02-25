@@ -57,23 +57,17 @@ zig build -Doptimize=ReleaseFast
 
 ## Benchmark
 ```bash
-cd benchmark
-./run.sh ../test-data/sample.mp4 10
-
-# Save results with timestamp
-./results/save-results.sh hls-stream-segmenter
+cd hls-stream-segmenter
+bash benchmark/run.sh
 ```
+
+ผลลัพธ์จะถูก save อัตโนมัติลง `benchmark/results/hls-stream-segmenter_YYYYMMDD_HHMMSS.txt`
 
 ### สร้าง Test Video
 ```bash
 cd hls-stream-segmenter/test-data
 ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p sample.mp4
 ```
-
-### ผลการวัดที่เก็บไว้
-- **Full results**: `benchmark/results/hls-stream-segmenter_YYYYMMDD_HHMMSS.txt`
-- **Summary CSV**: `benchmark/results/hls-stream-segmenter_summary.csv`
-- ทุกครั้งที่รัน benchmark ควร save results เพื่อ tracking performance ข้ามเวลา
 
 ## การเปรียบเทียบ
 
@@ -83,10 +77,11 @@ ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p sam
 | **File I/O** | os package | std::fs | std.fs |
 | **Memory Management** | GC + Manual (CGO) | Ownership + Drop trait | Manual |
 | **Error Handling** | error interface | Result<T,E> | error union |
-| **Performance** | 1452ms avg | 1395ms avg | **1380ms avg** |
-| **Peak Memory** | 20MB | 18MB | **16MB** |
-| **Binary Size** | 2.6MB | 467KB | **288KB** |
-| **Code Lines** | 324 | 274 | **266** |
+| **Performance** | 20874ms avg* | **16261ms avg*** | 15572ms avg* |
+| **Binary Size** | 1.6MB | **388KB** | 1.5MB |
+| **Code Lines** | 323 | 274 | **266** |
+
+> *Docker + I/O overhead included. Go ช้ากว่า Rust/Zig ใน Docker เพราะ bookworm + glibc FFmpeg มี decode overhead สูงกว่า
 
 ## ผลการวัด (Benchmark Results)
 
@@ -94,55 +89,53 @@ ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p sam
 ╔══════════════════════════════════════════╗
 ║      HLS Stream Segmenter Benchmark       ║
 ╚══════════════════════════════════════════╝
-  Input    : test-data/sample.mp4 (30s, 640x360, H.264)
-  Segment  : 5s → 6 segments
+  Input    : test-data/sample.mp4
+  Segment  : 10s → 3 segments
   Runs     : 5 (1 warm-up)
+  Mode     : Docker
 
-── Go     ─────────────────────────────────────
-  Run 1 (warm-up): 1625ms (6 segments)
-  Run 2           : 1510ms (6 segments)
-  Run 3           : 1535ms (6 segments)
-  Run 4           : 1386ms (6 segments)
-  Run 5           : 1379ms (6 segments)
+── Go   ───────────────────────────────────────
+  Run 1 (warm-up): 45863ms (3 segments)
+  Run 2           : 18294ms (3 segments)
+  Run 3           : 19651ms (3 segments)
+  Run 4           : 20768ms (3 segments)
+  Run 5           : 24784ms (3 segments)
   ─────────────────────────────────────────
-  Avg: 1452ms  |  Min: 1379ms  |  Max: 1535ms
-  Peak Memory: 20336 KB
+  Avg: 20874ms  |  Min: 18294ms  |  Max: 24784ms
 
-── Rust   ─────────────────────────────────────
-  Run 1 (warm-up): 1550ms (6 segments)
-  Run 2           : 1366ms (6 segments)
-  Run 3           : 1486ms (6 segments)
-  Run 4           : 1368ms (6 segments)
-  Run 5           : 1361ms (6 segments)
+── Rust ───────────────────────────────────────
+  Run 1 (warm-up): 17396ms (3 segments)
+  Run 2           : 16418ms (3 segments)
+  Run 3           : 15975ms (3 segments)
+  Run 4           : 16505ms (3 segments)
+  Run 5           : 16148ms (3 segments)
   ─────────────────────────────────────────
-  Avg: 1395ms  |  Min: 1361ms  |  Max: 1486ms
-  Peak Memory: 18912 KB
+  Avg: 16261ms  |  Min: 15975ms  |  Max: 16505ms
 
-── Zig    ─────────────────────────────────────
-  Run 1 (warm-up): 1379ms (6 segments)
-  Run 2           : 1364ms (6 segments)
-  Run 3           : 1393ms (6 segments)
-  Run 4           : 1378ms (6 segments)
-  Run 5           : 1388ms (6 segments)
+── Zig  ───────────────────────────────────────
+  Run 1 (warm-up): 15834ms (3 segments)
+  Run 2           : 15136ms (3 segments)
+  Run 3           : 15561ms (3 segments)
+  Run 4           : 16401ms (3 segments)
+  Run 5           : 15190ms (3 segments)
   ─────────────────────────────────────────
-  Avg: 1380ms  |  Min: 1364ms  |  Max: 1393ms
-  Peak Memory: 16672 KB
+  Avg: 15572ms  |  Min: 15136ms  |  Max: 16401ms
 
 ── Binary Size ───────────────────────────────
-  Go  : 2.6M
-  Rust: 467K
-  Zig : 288K
+  Go  : 1.6MB
+  Rust: 388KB
+  Zig : 1.5MB
 
 ── Code Lines ────────────────────────────────
-  Go  : 324 lines
+  Go  : 323 lines
   Rust: 274 lines
   Zig : 266 lines
 ```
 
 ## หมายเหตุ
-- **Go/Rust/Zig**: ทุกภาษาใช้เวลาใกล้เคียงกัน ~1.4s → I/O ของการ write raw YUV frame data เป็น bottleneck หลัก
-- **Zig**: Binary เล็กที่สุด (288KB), memory น้อยที่สุด (16MB), variance ต่ำที่สุด
-- **Rust**: Memory ต่ำกว่า Go เพราะไม่มี GC overhead
+- **Go**: `golang:1.25-bookworm` + `debian:bookworm-slim` — ใช้ C helper wrapper (`hls_sws_scale`) เพื่อหลีกเลี่ยง `*C.SwsContext` field ใน struct ซึ่งไม่ทำงานบน bookworm arm64
+- **Rust**: `ffmpeg-sys-next 8.0`, bookworm runtime — binary เล็กที่สุด (388KB)
+- **Zig**: bookworm runtime, `@cImport` — performance ดีสุด, variance ต่ำสุด
 - **HLS**: สร้าง .m3u8 playlist และ .ts segments ที่มี raw YUV420P frame data
-- **Double-pointer in Go CGO**: `*(**C.AVStream)` pattern สำหรับ access C array
-- **Persistent file handle**: key fix — ต้องเปิดไฟล์ segment ค้างไว้ระหว่าง frames ไม่ใช่เปิด/ปิดทุก frame
+- **I/O bound**: ทุกภาษาช้าใน Docker เพราะ FFmpeg decode + write segments เป็น I/O bottleneck
+- **Persistent file handle**: ต้องเปิดไฟล์ segment ค้างไว้ระหว่าง frames ไม่ใช่เปิด/ปิดทุก frame

@@ -1,26 +1,29 @@
-FROM alpine:3.21 AS builder
+FROM debian:bookworm-slim AS builder
+ARG TARGETARCH
 
-RUN apk add --no-cache \
-    wget xz \
-    pkgconfig \
-    ffmpeg-dev \
-    musl-dev \
-    gcc
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget xz-utils ca-certificates pkg-config \
+    libavformat-dev libavcodec-dev libavutil-dev libswscale-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN wget -q https://ziglang.org/download/0.14.0/zig-linux-aarch64-0.14.0.tar.xz \
-    && tar -xf zig-linux-aarch64-0.14.0.tar.xz \
-    && mv zig-linux-aarch64-0.14.0 /usr/local/zig \
-    && rm zig-linux-aarch64-0.14.0.tar.xz
+RUN ZIG_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") \
+    && wget -q https://ziglang.org/download/0.15.2/zig-${ZIG_ARCH}-linux-0.15.2.tar.xz \
+    && tar -xf zig-${ZIG_ARCH}-linux-0.15.2.tar.xz \
+    && mv zig-${ZIG_ARCH}-linux-0.15.2 /usr/local/zig \
+    && rm zig-${ZIG_ARCH}-linux-0.15.2.tar.xz
 ENV PATH="/usr/local/zig:$PATH"
 
 WORKDIR /src
-COPY build.zig build.zig.zon* ./
+COPY build.zig ./
 COPY src ./src
-RUN mkdir -p /out && zig build -Doptimize=ReleaseFast
-RUN cp zig-out/bin/video-frame-extractor /out/extractor-zig
+RUN mkdir -p /out \
+    && zig build -Doptimize=ReleaseFast \
+    && cp zig-out/bin/video-frame-extractor /out/extractor-zig
 
-FROM alpine:3.21
-RUN apk add --no-cache ffmpeg-libs
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libavformat59 libavcodec59 libavutil57 libswscale6 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /out/extractor-zig /usr/local/bin/extractor-zig
 ENTRYPOINT ["extractor-zig"]

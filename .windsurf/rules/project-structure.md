@@ -104,16 +104,30 @@ compare-rust-go-zig/           ← repo root
 
 ## benchmark/run.sh มาตรฐาน
 
-- รับ args: `$1` = input file, `$2` = parameter (project-specific), `[--docker]` = docker mode
+### HTTP Throughput Projects (API Gateway ฯลฯ)
+- ใช้ `wrk` เป็น benchmark tool: `wrk -t4 -c50 -d3s`
+- สร้าง **Docker network** เพื่อให้ gateway และ backend คุยกันได้:
+  ```bash
+  docker network create gw-bench-net
+  docker run --network gw-bench-net --name gw-mock-backend ...
+  docker run --network gw-bench-net -p 8080:8080 ... "0.0.0.0:8080" "http://gw-mock-backend:3000"
+  ```
+- mock backend build เป็น Docker image inline ใน heredoc
+- วัด **Binary Size** ด้วย `docker create` + `docker cp` + `wc -c` (ไม่ run container)
+- Save ผลลัพธ์อัตโนมัติด้วย `exec > >(tee -a "$RESULT_FILE")` → `benchmark/results/result_<timestamp>.txt`
+- cleanup: `docker network rm` หลัง benchmark เสร็จเสมอ
+
+### Non-HTTP Projects (FFmpeg, CLI ฯลฯ)
 - รัน 5 ครั้ง: 1 warm-up + 4 นับ average
 - วัด **Time**: `$(date +%s%N)` nanoseconds → แปลงเป็น ms
 - วัด **Memory**: `/usr/bin/time -l` (macOS) หรือ `/usr/bin/time -v` (Linux) — `parse_mem_kb()` helper รองรับทั้งคู่
 - วัด **Binary Size**: `ls -lh`
 - วัด **Code Lines**: `wc -l`
+
+### ทั้งสองประเภท
 - แสดงผล Avg / Min / Max แยก warm-up ออก
 - ใช้ `SCRIPT_DIR` + `PROJECT_DIR` เพื่อรันจาก directory ใดก็ได้
 - Build ทุก version ก่อน benchmark เสมอ
-- รองรับ `--docker` flag: build Docker images แล้ว run ผ่าน `docker run`
 
 ---
 
@@ -157,20 +171,72 @@ bash benchmark/run.sh --docker
 bash benchmark/run.sh
 ```
 
+### Go Dockerfile Best Practices
+- `CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags='-s -w'` → static binary, stripped
+- `mkdir -p /out` ก่อน build เสมอ
+- แยก `ENTRYPOINT ["<binary>"]` กับ `CMD ["<default-args>"]` เสมอ
+
+### Rust Dockerfile Best Practices
+- ใช้ `rust:<version>-bookworm` เป็น builder (ไม่ใช้ `-alpine` เพราะ glibc/musl mismatch)
+- dependency cache layer: copy `Cargo.toml Cargo.lock` → dummy `src/main.rs` → `cargo build --release` → copy real src → build
+- `strip target/release/<binary>` หลัง build เพื่อลด binary size
+- `Cargo.lock` ไม่ใส่ `*` glob — explicit เสมอ
+
 ### Zig + Zap Docker Notes
-- Zap ใช้ `facil.io` เป็น shared lib → Dockerfile copy `.so` ไปไว้ใน `/usr/local/lib/facil/`
+- Zap ใช้ `facil.io` เป็น shared lib → Dockerfile copy `libfacil.io.so` ไปที่ `/usr/local/lib/`
 - ต้องรัน `ldconfig` ใน runtime stage เพื่อ register shared lib path
 - บน Linux container ไม่มีปัญหา `DYLD_LIBRARY_PATH` (เป็น macOS-only)
+- ใช้ `find .zig-cache -name 'libfacil.io.so*' -exec cp -L {} /out/ \;` เพื่อ copy .so
+
+### Zig Builder — Download URL (0.15+)
+URL format เปลี่ยนใน Zig 0.15+:
+```
+# เก่า (0.12–0.14): zig-linux-x86_64-<ver>.tar.xz
+# ใหม่ (0.15+):     zig-<arch>-linux-<ver>.tar.xz
+```
+- ใช้ `ARG TARGETARCH` + shell conditional เพื่อรองรับ arm64/amd64:
+```dockerfile
+ARG TARGETARCH
+RUN ZIG_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") \
+    && wget -q https://ziglang.org/download/0.15.2/zig-${ZIG_ARCH}-linux-0.15.2.tar.xz \
+    && tar -xf zig-${ZIG_ARCH}-linux-0.15.2.tar.xz \
+    && mv zig-${ZIG_ARCH}-linux-0.15.2 /usr/local/zig \
+    && rm zig-${ZIG_ARCH}-linux-0.15.2.tar.xz
+```
+> **สำคัญ**: Docker Desktop on Mac = linux/arm64 → ต้องใช้ `aarch64` ไม่ใช่ `x86_64`
 
 ### FFmpeg Projects (Groups 1–2)
-- Builder stage ต้องติดตั้ง: `libavformat-dev libavcodec-dev libavutil-dev libswscale-dev`
-- Runtime stage ติดตั้ง runtime libs เท่านั้น: `libavformat60 libavcodec60 libavutil58 libswscale7`
-- Rust builder ต้องเพิ่ม `clang llvm` สำหรับ bindgen
-- Zig builder ต้อง download `zig-linux-x86_64-0.15.0.tar.xz` จาก ziglang.org
+
+**Go CGO + FFmpeg — ต้องใช้ Alpine (ไม่ใช่ bookworm)**:
+```dockerfile
+FROM golang:1.2x-alpine AS builder
+RUN apk add --no-cache pkgconfig ffmpeg-dev gcc musl-dev
+# ...
+FROM alpine:3.21
+RUN apk add --no-cache ffmpeg-libs
+```
+> **สำคัญ**: Go CGO บน `bookworm arm64` มี known issue — `C.SwsContext` (opaque struct ใน libswscale) resolve ไม่ได้ → ใช้ `alpine` + `musl` เสมอสำหรับ Go FFmpeg projects
+
+**Rust + FFmpeg — ใช้ bookworm (glibc)**:
+- Builder: `rust:<ver>-bookworm` + `libavformat-dev libavcodec-dev libavutil-dev libswscale-dev clang llvm`
+- Runtime: `debian:bookworm-slim` + `libavformat59 libavcodec59 libavutil57 libswscale6`
+
+**Zig + FFmpeg — ใช้ bookworm (glibc)**:
+- Builder: `debian:bookworm-slim` + FFmpeg dev libs + `ca-certificates` (จำเป็นก่อน wget Zig)
+- Runtime: `debian:bookworm-slim` + runtime FFmpeg libs
+
+**FFmpeg runtime package names บน bookworm arm64**:
+| Library | Package |
+|---------|---------|
+| libavformat | `libavformat59` |
+| libavcodec | `libavcodec59` |
+| libavutil | `libavutil57` |
+| libswscale | `libswscale6` |
+| libavfilter | `libavfilter8` |
 
 ### Non-FFmpeg Projects (Groups 3+)
 - Go/Rust: ไม่ต้อง install dev libs พิเศษ — builder images มี compiler พร้อมแล้ว
-- Runtime stage: `debian:bookworm-slim` เปล่าๆ (Go/Rust) หรือ + ldconfig (Zig+Zap)
+- Runtime stage: `debian:bookworm-slim` + `ca-certificates` (Go/Rust) หรือ + `ldconfig` (Zig+Zap)
 
 ---
 
@@ -220,11 +286,31 @@ bash benchmark/run.sh
 
 ---
 
-## Lessons Learned จาก video-frame-extractor
+## Lessons Learned
 
+### จาก video-frame-extractor
 - **FFmpeg 8.0**: `avfft.h` ถูก removed → ต้องใช้ `ffmpeg-sys-next = "8.0"` ไม่ใช่ 7.x
 - **Zig 0.15**: `root_source_file` field ถูกแทนที่ด้วย `createModule()` + `root_module`
 - **Go CGO**: ต้อง `unset GOROOT` ถ้ามีหลาย Go versions ในเครื่อง
 - **Zig const pointer**: ใช้ `@constCast` สำหรับ C functions ที่รับ non-const pointer
 - **Binary size**: Zig (278KB) < Go (2.85MB) สำหรับ FFmpeg-linked binary
 - **Runtime**: ทุกภาษาใช้เวลา ~42-50ms สำหรับ FFmpeg decode → FFmpeg เป็น bottleneck หลัก
+
+### จาก lightweight-api-gateway
+- **Alpine ≠ glibc**: Rust/Go binary ที่ build บน `bookworm` จะ crash บน Alpine เพราะ musl/glibc mismatch → ใช้ `debian:bookworm-slim` เสมอ
+- **Zig 0.15 `build.zig.zon`**: ต้องมี `.fingerprint` field และ `.name` ต้องเป็น bare identifier (underscore ไม่ใช่ hyphen)
+  ```zig
+  .name = .lightweight_api_gateway,  // ✓
+  .name = "lightweight-api-gateway",  // ✗ (Zig 0.15 error)
+  ```
+- **Zap version matrix**:
+  | Zap | Zig |
+  |-----|-----|
+  | v0.9.x | 0.12 |
+  | v0.10.x | 0.14 |
+  | v0.11.x | 0.15+ |
+- **Zap callback signature**: `fn onRequest(r: zap.Request) anyerror!void` (ไม่ใช่ `void`)
+- **Docker Desktop on Mac**: runs linux/arm64 → ต้องใช้ `zig-aarch64-linux` ไม่ใช่ `zig-x86_64-linux`
+- **Docker network สำหรับ benchmark**: gateway ต้องอยู่ใน network เดียวกับ mock backend เพื่อใช้ container DNS
+- **Binary size วัดใน Docker**: ใช้ `docker create` + `docker cp` + `wc -c` — ไม่ใช้ `docker run du` (เพราะ ENTRYPOINT เป็น binary ไม่ใช่ shell)
+- **Rust SocketAddr**: `:8080` parse ไม่ได้ → ต้องแปลงเป็น `0.0.0.0:8080` ก่อน

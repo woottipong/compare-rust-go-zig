@@ -45,36 +45,33 @@ compare-rust-go-zig/
 
 | Metric | Go | Rust | Zig |
 |--------|-----|------|-----|
-| **Avg Time** | **50ms** | 76ms | 51ms |
-| **Peak Memory** | 20MB | 19MB | **19MB** |
-| **Binary Size** | 2.7MB | 451KB | **271KB** |
+| **Avg Time** (Docker) | 517ms | **545ms** | 583ms |
+| **Binary Size** | 1.6MB | **388KB** | 1.4MB |
 | **Code Lines** | 182 | 192 | **169** |
 
-**Key insight**: FFmpeg decode เป็น bottleneck → ทุกภาษาใช้เวลาใกล้เคียงกัน
+**Key insight**: FFmpeg decode เป็น bottleneck → ทุกภาษาเร็วใกล้เคียงกัน (Docker overhead ~400ms)
 
 ### 2. HLS Stream Segmenter
-ตัดวิดีโอ 30s เป็น 6 segments (5s each) → `.ts` + `playlist.m3u8`
+ตัดวิดีโอ 30s เป็น 3 segments (10s each) → `.ts` + `playlist.m3u8`
 
 | Metric | Go | Rust | Zig |
 |--------|-----|------|-----|
-| **Avg Time** | 1452ms | 1395ms | **1380ms** |
-| **Peak Memory** | 20MB | 18MB | **16MB** |
-| **Binary Size** | 2.6MB | 467KB | **288KB** |
-| **Code Lines** | 324 | 274 | **266** |
+| **Avg Time** (Docker) | 20874ms | 16261ms | **15572ms** |
+| **Binary Size** | 1.6MB | **388KB** | 1.5MB |
+| **Code Lines** | 323 | 274 | **266** |
 
-**Key insight**: I/O ของการ write raw YUV420P frame เป็น bottleneck → ทุกภาษา ~1.4s
+**Key insight**: I/O-bound task — Zig/Rust เร็วกว่า Go ใน Docker (bookworm FFmpeg decode overhead)
 
 ### 3. Subtitle Burn-in Engine
 ฝัง SRT subtitle ลงในวิดีโอโดยตรง (decode → burn text → encode H264)
 
 | Metric | Go | Rust | Zig |
 |--------|-----|------|-----|
-| **Avg Time** | 503ms | 419ms | **392ms** |
-| **Peak Memory** | 103,920 KB | 104,000 KB | **101,120 KB** |
-| **Binary Size** | 2.7MB | 1.6MB | **288KB** |
-| **Code Lines** | 340 | 230 | 332 |
+| **Avg Time** (Docker) | 1869ms | 1625ms | **1350ms** |
+| **Binary Size** | 1.6MB | 1.6MB | 2.3MB |
+| **Code Lines** | 340 | **230** | 332 |
 
-**Key insight**: FFmpeg decode+encode เป็น bottleneck — language overhead แทบไม่ต่างกัน
+**Key insight**: Zig เร็วสุด, Rust code กระชับสุด (230L) — FFmpeg decode+encode เป็น bottleneck
 
 ### 4. Lightweight API Gateway
 HTTP API Gateway พร้อม JWT validation, rate limiting, middleware chain
@@ -177,17 +174,17 @@ zig build -Doptimize=ReleaseFast
 - FFmpeg 8.0: ใช้ `ffmpeg-sys-next = "8.0"` สำหรับ Rust (ไม่ใช่ `ffmpeg-next`)
 - Zig 0.15+: ใช้ `createModule()` + `root_module` syntax ใน `build.zig`
 - Go CGO: `*(**C.AVStream)` pattern สำหรับ access C pointer array
-- Zig const pointer: ใช้ `@constCast` สำหรับ C functions ที่รับ non-const pointer
+- Dockerfile: `golang:1.25-bookworm` + `debian:bookworm-slim` (ทุก FFmpeg project)
 
 ### hls-stream-segmenter
-- **Critical**: ต้องเปิด segment file ค้างไว้ระหว่าง frames ไม่เปิด/ปิดทุก frame
+- **Critical**: ต้องเปิด segment file ค้างไว้ระหว่าง frames ไมเปิด/ปิดทุก frame
+- Go CGO + bookworm arm64: `*C.SwsContext` field ใน struct ไม่ทำงาน — ใช้ C helper wrapper function แทน
 - Zig: ใช้ `cwd().createFile()` ไม่ใช่ `createFileAbsolute()` สำหรับ relative paths
 - Rust: `Option<File>` pattern สำหรับ conditional resource ownership
-- Go: ไม่ต้อง `go mod init` ซ้ำถ้า `go.mod` มีอยู่แล้ว
 
 ### subtitle-burn-in-engine
 - Simple white-bar overlay ไม่ใช้ libass — FFmpeg pixel manipulation โดยตรง
-- Go go.mod: ต้องใช้ go version จริงที่ install (1.23.0) ไม่ใช่ version อนาคต
+- Go `golang:1.25-bookworm` ทำงานได้เพราะไม่มี `*C.SwsContext` field ใน struct
 
 ### lightweight-api-gateway
 - Rust `SocketAddr`: `:8080` parse ไม่ได้ → แปลงเป็น `127.0.0.1:8080` ก่อน

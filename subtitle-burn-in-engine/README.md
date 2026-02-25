@@ -57,12 +57,11 @@ zig build -Doptimize=ReleaseFast
 
 ## Benchmark
 ```bash
-cd benchmark
-./run.sh ../test-data/video.mp4 ../test-data/subs.srt
-
-# Save results with timestamp
-./results/save-results.sh subtitle-burn-in-engine
+cd subtitle-burn-in-engine
+bash benchmark/run.sh
 ```
+
+ผลลัพธ์จะถูก save อัตโนมัติลง `benchmark/results/subtitle-burn-in-engine_YYYYMMDD_HHMMSS.txt`
 
 ### สร้าง Test Data
 ```bash
@@ -95,21 +94,22 @@ EOF
 | **Subtitle Rendering** | libass CGO | libass-sys | @cImport |
 | **Re-encoding** | libavcodec | libavcodec | libavcodec |
 | **Memory Management** | GC + Manual (CGO) | Ownership + Drop trait | Manual |
-| **Performance** | ~503ms avg | ~419ms avg | ~392ms avg |
-| **Memory Usage** | 103,920 KB | 104,000 KB | 101,120 KB |
-| **Binary Size** | 2.7MB | 1.6MB | 288KB |
-| **Code Lines** | 340 | 230 | 332 |
+| **Performance** | 1869ms avg* | 1625ms avg* | **1350ms avg*** |
+| **Binary Size** | 1.6MB | 1.6MB | **2.3MB** |
+| **Code Lines** | 340 | **230** | 332 |
+
+> *Docker overhead included. Zig เร็วที่สุด, Rust กระชับ, Go code ยาวที่สุด
 
 ## หมายเหตุ
-- **Go**: CGO memory management ซับซ้อนกับ libass และ FFmpeg
-- **Rust**: ใช้ `libass-sys` สำหรับ subtitle rendering, `scopeguard` สำหรับ cleanup
-- **Zig**: ใช้ `@cImport` สำหรับทั้ง FFmpeg และ libass, manual memory management
-- **Re-encoding**: ต้อง decode → burn subtitle → encode กลับ → ทำให้เห็น encode performance ครั้งแรก
-- **Pixel Manipulation**: ต้อง blend subtitle pixels เข้ากับ video frames ด้วยมือ
+- **Go**: `golang:1.25-bookworm` + `debian:bookworm-slim`, CGO memory management ซับซ้อนกับ libass + FFmpeg
+- **Rust**: `libass-sys` + `scopeguard`, bookworm runtime, binary เล็กเท่า Go (1.6MB)
+- **Zig**: `@cImport` สำหรับ FFmpeg + libass, bookworm runtime — เร็วสุด variance ต่ำสุด
+- **Re-encoding**: decode → burn subtitle → encode กลับ — FFmpeg encode เป็น bottleneck
+- **Docker overhead**: ตัวเลข ~1.3-1.9s รวม container startup และ FFmpeg init
 
 ## สรุปผล
-- **Zig** เร็วสุดและ binary เล็กสุด (288KB) — เหมาะสำหรับ embedded/systems
-- **Rust** เร็วกว่า Go อย่างมีนัยสำคัญ (~17% เร็วกว่า) และ code กระชับสุด (230 lines) — เหมาะสำหรับ complex applications
-- **Go** ช้าสุดในชุดนี้ (~28% ช้ากว่า Zig) แต่ binary ใหญ่มาก (2.7MB) — เหมาะสำหรับ web services
-- Memory ใกล้เคียงกันทุกภาษา (~100MB) เพราะ FFmpeg buffers ครอบงำ
+- **Zig** เร็วสุด (1350ms avg) และ variance ต่ำสุด
+- **Rust** เร็วกว่า Go (~13% เร็วกว่า) และ code กระชับสุด (230 lines)
+- **Go** ช้าสุดแต่ code อ่านง่าย
+- Binary size ใกล้เคียงกันทุกภาษา (1.6-2.3MB) เพราะ FFmpeg shared libs ครอบงำ
 - FFmpeg decode+encode เป็น bottleneck หลัก — language overhead แทบไม่ต่างกัน
