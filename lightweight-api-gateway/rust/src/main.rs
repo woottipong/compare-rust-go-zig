@@ -60,8 +60,8 @@ async fn jwt_middleware(
     request: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    // Skip JWT for public endpoints
-    if request.uri().path().starts_with("/public/") {
+    // Skip JWT for public endpoints and health
+    if request.uri().path().starts_with("/public/") || request.uri().path() == "/health" {
         return Ok(next.run(request).await);
     }
 
@@ -142,7 +142,7 @@ async fn main() {
     }
 
     let addr_str = if args[1].starts_with(':') {
-        format!("127.0.0.1{}", args[1])
+        format!("0.0.0.0{}", args[1])
     } else {
         args[1].clone()
     };

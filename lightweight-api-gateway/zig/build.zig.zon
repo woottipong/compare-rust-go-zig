@@ -1,6 +1,7 @@
 .{
-    .name = .zig,
-    .version = "0.15.2",
+    .name = .lightweight_api_gateway,
+    .fingerprint = 0x3b0ef21da59ceec3,
+    .version = "0.1.0",
     .dependencies = .{
         .zap = .{
             .url = "git+https://github.com/zigzap/zap?ref=v0.11.0#66c5dc42c781bbb8a9100afda3c7e69ee96eddf3",
@@ -8,5 +9,4 @@
         },
     },
     .paths = .{""},
-    .fingerprint = 0xc1ce10810bc288e7,
 }

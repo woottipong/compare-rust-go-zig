@@ -15,13 +15,14 @@ pub fn build(b: *std.Build) void {
         .root_module = exe_mod,
     });
 
-    // Add Zap dependency
+    exe.linkLibC();
+
     const zap = b.dependency("zap", .{
         .target = target,
         .optimize = optimize,
         .openssl = false,
     });
-    exe.root_module.addImport("zap", zap.module("zap"));
+    exe_mod.addImport("zap", zap.module("zap"));
 
     b.installArtifact(exe);
 }

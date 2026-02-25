@@ -54,7 +54,7 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var target_url: []const u8 = undefined;
 var rate_limiter: RateLimiter = undefined;
 
-fn onRequest(r: zap.Request) !void {
+fn onRequest(r: zap.Request) anyerror!void {
     const path = r.path orelse "/";
 
     // Health check
@@ -72,38 +72,34 @@ fn onRequest(r: zap.Request) !void {
         return;
     }
 
-    // JWT check (skip /public/ endpoints)
-    if (!std.mem.startsWith(u8, path, "/public/")) {
-        const auth = r.getHeader("authorization") orelse {
-            r.setStatus(.unauthorized);
-            r.sendBody("{\"error\":\"Missing authorization header\"}") catch return;
-            return;
-        };
-        if (!std.mem.startsWith(u8, auth, "Bearer valid-test-token")) {
-            r.setStatus(.unauthorized);
-            r.sendBody("{\"error\":\"Invalid token\"}") catch return;
-            return;
-        }
+    // JWT validation (simplified)
+    const auth_header = r.getHeader("authorization") orelse "";
+    if (std.mem.startsWith(u8, path, "/api/") and 
+        !std.mem.startsWith(u8, auth_header, "Bearer ")) {
+        r.setStatus(.unauthorized);
+        r.sendBody("{\"error\":\"Missing or invalid token\"}") catch return;
+        return;
     }
 
-    // Proxy response (demo — return gateway metadata)
-    const method = r.methodAsEnum();
-    const method_str = switch (method) {
-        .GET => "GET",
-        .POST => "POST",
-        .PUT => "PUT",
-        .DELETE => "DELETE",
-        else => "OTHER",
+    // Proxy response (mock)
+    const method = r.method orelse "GET";
+    const response = std.fmt.allocPrint(gpa.allocator(), 
+        \\{{
+        \\  "message": "Gateway received request",
+        \\  "method": "{s}",
+        \\  "path": "{s}",
+        \\  "target": "{s}",
+        \\  "timestamp": {d}
+        \\}}
+    , .{ method, path, target_url, std.time.timestamp() }) catch {
+        r.setStatus(.internal_server_error);
+        r.sendBody("{\"error\":\"Internal server error\"}") catch return;
+        return;
     };
-
-    var buf: [512]u8 = undefined;
-    const body = std.fmt.bufPrint(&buf,
-        \\{{"message":"Gateway received request","method":"{s}","path":"{s}","target":"{s}"}}
-    , .{ method_str, path, target_url }) catch return;
+    defer gpa.allocator().free(response);
 
     r.setStatus(.ok);
-    r.setContentType(.JSON) catch return;
-    r.sendBody(body) catch return;
+    r.sendBody(response) catch return;
 }
 
 pub fn main() !void {

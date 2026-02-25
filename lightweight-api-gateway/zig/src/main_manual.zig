@@ -69,7 +69,7 @@ const Gateway = struct {
     pub fn run(self: *Gateway, listen_addr: []const u8) !void {
         // Simple TCP server implementation
         const port = 8080;
-        const address = try std.net.Address.parseIp("127.0.0.1", port);
+        const address = try std.net.Address.parseIp("0.0.0.0", port);
         
         var server = try address.listen(.{ .reuse_address = true });
         defer server.deinit();
