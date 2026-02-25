@@ -8,7 +8,7 @@
 | 1.2 | HLS Stream Segmenter | ✅ Done | 20874ms* | 16261ms* | 15572ms* |
 | 1.3 | Subtitle Burn-in Engine | ✅ Done | 1869ms* | 1625ms* | 1350ms* |
 | 2.1 | High-Performance Reverse Proxy | ⬜ | — | — | — |
-| 2.2 | Real-time Audio Chunker | ⬜ | — | — | — |
+| 2.2 | Real-time Audio Chunker | ✅ Done | 4-5 µs | 5 µs | 17 ns |
 | 2.3 | Lightweight API Gateway | ✅ Done | 54,919 req/s | 57,056 req/s | 52,103 req/s |
 | 3.1 | Local ASR/LLM Proxy | ⬜ | — | — | — |
 | 3.2 | Vector DB Ingester | ⬜ | — | — | — |
@@ -42,7 +42,7 @@
 ## 2. กลุ่มระบบหลังบ้านและโครงสร้างพื้นฐาน (Infrastructure & Networking)
 *เน้นความเร็ว Network และ Concurrency Model*
 - ⬜ **High-Performance Reverse Proxy:** ตัวกลางรับ Request และทำ Load Balancer (ฝึก Concurrency & Networking)
-- ⬜ **Real-time Audio Chunker:** ตัดแบ่ง Audio Stream เป็นท่อนๆ เพื่อส่งให้ AI (ฝึกเรื่อง Latency และ Buffer)
+- ✅ **Real-time Audio Chunker:** ตัดแบ่ง Audio Stream เป็นท่อนๆ เพื่อส่งให้ AI (ฝึกเรื่อง Latency และ Buffer)
 - ✅ **Lightweight API Gateway:** ระบบเช็ค JWT Auth และทำ Rate Limiting (ฝึกความปลอดภัยและ Performance)
 
 ## 3. กลุ่มงาน AI และ Data Pipeline (AI & Data Engineering)
@@ -91,11 +91,12 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (4/27)
+### ✅ Completed Projects (5/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
 4. **Lightweight API Gateway** — HTTP throughput, 54.9K/57.1K/52.1K req/s
+5. **Real-time Audio Chunker** — Buffer management, 4-5µs / 5µs / 17ns latency
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -113,6 +114,6 @@
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 4 (14.8%)
+- **Completed**: 5 (18.5%)
 - **In Progress**: 0
-- **Remaining**: 23 (85.2%)
+- **Remaining**: 22 (81.5%)
