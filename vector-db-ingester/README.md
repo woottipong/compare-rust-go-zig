@@ -184,6 +184,48 @@ bash benchmark/run.sh
 
 ---
 
+## ผลการวัด (Benchmark Results)
+
+```
+╔════════════════════════╗
+║ Vector DB Ingester Bench ║
+╚════════════════════════╝
+── Go   ─────────────────────
+  Run 1 (warm-up): 287ms
+  Run 2           : 236ms
+  Run 3           : 228ms
+  Run 4           : 240ms
+  Run 5           : 230ms
+  Avg: 233ms  |  Min: 228ms  |  Max: 240ms
+── Rust ─────────────────────
+  Run 1 (warm-up): 215ms
+  Run 2           : 236ms
+  Run 3           : 501ms
+  Run 4           : 258ms
+  Run 5           : 213ms
+  Avg: 302ms  |  Min: 213ms  |  Max: 501ms
+── Zig  ─────────────────────
+  Run 1 (warm-up): 215ms
+  Run 2           : 220ms
+  Run 3           : 212ms
+  Run 4           : 227ms
+  Run 5           : 218ms
+  Avg: 219ms  |  Min: 212ms  |  Max: 227ms
+── Binary Size ──────────────
+  Go  : 1.9M
+  Rust: 450K
+  Zig : 1.1M
+── Code Lines ───────────────
+  Go  : 216 lines
+  Rust: 253 lines
+  Zig : 193 lines
+```
+
+> **Test**: 500 documents, 924 chunks, 2.8MB — 5 runs (1 warm-up + 4 measured) on Docker  
+> **Results saved to**: `benchmark/results/vdi_20260225_233057.txt`
+
+---
+
 ## Notes
 
 ### Embedding Approach

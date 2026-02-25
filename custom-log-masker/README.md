@@ -127,6 +127,64 @@ bash benchmark/run.sh
 
 ---
 
+## ผลการวัด (Benchmark Results)
+
+```
+╔══════════════════════════════════════════╗
+║     Custom Log Masker Benchmark          ║
+╚══════════════════════════════════════════╝
+── Test Data ──────────────────────────────────
+  Input file: large.log
+  Lines:    99990
+  Size: 7.5MB
+── Go   ───────────────────────────────────────
+  Run 1 (warm-up): 2189ms
+  Run 2           : 2200ms
+  Run 3           : 2016ms
+  Run 4           : 2147ms
+  Run 5           : 1961ms
+  Avg: 2081ms  |  Min: 1961ms  |  Max: 2200ms
+  Lines processed : 99990
+  Matches found   : 86658
+  Throughput      : 3.81 MB/s
+  Lines/sec       : 50981
+── Rust ───────────────────────────────────────
+  Run 1 (warm-up): 164ms
+  Run 2           : 171ms
+  Run 3           : 171ms
+  Run 4           : 166ms
+  Run 5           : 162ms
+  Avg: 167ms  |  Min: 162ms  |  Max: 171ms
+  Lines processed : 99990
+  Matches found   : 86658
+  Throughput      : 46.21 MB/s
+  Lines/sec       : 618100
+── Zig  ───────────────────────────────────────
+  Run 1 (warm-up): 831ms
+  Run 2           : 659ms
+  Run 3           : 664ms
+  Run 4           : 706ms
+  Run 5           : 662ms
+  Avg: 672ms  |  Min: 659ms  |  Max: 706ms
+  Lines processed : 99990
+  Matches found   : 86658
+  Throughput      : 11.29 MB/s
+  Lines/sec       : 151042
+── Binary Size ───────────────────────────────
+  Go  : 1.8MB
+  Rust: 1.9MB
+  Zig : 2.2MB
+── Code Lines ────────────────────────────────
+  Go  : 183 lines
+  Rust: 127 lines
+  Zig : 473 lines
+```
+
+> **Test**: 100K lines (7.5MB) — 5 runs (1 warm-up + 4 measured) on Docker  
+> **Results saved to**: `benchmark/results/custom-log-masker_20260225_233551.txt`
+
+---
+
 ## ตารางเปรียบเทียบ
 
 | Aspect | Go | Rust | Zig |

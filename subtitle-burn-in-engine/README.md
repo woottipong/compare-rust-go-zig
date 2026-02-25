@@ -136,6 +136,48 @@ EOF
 
 > *Docker overhead included. Zig เร็วที่สุด, Rust กระชับ, Go code ยาวที่สุด
 
+---
+
+## ผลการวัด (Benchmark Results)
+
+```
+╔══════════════════════════════════════════╗
+║    Subtitle Burn-in Engine Benchmark      ║
+╚══════════════════════════════════════════╝
+── Go   ───────────────────────────────────────
+  Run 1 (warm-up): 1387ms
+  Run 2           : 1079ms
+  Run 3           : 979ms
+  Run 4           : 897ms
+  Run 5           : 894ms
+  Avg: 962ms  |  Min: 894ms  |  Max: 1079ms
+── Rust ───────────────────────────────────────
+  Run 1 (warm-up): 903ms
+  Run 2           : 914ms
+  Run 3           : 1202ms
+  Run 4           : 1173ms
+  Run 5           : 1009ms
+  Avg: 1074ms  |  Min: 914ms  |  Max: 1202ms
+── Zig  ───────────────────────────────────────
+  Run 1 (warm-up): 1368ms
+  Run 2           : 916ms
+  Run 3           : 977ms
+  Run 4           : 1179ms
+  Run 5           : 901ms
+  Avg: 993ms  |  Min: 901ms  |  Max: 1179ms
+── Binary Size ───────────────────────────────
+  Go  : 1.6MB
+  Rust: 1.6MB
+  Zig : 2.3MB
+── Code Lines ────────────────────────────────
+  Go  : 340 lines
+  Rust: 230 lines
+  Zig : 332 lines
+```
+
+> **Test**: 30s video + SRT subtitle — 5 runs (1 warm-up + 4 measured) on Docker  
+> **Results saved to**: `benchmark/results/subtitle-burn-in-engine_20260225_233519.txt`
+
 ## หมายเหตุ
 - **Go**: `golang:1.25-bookworm` + `debian:bookworm-slim`, CGO memory management ซับซ้อนกับ libass + FFmpeg
 - **Rust**: `libass-sys` + `scopeguard`, bookworm runtime, binary เล็กเท่า Go (1.6MB)

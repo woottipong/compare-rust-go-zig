@@ -87,6 +87,7 @@ Throughput: <X.XX> items/sec
 | realtime-audio-chunker | `rac-go` | `rac-rust` | `rac-zig` |
 | custom-log-masker | `clm-go` | `clm-rust` | `clm-zig` |
 | vector-db-ingester | `vdi-go` | `vdi-rust` | `vdi-zig` |
+| local-asr-llm-proxy | `asr-go` | `asr-rust` | `asr-zig` |
 
 > Project ใหม่: เพิ่ม row นี้ก่อน implement
 

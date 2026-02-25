@@ -10,9 +10,9 @@
 | 2.1 | High-Performance Reverse Proxy | ✅ Done | 10,065 r/s | 3,640 r/s | 2,669 r/s |
 | 2.2 | Real-time Audio Chunker | ✅ Done | 4-5 µs | 5 µs | 17 ns |
 | 2.3 | Lightweight API Gateway | ✅ Done | 54,919 req/s | 57,056 req/s | 52,103 req/s |
-| 3.1 | Local ASR/LLM Proxy | ⬜ | — | — | — |
-| 3.2 | Vector DB Ingester | ✅ Done | 21,799 chunks/s | 38,945 chunks/s | **53,617 chunks/s** |
-| 3.3 | Custom Log Masker | ✅ Done | 3.91 MB/s | **41.71 MB/s** | 11.68 MB/s |
+| 3.1 | Local ASR/LLM Proxy | 🔧 Implemented | — | — | — |
+| 3.2 | Vector DB Ingester | ✅ Done | 21,799 chunks/s | 38,945 chunks/s | 53,617 chunks/s |
+| 3.3 | Custom Log Masker | ✅ Done | 3.91 MB/s | 41.71 MB/s | 11.68 MB/s |
 | 4.1 | Log Aggregator Sidecar | ⬜ | — | — | — |
 | 4.2 | Tiny Health Check Agent | ⬜ | — | — | — |
 | 4.3 | Container Watchdog | ⬜ | — | — | — |
@@ -47,7 +47,7 @@
 
 ## 3. กลุ่มงาน AI และ Data Pipeline (AI & Data Engineering)
 *เน้นการเตรียมข้อมูลมหาศาลเพื่อส่งให้ Model*
-- ⬜ **Local ASR/LLM Proxy:** ตัวจัดการคิว (Queue) รับไฟล์เสียงส่งไปประมวลผลที่ Gemini/Whisper
+- 🔧 **Local ASR/LLM Proxy:** ตัวจัดการคิว (Queue) รับไฟล์เสียงส่งไปประมวลผลที่ Gemini/Whisper — *Implemented (pending benchmark)*
 - ⬜ **Vector DB Ingester:** ตัวอ่านเอกสารขนาดใหญ่และแปลงเป็น Vector เพื่อเก็บลง Database (ฝึก Memory Management)
 - ✅ **Custom Log Masker:** กรองข้อมูล Sensitive ออกจาก Log ด้วยความเร็วสูง (ฝึก String Processing) — **Rust ชนะ 10x** (41.71 MB/s vs Go 3.91 MB/s)
 - ✅ **Vector DB Ingester:** แปลงเอกสารเป็น Vector Embeddings (ฝึก Memory Management) — **Zig ชนะ 2.46x** (53,617 chunks/s vs Go 21,799 chunks/s)

@@ -1,0 +1,16 @@
+.{
+    .name = .asr_proxy,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.0",
+    .dependencies = .{
+        .zap = .{
+            .url = "https://github.com/zigzap/zap/archive/refs/tags/v0.11.0.tar.gz",
+            .hash = "zap-0.11.0-JKH6T2XNHNSYKQZDPE5NQWIMJWQGRSLR6RJF6QWY5F6Y5F6Y5F6Y",
+        },
+    },
+    .paths = .{
+        "src",
+        "build.zig",
+        "build.zig.zon",
+    },
+}

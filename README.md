@@ -72,11 +72,11 @@ compare-rust-go-zig/
 
 | Metric | Go | Rust | Zig |
 |--------|-----|------|-----|
-| **Avg Time** | 1,869ms | 1,625ms | **1,350ms** |
+| **Avg Time** | 962ms | 1,074ms | **993ms** |
 | **Binary Size** | 1.6MB | 1.6MB | 2.3MB |
 | **Code Lines** | 340 | **230** | 332 |
 
-**Key insight**: Zig เร็วสุด, Rust code กระชับสุด (230L)
+**Key insight**: Zig เร็วสุดเล็กน้อย (993ms) — ทุกภาษาใกล้เคียงกันมาก
 
 ### 4. High-Performance Reverse Proxy
 Reverse Proxy + Load Balancing (Round-robin) ผ่าน TCP
@@ -119,24 +119,24 @@ HTTP Gateway พร้อม JWT validation, rate limiting, middleware chain
 
 | Metric | Go | **Rust** | Zig |
 |--------|-----|----------|-----|
-| **Throughput** | 3.91 MB/s | **41.71 MB/s** | 11.68 MB/s |
-| **Lines/sec** | 52,280 | **557,891** | 156,234 |
-| **Processing Time** | 1.913s | **0.179s** | 0.640s |
+| **Throughput** | 3.81 MB/s | **46.21 MB/s** | 11.29 MB/s |
+| **Lines/sec** | 50,981 | **618,100** | 151,042 |
+| **Processing Time** | 2.081s | **0.167s** | 0.672s |
 | **Code Lines** | 183 | **127** | 473 |
 
-**Key insight**: Rust `regex` crate ใช้ SIMD + DFA engine — เร็วกว่า Go RE2 ถึง **10x**
+**Key insight**: Rust `regex` crate ใช้ SIMD + DFA engine — เร็วกว่า Go RE2 ถึง **12x**
 
 ### 8. Vector DB Ingester
 แปลงเอกสารเป็น Vector Embeddings — Memory Management benchmark
 
 | Metric | Go | Rust | **Zig** 🏆 |
 |--------|-----|------|-----------|
-| **Avg Throughput** | 21,799 c/s | 38,945 c/s | **53,617 c/s** |
-| **Avg Time** | 299ms | 229ms | **215ms** |
-| **Variance** | 55% | **11%** | 14% |
-| **Speedup vs Go** | 1.0x | 1.79x | **2.46x** |
+| **Avg Time** | 233ms | 302ms | **219ms** |
+| **Throughput** | 25,344 c/s | 38,453 c/s | **57,481 c/s** |
+| **Binary Size** | 1.9M | **450K** | 1.1M |
+| **Code Lines** | 216 | 253 | **193** |
 
-**Key insight**: Zig manual memory management ชนะ 2.46x — Rust มี variance ต่ำสุด (11%)
+**Key insight**: Zig ชนะ 2.27x ด้วย manual memory management — Rust มี outlier (501ms) แต่ variance ยังดีกว่า Go
 
 ---
 
@@ -144,8 +144,8 @@ HTTP Gateway พร้อม JWT validation, rate limiting, middleware chain
 
 | ภาษา | Wins | จุดเด่น |
 |------|------|---------|
-| **Zig** | 4 | FFmpeg (vfe/hls/sbe) + Audio latency — เร็วสุดใน memory-intensive tasks |
-| **Rust** | 2 | Log masking (10x) + API Gateway — SIMD regex + async I/O |
+| **Zig** | 3 | FFmpeg (vfe/hls) + Vector DB — เร็วสุดใน memory-intensive tasks |
+| **Rust** | 3 | Log masking (12x) + API Gateway + Subtitle — SIMD regex + async I/O |
 | **Go** | 2 | Reverse proxy + Frame extractor — connection pooling + stdlib |
 
 ---
@@ -216,7 +216,7 @@ zig build -Doptimize=ReleaseFast
 ## Key Lessons
 
 - **Framework choice**: Zig manual HTTP 8K req/s → Zap 52K req/s (+6x)
-- **Regex engine**: Rust SIMD regex เร็วกว่า Go RE2 ถึง 10x
+- **Regex engine**: Rust SIMD regex เร็วกว่า Go RE2 ถึง 12x
 - **Connection pooling**: Go `httputil.ReverseProxy` ชนะขาดด้าน TCP proxy
 - **Memory model**: Zig manual memory ให้ throughput สูงสุดในงาน data processing
 - **Stability**: Rust variance ต่ำสุด (11%) เหมาะ production workloads
