@@ -12,6 +12,7 @@ compare-rust-go-zig/
 ├── video-frame-extractor/    ✅ ดึง frame thumbnail จากวิดีโอ (FFmpeg C interop)
 ├── hls-stream-segmenter/     ✅ ตัดวิดีโอเป็น .ts + .m3u8 (HLS streaming)
 ├── subtitle-burn-in-engine/  ✅ ฝัง SRT subtitle ลงวิดีโอ + re-encode H264
+├── high-perf-reverse-proxy/  ✅ Reverse Proxy + Load Balancer (TCP networking)
 ├── lightweight-api-gateway/  ✅ API Gateway: JWT, rate limiting, reverse proxy
 ├── <project-name>/           ⬜ projects ถัดไป
 ├── plan.md                   # รายการ projects ทั้งหมด + สถานะ
@@ -73,7 +74,19 @@ compare-rust-go-zig/
 
 **Key insight**: Zig เร็วสุด, Rust code กระชับสุด (230L) — FFmpeg decode+encode เป็น bottleneck
 
-### 4. Lightweight API Gateway
+### 4. High-Performance Reverse Proxy
+Reverse Proxy พร้อม Load Balancing (Round-robin) — เชื่อมต่อ backend ผ่าน TCP
+
+| Metric | Go | Rust | Zig |
+|--------|-----|------|-----|
+| **Throughput** | **10,065 req/s** | 3,640 req/s | 2,669 req/s |
+| **Avg Latency** | **5.60ms** | 12.66ms | 16.24ms |
+| **Binary Size** | 5.2MB | **1.2MB** | 2.4MB |
+| **Code Lines** | **158** | 160 | 166 |
+
+**Key insight**: Go ชนะขาดเพราะ `httputil.ReverseProxy` มี connection pooling — reuse TCP connections ลด handshake overhead ส่วน Rust/Zig ใช้ raw TCP (new connection ต่อ request)
+
+### 5. Lightweight API Gateway
 HTTP API Gateway พร้อม JWT validation, rate limiting, middleware chain
 
 | Metric | Go (Fiber) | Rust (axum) | Zig (Zap) |

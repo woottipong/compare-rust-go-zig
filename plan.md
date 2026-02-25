@@ -7,7 +7,7 @@
 | 1.1 | Video Frame Extractor | ✅ Done | 517ms* | 545ms* | 583ms* |
 | 1.2 | HLS Stream Segmenter | ✅ Done | 20874ms* | 16261ms* | 15572ms* |
 | 1.3 | Subtitle Burn-in Engine | ✅ Done | 1869ms* | 1625ms* | 1350ms* |
-| 2.1 | High-Performance Reverse Proxy | ⬜ | — | — | — |
+| 2.1 | High-Performance Reverse Proxy | ✅ Done | 10,065 r/s | 3,640 r/s | 2,669 r/s |
 | 2.2 | Real-time Audio Chunker | ✅ Done | 4-5 µs | 5 µs | 17 ns |
 | 2.3 | Lightweight API Gateway | ✅ Done | 54,919 req/s | 57,056 req/s | 52,103 req/s |
 | 3.1 | Local ASR/LLM Proxy | ⬜ | — | — | — |
@@ -41,7 +41,7 @@
 
 ## 2. กลุ่มระบบหลังบ้านและโครงสร้างพื้นฐาน (Infrastructure & Networking)
 *เน้นความเร็ว Network และ Concurrency Model*
-- ⬜ **High-Performance Reverse Proxy:** ตัวกลางรับ Request และทำ Load Balancer (ฝึก Concurrency & Networking)
+- ✅ **High-Performance Reverse Proxy:** Reverse Proxy + Load Balancer ผ่าน TCP (ฝึก Raw Socket & Concurrency)
 - ✅ **Real-time Audio Chunker:** ตัดแบ่ง Audio Stream เป็นท่อนๆ เพื่อส่งให้ AI (ฝึกเรื่อง Latency และ Buffer)
 - ✅ **Lightweight API Gateway:** ระบบเช็ค JWT Auth และทำ Rate Limiting (ฝึกความปลอดภัยและ Performance)
 
@@ -91,12 +91,13 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (5/27)
+### ✅ Completed Projects (6/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
-4. **Lightweight API Gateway** — HTTP throughput, 54.9K/57.1K/52.1K req/s
-5. **Real-time Audio Chunker** — Buffer management, 4-5µs / 5µs / 17ns latency
+4. **High-Performance Reverse Proxy** — TCP networking, 10K/3.6K/2.7K req/s
+5. **Lightweight API Gateway** — HTTP throughput, 54.9K/57.1K/52.1K req/s
+6. **Real-time Audio Chunker** — Buffer management, 4-5µs / 5µs / 17ns latency
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -104,16 +105,17 @@
 - **Zig** เร็วสุดใน FFmpeg projects (vfe, hls, sbe) — variance ต่ำสุด
 - **Rust** เร็วรองมาและ binary size เล็กที่สุด (388KB) ใน FFmpeg projects
 - **Go** ช้ากว่าใน Docker เพราะ bookworm + glibc FFmpeg decode overhead
+- **Connection pooling** สำคัญ — Go reverse proxy ชนะขาด (10K vs 3.6K/2.7K req/s)
 - **Framework choice** สำคัญมาก — Zig manual HTTP 8K req/s → Zap 52K req/s
 - **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช้ Alpine)
 
 ### 🎯 ถัดไป (Next Projects)
-- **กลุ่ม 2**: High-Performance Reverse Proxy (networking benchmark)
+- **กลุ่ม 3**: Local ASR/LLM Proxy (AI pipeline)
 - **กลุ่ม 7**: DNS Resolver (low-level networking)  
 - **กลุ่ม 8**: PNG Encoder from Scratch (pure algorithms)
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 5 (18.5%)
+- **Completed**: 6 (22.2%)
 - **In Progress**: 0
-- **Remaining**: 22 (81.5%)
+- **Remaining**: 21 (77.8%)
