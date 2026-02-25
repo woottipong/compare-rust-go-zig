@@ -1,0 +1,15 @@
+2024-01-15 10:23:45 INFO User john.doe@example.com logged in from 192.168.1.100
+2024-01-15 10:23:46 DEBUG API call with api_key=sk-1234567890abcdef1234567890abcdef
+2024-01-15 10:23:47 ERROR Database connection failed for user jane.smith@company.co.th
+2024-01-15 10:23:48 INFO Phone contact updated: +1 (555) 123-4567
+2024-01-15 10:23:49 WARN Password reset requested for user bob.wilson@domain.com
+2024-01-15 10:23:50 INFO Credit card ending in 4532015112830366 processed successfully
+2024-01-15 10:23:51 DEBUG Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0
+2024-01-15 10:23:52 INFO Social security number 123-45-6789 verified
+2024-01-15 10:23:53 ERROR Login failed for user alice@example.org from IP 10.0.0.50
+2024-01-15 10:23:54 INFO URL accessed: https://api.example.com/login?password=secret123&user=admin
+2024-01-15 10:23:55 DEBUG Secret key: abcd1234efgh5678ijkl9012mnop3456qrst
+2024-01-15 10:23:56 INFO Contact phone (66) 1234-5678 added to profile
+2024-01-15 10:23:57 WARN Suspicious activity from 172.16.0.25
+2024-01-15 10:23:58 INFO API key=prod_9876543210abcdef configured
+2024-01-15 10:23:59 ERROR Payment failed for card 5555555555554444

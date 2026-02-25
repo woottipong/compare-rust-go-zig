@@ -12,7 +12,7 @@
 | 2.3 | Lightweight API Gateway | ✅ Done | 54,919 req/s | 57,056 req/s | 52,103 req/s |
 | 3.1 | Local ASR/LLM Proxy | ⬜ | — | — | — |
 | 3.2 | Vector DB Ingester | ⬜ | — | — | — |
-| 3.3 | Custom Log Masker | ⬜ | — | — | — |
+| 3.3 | Custom Log Masker | ✅ Done | 3.91 MB/s | **41.71 MB/s** | 11.68 MB/s |
 | 4.1 | Log Aggregator Sidecar | ⬜ | — | — | — |
 | 4.2 | Tiny Health Check Agent | ⬜ | — | — | — |
 | 4.3 | Container Watchdog | ⬜ | — | — | — |
@@ -49,7 +49,7 @@
 *เน้นการเตรียมข้อมูลมหาศาลเพื่อส่งให้ Model*
 - ⬜ **Local ASR/LLM Proxy:** ตัวจัดการคิว (Queue) รับไฟล์เสียงส่งไปประมวลผลที่ Gemini/Whisper
 - ⬜ **Vector DB Ingester:** ตัวอ่านเอกสารขนาดใหญ่และแปลงเป็น Vector เพื่อเก็บลง Database (ฝึก Memory Management)
-- ⬜ **Custom Log Masker:** กรองข้อมูล Sensitive ออกจาก Log ด้วยความเร็วสูงก่อนบันทึก (ฝึก String Processing)
+- ✅ **Custom Log Masker:** กรองข้อมูล Sensitive ออกจาก Log ด้วยความเร็วสูง (ฝึก String Processing) — **Rust ชนะ 10x** (41.71 MB/s vs Go 3.91 MB/s)
 
 ## 4. กลุ่มงาน DevOps และ Cloud-Native (DevOps Tools)
 *เน้นความประหยัดทรัพยากรและขนาดไฟล์ที่เล็ก (Static Binary)*
@@ -91,13 +91,14 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (6/27)
+### ✅ Completed Projects (7/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
 4. **High-Performance Reverse Proxy** — TCP networking, 10K/3.6K/2.7K req/s
 5. **Lightweight API Gateway** — HTTP throughput, 54.9K/57.1K/52.1K req/s
 6. **Real-time Audio Chunker** — Buffer management, 4-5µs / 5µs / 17ns latency
+7. **Custom Log Masker** — String processing, **41.71 MB/s (Rust)** vs 3.91 MB/s (Go)
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -107,6 +108,7 @@
 - **Go** ช้ากว่าใน Docker เพราะ bookworm + glibc FFmpeg decode overhead
 - **Connection pooling** สำคัญ — Go reverse proxy ชนะขาด (10K vs 3.6K/2.7K req/s)
 - **Framework choice** สำคัญมาก — Zig manual HTTP 8K req/s → Zap 52K req/s
+- **Regex engine** สำคัญ — Rust `regex` crate เร็วกว่า Go RE2 ถึง 10x (41.71 vs 3.91 MB/s)
 - **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช้ Alpine)
 
 ### 🎯 ถัดไป (Next Projects)
@@ -116,6 +118,6 @@
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 6 (22.2%)
+- **Completed**: 7 (25.9%)
 - **In Progress**: 0
-- **Remaining**: 21 (77.8%)
+- **Remaining**: 20 (74.1%)

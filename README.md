@@ -14,6 +14,8 @@ compare-rust-go-zig/
 ├── subtitle-burn-in-engine/  ✅ ฝัง SRT subtitle ลงวิดีโอ + re-encode H264
 ├── high-perf-reverse-proxy/  ✅ Reverse Proxy + Load Balancer (TCP networking)
 ├── lightweight-api-gateway/  ✅ API Gateway: JWT, rate limiting, reverse proxy
+├── realtime-audio-chunker/   ✅ Real-time Audio Chunker (buffer management)
+├── custom-log-masker/        ✅ Log PII masking (string processing)
 ├── <project-name>/           ⬜ projects ถัดไป
 ├── plan.md                   # รายการ projects ทั้งหมด + สถานะ
 └── .windsurf/rules/          # Coding rules สำหรับแต่ละภาษา
@@ -97,6 +99,31 @@ HTTP API Gateway พร้อม JWT validation, rate limiting, middleware chain
 | **Code Lines** | 209 | 173 | **146** |
 
 **Key insight**: เมื่อใช้ async framework ที่เหมาะสม ทุกภาษาอยู่ใน ballpark เดียวกัน (~50–57K req/s)
+
+### 6. Real-time Audio Chunker
+ตัด Audio Stream เป็นท่อนๆ สำหรับส่งให้ AI (ฝึก Buffer Management และ Latency)
+
+| Metric | Go | Rust | Zig |
+|--------|-----|------|-----|
+| **Avg Latency** | 0.006 ms | 0.061 ms | **0.000 ms** |
+| **Throughput** | 57.81 chunks/s | 54.56 chunks/s | 54.87 chunks/s |
+| **Binary Size** | 1.5MB | **452KB** | 2.2MB |
+| **Code Lines** | 198 | **180** | 157 |
+
+**Key insight**: Zig เร็วที่สุดในระดับ nanoseconds สำหรับ buffer operations
+
+### 7. Custom Log Masker
+กรองข้อมูล Sensitive (PII) จาก Logs ด้วยความเร็วสูง — String Processing benchmark
+
+| Metric | Go | **Rust** | Zig |
+|--------|-----|----------|-----|
+| **Throughput** | 3.91 MB/s | **41.71 MB/s** (10x) | 11.68 MB/s |
+| **Lines/sec** | 52,280 | **557,891** (10x) | 156,234 |
+| **Processing Time** | 1.913s | **0.179s** | 0.640s |
+| **Binary Size** | **1.8MB** | 1.9MB | 2.2MB |
+| **Code Lines** | 183 | **127** | 473 |
+
+**Key insight**: Rust `regex` crate ใช้ SIMD optimizations + DFA engine — เร็วกว่า Go RE2 ถึง 10 เท่า
 
 ---
 
