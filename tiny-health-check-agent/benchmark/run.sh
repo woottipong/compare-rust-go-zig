@@ -53,7 +53,7 @@ echo "Running benchmarks (5 runs each: 1 warm-up + 4 measured)..."
 echo
 
 PROGRAM="/data/targets.csv"
-LOOPS=350000
+LOOPS=150000
 
 for lang in Go Rust Zig; do
     image="hca-$(echo "$lang" | tr '[:upper:]' '[:lower:]')"

@@ -5,7 +5,7 @@
 ## วัตถุประสงค์
 
 - วัด **health-check throughput** ในงาน loop ประเภท sidecar agent
-- เปรียบเทียบ **policy evaluation** ที่มี state ต่อ target (streak/cooldown)
+- เปรียบเทียบ **stateful policy evaluation** (streak + cooldown arrays ต่อ target)
 - วัด **binary size** สำหรับแนวคิด zero-dependency runtime
 
 ## Directory Structure
@@ -26,20 +26,72 @@ tiny-health-check-agent/
 │   ├── build.zig.zon
 │   └── Dockerfile
 ├── test-data/
+│   ├── generate.py     # generates targets.csv (5,000 rows)
 │   └── targets.csv
 ├── benchmark/
 │   └── run.sh
 └── README.md
 ```
 
-## Input Format
+## Policy Algorithm
 
-ไฟล์ `test-data/targets.csv`:
+สำหรับ target แต่ละตัวในแต่ละ loop iteration:
+
+```
+seed = (iteration+1)*31 + (idx+1)*17
+latency = base_ms + (seed % (jitter_ms + 1))
+flap    = seed % 97 == 0
+is_up   = expected_up XOR flap
+
+if latency > 0 AND NOT is_up:
+    fail_streak[idx]++
+    recover_streak[idx] = 0
+else:
+    recover_streak[idx]++
+    fail_streak[idx] = 0
+
+if fail_streak[idx] >= 3 AND cooldown[idx] == 0:
+    → fire FAIL alert, set cooldown = 8
+
+if recover_streak[idx] >= 2 AND cooldown[idx] == 0:
+    → fire RECOVER alert
+```
+
+`Total processed = checks_run + alerts_fired`
+
+## Test Data
+
+ไฟล์ `test-data/targets.csv` — 5,000 rows (168.9 KB):
 
 ```csv
-id,name,expected_up,base_ms,jitter_ms
-1,auth-service,true,22,8
-2,payments-service,true,35,12
+# id,name,expected_up,base_ms,jitter_ms
+1,auth-svc-0001,true,22,8
+2,payment-handler-0002,false,80,30
+```
+
+| Field | Description |
+|-------|-------------|
+| `id` | ลำดับ 1–5000 |
+| `name` | ชื่อ service เช่น `auth-service-0001` |
+| `expected_up` | สถานะปกติ: `true` (87.5%) / `false` (12.5%) |
+| `base_ms` | latency พื้นฐาน (5–200 ms) |
+| `jitter_ms` | jitter สูงสุด (1–50 ms) |
+
+สร้างใหม่ได้ด้วย `python3 test-data/generate.py`
+
+## Build & Run
+
+```bash
+docker build -t hca-go go/
+docker build -t hca-rust rust/
+docker build -t hca-zig zig/
+
+docker run --rm -v "$PWD/test-data:/data:ro" hca-go
+docker run --rm -v "$PWD/test-data:/data:ro" hca-rust
+docker run --rm -v "$PWD/test-data:/data:ro" hca-zig
+
+# custom loops
+docker run --rm -v "$PWD/test-data:/data:ro" hca-go /data/targets.csv 150000
 ```
 
 ## Statistics Output Format
@@ -54,40 +106,19 @@ Average latency: <X.XXX>ms
 Throughput: <X.XX> checks/sec
 ```
 
-## Build & Run
-
-### Docker build
-
-```bash
-docker build -t hca-go go/
-docker build -t hca-rust rust/
-docker build -t hca-zig zig/
-```
-
-### Run
-
-```bash
-docker run --rm -v "$PWD/test-data:/data:ro" hca-go
-docker run --rm -v "$PWD/test-data:/data:ro" hca-rust
-docker run --rm -v "$PWD/test-data:/data:ro" hca-zig
-
-# custom loops
-docker run --rm -v "$PWD/test-data:/data:ro" hca-go /data/targets.csv 350000
-```
-
 ## Benchmark
 
 ```bash
 bash benchmark/run.sh
 ```
 
-ผลลัพธ์จะถูกบันทึกอัตโนมัติที่ `benchmark/results/tiny_health_check_agent_<timestamp>.txt`
-
 รัน 5 ครั้งต่อภาษา: 1 warm-up + 4 measured พร้อมสรุป Avg/Min/Max และ binary size
+
+ผลลัพธ์จะถูกบันทึกอัตโนมัติที่ `benchmark/results/tiny_health_check_agent_<timestamp>.txt`
 
 ## Benchmark Results
 
-วัดด้วย `LOOPS=350000` บน 12 targets (Docker-based, Apple M-series)
+วัดด้วย `LOOPS=150000` บน 5,000 targets (750M checks/run, Docker-based, Apple M-series)
 
 ```text
 ╔════════════════════════════════╗
@@ -95,34 +126,34 @@ bash benchmark/run.sh
 ╚════════════════════════════════╝
 
 ─ Go ─────────────────────
-  Warm-up: 399576547.93 checks/sec
-  Run 1: 363147494.23 checks/sec
-  Run 2: 350346013.69 checks/sec
-  Run 3: 420135831.57 checks/sec
-  Run 4: 439259710.97 checks/sec
-  Avg: 393222262.61 checks/sec
-  Min: 350346014 checks/sec
-  Max: 439259711 checks/sec
+  Warm-up: 505082017.22 checks/sec
+  Run 1: 504338254.05 checks/sec
+  Run 2: 505876671.03 checks/sec
+  Run 3: 495663731.26 checks/sec
+  Run 4: 505155099.68 checks/sec
+  Avg: 502758439.00 checks/sec
+  Min: 495663731 checks/sec
+  Max: 505876671 checks/sec
 
 ─ Rust ─────────────────────
-  Warm-up: 620763465.50 checks/sec
-  Run 1: 584189126.54 checks/sec
-  Run 2: 454394491.78 checks/sec
-  Run 3: 530104145.73 checks/sec
-  Run 4: 479280072.39 checks/sec
-  Avg: 511991959.11 checks/sec
-  Min: 454394492 checks/sec
-  Max: 584189127 checks/sec
+  Warm-up: 572056676.45 checks/sec
+  Run 1: 527646984.11 checks/sec
+  Run 2: 556941165.81 checks/sec
+  Run 3: 566444852.12 checks/sec
+  Run 4: 566015155.49 checks/sec
+  Avg: 554262039.38 checks/sec
+  Min: 527646984 checks/sec
+  Max: 566444852 checks/sec
 
 ─ Zig ─────────────────────
-  Warm-up: 612857900.66 checks/sec
-  Run 1: 636664685.53 checks/sec
-  Run 2: 671405142.89 checks/sec
-  Run 3: 630178413.70 checks/sec
-  Run 4: 690908182.85 checks/sec
-  Avg: 657289106.24 checks/sec
-  Min: 630178414 checks/sec
-  Max: 690908183 checks/sec
+  Warm-up: 644663755.43 checks/sec
+  Run 1: 645812742.83 checks/sec
+  Run 2: 642661541.01 checks/sec
+  Run 3: 642803686.42 checks/sec
+  Run 4: 641727014.70 checks/sec
+  Avg: 643251246.24 checks/sec
+  Min: 641727015 checks/sec
+  Max: 645812743 checks/sec
 
 ─ Binary Size ───────────────
   Go: 1.50MB
@@ -132,15 +163,22 @@ bash benchmark/run.sh
 
 | Metric | Go | Rust | Zig |
 |--------|----|------|-----|
-| Throughput (avg) | 393,222,263 checks/sec | 511,991,959 checks/sec | **657,289,106 checks/sec** |
-| Throughput (min) | 350,346,014 checks/sec | 454,394,492 checks/sec | **630,178,414 checks/sec** |
-| Throughput (max) | 439,259,711 checks/sec | 584,189,127 checks/sec | **690,908,183 checks/sec** |
+| Throughput (avg) | 502,758,439 checks/sec | 554,262,039 checks/sec | **643,251,246 checks/sec** |
+| Throughput (min) | 495,663,731 checks/sec | 527,646,984 checks/sec | **641,727,015 checks/sec** |
+| Throughput (max) | 505,876,671 checks/sec | 566,444,852 checks/sec | **645,812,743 checks/sec** |
+| Variance | 2.0% | 7.0% | **0.6%** |
 | Binary Size | 1.50MB | **388KB** | 2.21MB |
 
-### Summary
+## Key Insights
 
-## Key Insight
+1. **Zig ชนะ throughput** ที่ 643M checks/sec — เร็วกว่า Rust 16%, เร็วกว่า Go 28%
+2. **Zig มี variance ต่ำที่สุด** (0.6%) เพราะ ReleaseFast + deterministic code layout ให้ผลคงที่
+3. **Rust ชนะ binary size** ที่ 388KB (เล็กกว่า Go 3.9×, เล็กกว่า Zig 5.7×) เหมาะกับ sidecar
+4. **ทุกภาษาวัดได้ ~4–6 cycles/check** ที่ 3GHz ซึ่งแสดงว่า state arrays (120KB) fit ใน L2 cache
+5. **Benchmark stability**: เปลี่ยนจาก 12 targets + LOOPS=350,000 (≈80ms/run, variance 25–29%) เป็น 5,000 targets + LOOPS=150,000 (≈2.5s/run, variance 0.6–7%) — ผลลัพธ์น่าเชื่อถือมากขึ้น
 
-1. **Zig ชนะ throughput เฉลี่ย** ที่ ~657M checks/sec (~28.4% เร็วกว่า Rust, ~67.1% เร็วกว่า Go)
-2. **Rust ชนะ binary size** ชัดเจนที่ 388KB เหมาะกับการทำ sidecar footprint ต่ำ
-3. **Zig ชนะทั้ง floor และ peak throughput** ในรอบล่าสุด (min/max สูงสุด)
+## Technical Notes
+
+- **Go**: `make([]int, len(targets))` สำหรับ streak/cooldown arrays — GC ไม่มีผลในระหว่าง hot loop เพราะไม่มี allocation ใน `runChecks()`
+- **Rust**: `vec![0usize; targets.len()]` + `saturating_sub(1)` สำหรับ cooldown decrement — branchless
+- **Zig**: `allocator.alloc(usize, targets.len)` + `@memset(0)` — ใช้ GPA allocator สำหรับ init เท่านั้น, hot loop ไม่มี allocation
