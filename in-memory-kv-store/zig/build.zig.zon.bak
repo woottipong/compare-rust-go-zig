@@ -1,0 +1,5 @@
+.{
+    .name = .in_memory_kv_store,
+    .version = "0.1.0",
+    .paths = .{""},
+}

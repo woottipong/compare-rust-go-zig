@@ -1,0 +1,7 @@
+.{
+    .name = .in_memory_kv_store,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0x6e9b07b7d5a962de,
+}
