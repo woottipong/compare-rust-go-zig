@@ -1,6 +1,6 @@
-# Mini Project Ideas: Go vs Rust vs Zig
+# Compare Rust / Go / Zig — Master Plan
 
-## สถานะโดยรวม
+## ภาพรวมสถานะ
 
 | # | Project | สถานะ | Go | Rust | Zig |
 |---|---------|--------|-----|------|-----|
@@ -32,114 +32,61 @@
 | 9.2 | CSV Stream Aggregator | ✅ | 6,062,819 items/s | 8,003,336 items/s | 23,183,717 items/s |
 | 9.3 | Parquet File Reader | ✅ | 119,200,833 items/s | 143,730,005 items/s | 140,448,514 items/s |
 
+> หมายเหตุ: ค่า `*` หมายถึงผล benchmark ที่มี Docker container startup overhead รวมอยู่ด้วย
 
-## 1. กลุ่มงานวิดีโอและมัลติมีเดีย (Video & Media Processing)
-*เน้นการจัดการ Data Streaming และ Memory Layout*
-- ✅ **Video Frame Extractor:** ดึงภาพ Thumbnail จากวิดีโอในช่วงเวลาที่กำหนด (ฝึก C Interop กับ FFmpeg) — **Rust ชนะด้าน binary size** (388KB vs Go 1.6MB vs Zig 1.4MB)
-- ✅ **Subtitle Burn-in Engine:** ฝังไฟล์ VTT/SRT ลงในเนื้อวิดีโอ (ฝึก Memory Safety และ Pixel Manipulation) — **Zig เร็วสุดเล็กน้อย** (993ms vs Go 962ms vs Rust 1,074ms)
-- ✅ **HLS Stream Segmenter:** ตัดวิดีโอเป็นชิ้นเล็กๆ (.ts) และสร้างไฟล์ .m3u8 (ฝึก File I/O และ Streaming) — **Zig ชนะ 25%** (15,572ms vs Go 20,874ms vs Rust 16,261ms)
+## วัตถุประสงค์การทดสอบแต่ละกลุ่ม
 
-## 2. กลุ่มระบบหลังบ้านและโครงสร้างพื้นฐาน (Infrastructure & Networking)
-*เน้นความเร็ว Network และ Concurrency Model*
-- ✅ **High-Performance Reverse Proxy:** Reverse Proxy + Load Balancer ผ่าน TCP (ฝึก Raw Socket & Concurrency) — **Go ชนะขาด 3.8x** (10,065 req/s vs Rust 3,640 req/s vs Zig 2,669 req/s)
-- ✅ **Real-time Audio Chunker:** ตัดแบ่ง Audio Stream เป็นท่อนๆ เพื่อส่งให้ AI (ฝึกเรื่อง Latency และ Buffer) — **Zig latency ต่ำสุด** (17ns vs Go 4-5µs vs Rust 5µs)
-- ✅ **Lightweight API Gateway:** ระบบเช็ค JWT Auth และทำ Rate Limiting (ฝึกความปลอดภัยและ Performance) — **Rust ชนะเล็กน้อย** (57,056 req/s vs Go 54,919 req/s vs Zig 52,103 req/s)
+| Group | Theme | วัตถุประสงค์หลัก |
+|---|---|---|
+| 1 | Video & Media Processing | วัดประสิทธิภาพงาน media pipeline ที่มี FFmpeg/C interop, decode/encode และ file streaming |
+| 2 | Infrastructure & Networking | เทียบ concurrency model และ network stack ในงาน proxy/gateway/low-latency streaming |
+| 3 | AI & Data Pipeline | วัด throughput งานเตรียมข้อมูล AI, queue processing, parsing และ string masking |
+| 4 | DevOps Tools | เทียบความเร็วและความประหยัดทรัพยากรในงาน sidecar/agent แบบ long-running |
+| 5 | Systems Fundamentals | วัด data-structure/algorithm overhead ในงาน memory store, protocol และ VM execution |
+| 6 | Integration & Data | เทียบงานเชื่อมระบบจริง เช่น sync, crawling, text extraction และ transformation |
+| 7 | Low-Level Networking | วัดประสิทธิภาพ socket-level I/O, timeout handling และ protocol parsing ระดับต่ำ |
+| 8 | Image Processing (Zero-dependency) | เทียบ pure algorithm performance โดยลดผลกระทบจาก library abstraction |
+| 9 | Data Engineering Primitives | วัด streaming throughput, columnar decoding และ file-format parsing ข้อมูลขนาดใหญ่ |
 
-## 3. กลุ่มงาน AI และ Data Pipeline (AI & Data Engineering)
-*เน้นการเตรียมข้อมูลมหาศาลเพื่อส่งให้ Model*
-- ✅ **Local ASR/LLM Proxy:** ตัวจัดการคิว (Queue) รับไฟล์เสียงส่งไปประมวลผลที่ Gemini/Whisper — **Go ชนะ 7x** (11,051 req/s vs 1,522 req/s Rust vs 119 req/s Zig)
-- ✅ **Vector DB Ingester:** ตัวอ่านเอกสารขนาดใหญ่และแปลงเป็น Vector เพื่อเก็บลง Database (ฝึก Memory Management) — **Zig ชนะ 2.46x** (53,617 chunks/s vs Go 21,799 chunks/s)
-- ✅ **Custom Log Masker:** กรองข้อมูล Sensitive ออกจาก Log ด้วยความเร็วสูง (ฝึก String Processing) — **Rust ชนะ 10x** (41.71 MB/s vs Go 3.91 MB/s)
 
-## 4. กลุ่มงาน DevOps และ Cloud-Native (DevOps Tools)
-*เน้นความประหยัดทรัพยากรและขนาดไฟล์ที่เล็ก (Static Binary)*
-- ✅ **Log Aggregator Sidecar:** ดึง Log จาก Container ไปแปลงเป็น JSON และส่งต่อ (ฝึกการทำโปรแกรมตัวเล็กแต่ประสิทธิภาพสูง) — **Zig ชนะ 2.4x** (54,014 l/s vs Go 22,750 l/s)
-- ✅ **Tiny Health Check Agent:** โปรแกรมเช็คสถานะ Service และแจ้งเตือนผ่าน Discord/Line (ฝึกการทำ Zero-dependency Binary) — **Zig ชนะ throughput, Rust ชนะ binary size** (657M checks/s, 388KB)
-- ✅ **Container Watchdog:** เฝ้าดูการใช้ Resource ของ Container และจัดการ Restart เมื่อถึงเงื่อนไข (ฝึก System Calls) — **Rust ชนะ throughput + binary เล็กสุด** (577K items/s, 388KB)
+## Progress by Group
 
-## 5. กลุ่มพื้นฐานระบบและวิทยาการคอมพิวเตอร์ (Systems Fundamentals)
-*เน้นทำความเข้าใจไส้ในของภาษาและการจัดการ Memory*
-- ✅ **In-memory Key-Value Store:** สร้างฐานข้อมูลขนาดเล็กคล้าย Redis (ฝึก Data Structures & GC vs Manual Memory) — **Zig ชนะ throughput** (20,747,797 items/s vs Go 14,549,643 vs Rust 6,589,801)
-- ✅ **Custom BitTorrent Client:** เขียนโปรโตคอลดาวน์โหลดไฟล์แบบ P2P (ฝึก Binary Protocol & Network Sockets) — **Zig เร็วสุด** (5,382 items/s vs Rust 4,880 vs Go 3,405)
-- ✅ **Small Bytecode VM:** สร้าง Virtual Machine จำลองรันชุดคำสั่งพื้นฐาน (ฝึก CPU & Instruction Sets)
+| Group | Theme | Projects | Status |
+|---|---|---|---|
+| 1 | Video & Media Processing | video-frame-extractor, hls-stream-segmenter, subtitle-burn-in-engine | ✅ 3/3 |
+| 2 | Infrastructure & Networking | high-perf-reverse-proxy, realtime-audio-chunker, lightweight-api-gateway | ✅ 3/3 |
+| 3 | AI & Data Pipeline | local-asr-llm-proxy, vector-db-ingester, custom-log-masker | ✅ 3/3 |
+| 4 | DevOps Tools | log-aggregator-sidecar, tiny-health-check-agent, container-watchdog | ✅ 3/3 |
+| 5 | Systems Fundamentals | in-memory-kv-store, custom-bittorrent-client, small-bytecode-vm | ✅ 3/3 |
+| 6 | Integration & Data | sheets-to-db-sync, web-accessibility-crawler, automated-tor-tracker | ✅ 3/3 |
+| 7 | Low-Level Networking | dns-resolver, tcp-port-scanner, quic-ping-client | ✅ 3/3 |
+| 8 | Image Processing (Zero-dependency) | png-encoder-from-scratch, jpeg-thumbnail-pipeline, perceptual-hash-phash | ✅ 3/3 |
+| 9 | Data Engineering Primitives | sqlite-query-engine, csv-stream-aggregator, parquet-file-reader | ✅ 3/3 |
 
-## 6. กลุ่มงาน Automation และการเชื่อมต่อระบบ (Integration & Data)
-*เน้นการใช้งานจริงในมุม Business Analyst / Data Analyst*
-- ✅ **Sheets-to-DB Sync:** ระบบ Sync ข้อมูลจาก Google Sheets ลง MySQL/Pocketbase อัตโนมัติ — **Zig เร็วสุดเล็กน้อย** (73,838,600 items/s vs Go 69,121,538 vs Rust 7,248,737)
-- ✅ **Web Accessibility Crawler:** บอทสำรวจหน้าเว็บเพื่อหาจุดที่ผิดหลัก Accessibility (ฝึก Web Scraping & DOM Parsing) — **Rust เร็วสุด** (4,237,100 items/s vs Zig 3,606,971 vs Go 1,339,630)
-- ✅ **Automated TOR Tracker:** ตัวดึงข้อมูลจากเอกสาร TOR มาสรุปสถานะลง Dashboard (ฝึก Text Extraction) — **Zig เร็วสุดชัดเจน** (15,810,537 items/s vs Rust 6,755,853 vs Go 4,742,942)
+## Highlights (Short)
 
-## 7. กลุ่มเครือข่ายระดับต่ำ (Low-Level Networking)
-*เน้น raw socket, binary protocol parsing, และ concurrency ที่วัดได้จริง*
-- ✅ **DNS Resolver:** parse UDP DNS packet, query A/AAAA/CNAME records ด้วย raw socket (ฝึก Binary Protocol Parsing + UDP) — **Rust เร็วสุด** (6,155 items/s vs Go 5,963 vs Zig 5,492)
-- ✅ **TCP Port Scanner:** scan หลาย port พร้อมกันด้วย concurrency model ของแต่ละภาษา — goroutines vs tokio tasks vs Zig threads (ฝึก Concurrent I/O และ Timeout Handling) — **Rust ชนะชัดเจน** (108,365 items/s vs Go 664 vs Zig 277)
-- ✅ **QUIC Ping Client:** benchmark ping loop บน UDP transport ที่จำลอง handshake/ping flow เพื่อเทียบ runtime overhead ระหว่างภาษา (ฝึก Transport latency instrumentation) — **Zig เร็วสุดเล็กน้อย** (6,338 items/s vs Rust 6,284 vs Go 6,013)
-
-## 8. กลุ่มประมวลผลรูปภาพ Zero-dependency (Image Processing from Scratch)
-*เน้น pure algorithm implementation ไม่พึ่ง library — เห็น performance ของภาษาล้วนๆ*
-- ✅ **PNG Encoder from Scratch:** implement DEFLATE compression + PNG chunk writing โดยไม่ใช้ libpng (ฝึก Bit Manipulation, Compression, และ Memory Layout) — **Go เร็วสุดใน baseline** (58.14M items/s vs Rust 47.79M vs Zig 26.83M)
-- ✅ **JPEG Thumbnail Pipeline:** decode JPEG → resize (bilinear/lanczos) → re-encode ด้วย libjpeg หรือ pure impl (ฝึก SIMD-friendly loop, Cache Locality) — **Go throughput สูงสุดเล็กน้อย** (236K items/s vs Rust 230K vs Zig 220K)
-- ✅ **Perceptual Hash (pHash):** คำนวณ DCT-based image fingerprint สำหรับ duplicate detection (ฝึก Math-heavy computation และ SIMD/vectorization) — **Zig throughput สูงสุดเล็กน้อย** (14.48 items/s vs Rust 13.70 vs Go 12.77)
-
-## 9. กลุ่มข้อมูลขนาดใหญ่ (Data Engineering Primitives)
-*เน้น streaming data processing, columnar format, และ zero-copy parsing*
-- ✅ **SQLite Query Engine (subset):** implement B-tree page reader + SQL SELECT/WHERE parser อย่างง่าย (ฝึก File Format Parsing, Algorithmic thinking, Zero-copy reads) — **Zig throughput สูงสุดชัดเจน** (897.20M items/s vs Rust 358.38M vs Go 282.69M)
-- ✅ **CSV Stream Aggregator:** อ่าน CSV ไฟล์ขนาดหลาย GB แบบ streaming, GROUP BY + SUM/COUNT โดยไม่โหลดทั้งหมดใน memory (ฝึก Streaming I/O, Memory efficiency) — **Zig throughput สูงสุดชัดเจน** (23.18M items/s vs Rust 8.00M vs Go 6.06M)
-- ✅ **Parquet File Reader:** parse Parquet column metadata + decode RLE/bit-packing encoding ให้ได้ค่า column จริง (ฝึก Columnar Format, Bit manipulation, Schema handling) — **Rust throughput สูงสุดเล็กน้อย** (143.73M items/s vs Zig 140.45M vs Go 119.20M)
+- **Go** เด่นในงาน networking/runtime ที่อาศัย stdlib โดยตรง (เช่น reverse proxy)
+- **Rust** เด่นในงาน async + parser/regex throughput สูง
+- **Zig** เด่นในงาน data/system ที่ต้องการ low overhead และ manual memory
 
 ---
 
-## สรุปความคืบหน้า (Progress Summary)
+## Executive Summary
 
-### ✅ Completed Projects (27/27)
-1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
-2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
-3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
-4. **High-Performance Reverse Proxy** — TCP networking, 10K/3.6K/2.7K req/s
-5. **Lightweight API Gateway** — HTTP throughput, 54.9K/57.1K/52.1K req/s
-6. **Real-time Audio Chunker** — Buffer management, 4-5µs / 5µs / 17ns latency
-7. **Custom Log Masker** — String processing, **41.71 MB/s (Rust)** vs 3.91 MB/s (Go)
-8. **Vector DB Ingester** — Memory management, **53,617 chunks/s (Zig)** vs 21,799 chunks/s (Go)
-9. **Local ASR/LLM Proxy** — Worker pool + queue, **1,526 req/s (Rust)** vs 242 req/s (Go)
-10. **Log Aggregator Sidecar** — HTTP client performance, **54,014 l/s (Zig)** vs 22,750 l/s (Go)
-11. **Container Watchdog** — policy engine loop, **577,372 items/s (Rust)** vs 513,349 items/s (Zig) vs 394,963 items/s (Go)
-12. **Tiny Health Check Agent** — service health policy loop, **657,289,106 checks/s (Zig)** vs 511,991,959 checks/s (Rust) vs 393,222,263 checks/s (Go)
-13. **PNG Encoder from Scratch** — pure algorithm PNG encoding, **58,142,585 items/s (Go)** vs 47,791,195 items/s (Rust) vs 26,833,474 items/s (Zig)
-14. **JPEG Thumbnail Pipeline** — JPEG thumbnail generation pipeline, **236,263 items/s (Go)** vs 229,690 items/s (Rust) vs 220,198 items/s (Zig)
-15. **Perceptual Hash (pHash)** — DCT-based image fingerprint, **14.48 items/s (Zig)** vs 13.70 items/s (Rust) vs 12.77 items/s (Go)
-16. **SQLite Query Engine (subset)** — raw B-tree scan/query benchmark, **897,198,108 items/s (Zig)** vs 358,383,573 items/s (Rust) vs 282,688,842 items/s (Go)
-17. **Small Bytecode VM** — virtual machine instruction execution, **432,795 instr/s (Zig)** vs 280,545 instr/s (Rust) vs 240,449 instr/s (Go)
-18. **CSV Stream Aggregator** — streaming GROUP BY/SUM/COUNT, **23,183,717 items/s (Zig)** vs 8,003,336 items/s (Rust) vs 6,062,819 items/s (Go)
-19. **Parquet File Reader** — RLE/bit-pack parquet-subset decode, **143,730,005 items/s (Rust)** vs 140,448,514 items/s (Zig) vs 119,200,833 items/s (Go)
-20. **DNS Resolver** — UDP DNS packet query/parse benchmark, **6,155 items/s (Rust)** vs 5,963 items/s (Go) vs 5,492 items/s (Zig)
-21. **TCP Port Scanner** — timeout-based multi-port scan benchmark, **108,365 items/s (Rust)** vs 664 items/s (Go) vs 277 items/s (Zig)
-22. **QUIC Ping Client** — UDP ping-loop transport benchmark, **6,338 items/s (Zig)** vs 6,284 items/s (Rust) vs 6,013 items/s (Go)
-23. **In-memory Key-Value Store** — in-memory map operations benchmark, **20,747,797 items/s (Zig)** vs 14,549,643 items/s (Go) vs 6,589,801 items/s (Rust)
-24. **Custom BitTorrent Client** — BitTorrent handshake benchmark, **5,382 items/s (Zig)** vs 4,880 items/s (Rust) vs 3,405 items/s (Go)
-25. **Sheets-to-DB Sync** — CSV-to-DB upsert sync benchmark, **73,838,600 items/s (Zig)** vs 69,121,538 items/s (Go) vs 7,248,737 items/s (Rust)
-26. **Web Accessibility Crawler** — HTML accessibility scan benchmark, **4,237,100 items/s (Rust)** vs 3,606,971 items/s (Zig) vs 1,339,630 items/s (Go)
-27. **Automated TOR Tracker** — TOR text status extraction benchmark, **15,810,537 items/s (Zig)** vs 6,755,853 items/s (Rust) vs 4,742,942 items/s (Go)
+- ✅ Completed: **27/27 projects** (9 groups)
+- ✅ Languages covered per project: **Go + Rust + Zig**
+- ✅ Benchmark policy: **Docker-based**; results saved under each project's `benchmark/results/`
+- ✅ Documentation policy: each project has its own `README.md` with setup, benchmark, and results
 
-> *Docker overhead included (~400-500ms container startup)
+## สรุปเชิงเทคนิค
 
-### 📊 Performance Insights
-- **Zig** เร็วสุดใน FFmpeg projects (vfe, hls, sbe) + Log Aggregator (2.4x) — sync I/O + manual memory
-- **Rust** เร็วรองมาและ binary size เล็กที่สุด (388KB) ใน FFmpeg projects
-- **Go** ช้ากว่าใน Docker เพราะ bookworm + glibc FFmpeg decode overhead
-- **Connection pooling** สำคัญ — Go reverse proxy ชนะขาด (10K vs 3.6K/2.7K req/s)
-- **Framework choice** สำคัญมาก — Zig manual HTTP 8K req/s → Zap 52K req/s
-- **Regex engine** สำคัญ — Rust `regex` crate เร็วกว่า Go RE2 ถึง 10x (41.71 vs 3.91 MB/s)
-- **Memory model** สำคัญ — Zig manual memory ชนะใน Vector DB (2.46x) + Log Aggregator (2.4x), Rust regex engine ชนะใน Log Masker (10x)
-- **Async vs Sync** สำคัญ — Rust async tokio ชนะขาดใน ASR Proxy (6.3x) เพราะ multiplexes connections
-- **Stability matters** — Rust (11% variance) และ Zig (14% variance) มีความเสถียพอดีสูงกว่า Go (55% variance)
-- **5-run methodology** ให้ผลลัพธ์ที่น่าเชื่อถืออยู่และลด outlier จาก warm-up effect
-- **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช่ Alpine)
+1. **Go** เด่นด้าน networking ที่ใช้ stdlib/runtime ได้ตรงจุด (เช่น reverse proxy)
+2. **Rust** เด่นด้าน throughput ที่ต้องใช้ async + parser/regex ที่มีประสิทธิภาพสูง
+3. **Zig** เด่นด้านงาน data/system ที่ได้ประโยชน์จาก manual memory และ low-overhead runtime
 
-### 🎯 ถัดไป (Next Projects)
-- เสร็จครบทุกโปรเจกต์ในแผน 27/27 แล้ว
+## หมายเหตุการอ่านผล
 
-### 📈 สถิติ
-- **Total projects**: 27 (9 groups)
-- **Completed**: 27 (100.0%)
-- **In Progress**: 0
-- **Remaining**: 0 (0.0%)
+- ตัวเลขในตารางด้านบนคือผล benchmark ที่ใช้เปรียบเทียบข้ามภาษาในแต่ละโจทย์
+- หน่วยของผลลัพธ์ต่างกันตามประเภทงาน (เช่น ms, req/s, items/s, MB/s, instr/s) จึงควรเทียบข้ามภาษาในโจทย์เดียวกัน
+- สำหรับรายละเอียดวิธีวัด/ค่าเฉลี่ย/ขนาด binary ให้ดู `README.md` ของแต่ละโปรเจกต์
+- กลับไปภาพรวม repository: [`README.md`](./README.md)

@@ -1,211 +1,127 @@
 # Compare Rust / Go / Zig
 
-เปรียบเทียบการเขียนโปรแกรมด้วย **Go**, **Rust**, และ **Zig** ผ่าน mini projects จริงๆ  
-เน้นวัดผล performance, binary size, memory usage, และ code complexity ในแต่ละโดเมน
+Repository นี้ใช้ mini projects จริงเพื่อเปรียบเทียบ **Go**, **Rust**, และ **Zig** ในหลายโดเมน เช่น media, networking, systems, data engineering และ integration workloads
+
+เป้าหมายหลัก:
+- เปรียบเทียบ **performance** แบบวัดผลได้จริง
+- เปรียบเทียบ **binary size / memory behavior / code complexity**
+- สร้าง baseline ที่ทำซ้ำได้ด้วย **Docker benchmark**
 
 ---
 
-## โครงสร้าง Repository
+## สถานะปัจจุบัน
 
-```
+- ✅ Completed: **27/27 projects**
+- ✅ ครบทั้ง **9 groups**
+- ✅ ทุกโปรเจกต์มี **Go + Rust + Zig** implementation
+- ✅ มี benchmark script และผลลัพธ์ใน `benchmark/results/`
+
+ดูรายละเอียดทั้งหมดใน [`plan.md`](./plan.md)
+
+### ดูผล benchmark ได้ที่ไหน
+
+1. **ไฟล์ผลรันจริง (raw output):**
+   - `<project-name>/benchmark/results/<project>_<timestamp>.txt`
+2. **สรุปผลรายโปรเจกต์:**
+   - `<project-name>/README.md`
+3. **ภาพรวมทั้ง repository:**
+   - [`plan.md`](./plan.md)
+
+---
+
+## Repository Structure
+
+```text
 compare-rust-go-zig/
-├── video-frame-extractor/    ✅ ดึง frame thumbnail จากวิดีโอ (FFmpeg C interop)
-├── hls-stream-segmenter/     ✅ ตัดวิดีโอเป็น .ts + .m3u8 (HLS streaming)
-├── subtitle-burn-in-engine/  ✅ ฝัง SRT subtitle ลงวิดีโอ + re-encode H264
-├── high-perf-reverse-proxy/  ✅ Reverse Proxy + Load Balancer (TCP networking)
-├── lightweight-api-gateway/  ✅ API Gateway: JWT, rate limiting, reverse proxy
-├── realtime-audio-chunker/   ✅ Real-time Audio Chunker (buffer management)
-├── custom-log-masker/        ✅ Log PII masking (string processing)
-├── vector-db-ingester/       ✅  Vector embeddings generation (memory management)
-├── log-aggregator-sidecar/  ✅  Log aggregation + forwarding (HTTP client)
-├── local-asr-llm-proxy/     ✅  ASR/LLM proxy with worker pool (async vs sync)
-├── <project-name>/           ⬜ projects ถัดไป
-├── plan.md                   # รายการ projects ทั้งหมด + สถานะ
-└── .windsurf/rules/          # Coding rules
-    ├── project-rules.md      # Mandatory rules + checklist
-    ├── project-structure.md  # Technical reference
+├── <project-name>/
+│   ├── go/
+│   ├── rust/
+│   ├── zig/
+│   ├── test-data/
+│   ├── benchmark/
+│   │   ├── run.sh
+│   │   └── results/
+│   └── README.md
+├── plan.md
+└── .windsurf/rules/
+    ├── project-rules.md
+    ├── project-structure.md
     ├── go-dev.md
     ├── rust-dev.md
     └── zig-dev.md
 ```
 
-แต่ละ project มีโครงสร้างมาตรฐาน:
+---
 
-```
-<project-name>/
-├── go/          # Go implementation
-├── rust/        # Rust implementation
-├── zig/         # Zig implementation
-├── test-data/   # ไฟล์สำหรับทดสอบ (gitignored)
-├── benchmark/
-│   ├── run.sh   # Docker-based benchmark (5 runs: 1 warm-up + 4 measured)
-│   └── results/ # ผลลัพธ์ที่บันทึกไว้อัตโนมัติ (gitignored)
-└── README.md
-```
+## Project Groups
+
+| Group | Theme | Status |
+|---|---|---|
+| 1 | Video & Media Processing | ✅ 3/3 |
+| 2 | Infrastructure & Networking | ✅ 3/3 |
+| 3 | AI & Data Pipeline | ✅ 3/3 |
+| 4 | DevOps Tools | ✅ 3/3 |
+| 5 | Systems Fundamentals | ✅ 3/3 |
+| 6 | Integration & Data | ✅ 3/3 |
+| 7 | Low-Level Networking | ✅ 3/3 |
+| 8 | Image Processing (Zero-dependency) | ✅ 3/3 |
+| 9 | Data Engineering Primitives | ✅ 3/3 |
 
 ---
 
-## ผลการเปรียบเทียบ (10/27 Completed)
+## วิธีรัน Benchmark (มาตรฐาน)
 
-### 1. Video Frame Extractor
-ดึง frame จากวิดีโอที่ตำแหน่ง timestamp → output PPM image
+แต่ละโปรเจกต์ใช้ benchmark ของตัวเอง:
 
-| Metric | Go | Rust | Zig |
-|--------|-----|------|-----|
-| **Avg Time** | 517ms | 545ms | 583ms |
-| **Binary Size** | 1.6MB | **388KB** | 1.4MB |
-| **Code Lines** | 182 | 192 | **169** |
+```bash
+cd <project-name>
+bash benchmark/run.sh
+```
 
-**Key insight**: FFmpeg decode เป็น bottleneck → ทุกภาษาเร็วใกล้เคียงกัน
+ผลลัพธ์จะถูกบันทึกอัตโนมัติใน:
 
-### 2. HLS Stream Segmenter
-ตัดวิดีโอ 30s เป็น 3 segments → `.ts` + `playlist.m3u8`
+```text
+<project-name>/benchmark/results/<project>_<timestamp>.txt
+```
 
-| Metric | Go | Rust | Zig |
-|--------|-----|------|-----|
-| **Avg Time** | 20,874ms | 16,261ms | **15,572ms** |
-| **Binary Size** | 1.6MB | **388KB** | 1.5MB |
-| **Code Lines** | 323 | 274 | **266** |
-
-**Key insight**: I/O-bound — Zig/Rust เร็วกว่า Go ใน Docker (FFmpeg decode overhead)
-
-### 3. Subtitle Burn-in Engine
-ฝัง SRT subtitle ลงวิดีโอ (decode → burn text → encode H264)
-
-| Metric | Go | Rust | Zig |
-|--------|-----|------|-----|
-| **Avg Time** | 962ms | 1,074ms | **993ms** |
-| **Binary Size** | 1.6MB | 1.6MB | 2.3MB |
-| **Code Lines** | 340 | **230** | 332 |
-
-**Key insight**: Zig เร็วสุดเล็กน้อย (993ms) — ทุกภาษาใกล้เคียงกันมาก
-
-### 4. High-Performance Reverse Proxy
-Reverse Proxy + Load Balancing (Round-robin) ผ่าน TCP
-
-| Metric | Go | Rust | Zig |
-|--------|-----|------|-----|
-| **Throughput** | **10,065 req/s** | 3,640 req/s | 2,669 req/s |
-| **Avg Latency** | **5.60ms** | 12.66ms | 16.24ms |
-| **Binary Size** | 5.2MB | **1.2MB** | 2.4MB |
-| **Code Lines** | **158** | 160 | 166 |
-
-**Key insight**: Go ชนะขาดเพราะ `httputil.ReverseProxy` มี connection pooling
-
-### 5. Lightweight API Gateway
-HTTP Gateway พร้อม JWT validation, rate limiting, middleware chain
-
-| Metric | Go (Fiber) | Rust (axum) | Zig (Zap) |
-|--------|-----------|-------------|----------|
-| **Throughput** | 54,919 req/s | **57,056 req/s** | 52,103 req/s |
-| **Peak Memory** | 11,344 KB | **2,528 KB** | 27,680 KB |
-| **Binary Size** | 9.1MB | 1.6MB | **233KB** |
-| **Code Lines** | 209 | 173 | **146** |
-
-**Key insight**: ทุกภาษาอยู่ใน ballpark เดียวกัน (~50–57K req/s) เมื่อใช้ async framework ที่เหมาะสม
-
-### 6. Real-time Audio Chunker
-ตัด Audio Stream เป็นท่อนๆ สำหรับ AI (buffer management + latency)
-
-| Metric | Go | Rust | Zig |
-|--------|-----|------|-----|
-| **Avg Latency** | 0.006ms | 0.061ms | **0.000ms** |
-| **Throughput** | 57.81 c/s | 54.56 c/s | 54.87 c/s |
-| **Binary Size** | 1.5MB | **452KB** | 2.2MB |
-| **Code Lines** | 198 | **180** | 157 |
-
-**Key insight**: Zig latency ต่ำสุดในระดับ nanoseconds สำหรับ buffer operations
-
-### 7. Custom Log Masker
-กรองข้อมูล PII ออกจาก Logs — String Processing benchmark
-
-| Metric | Go | **Rust** | Zig |
-|--------|-----|----------|-----|
-| **Throughput** | 3.81 MB/s | **46.21 MB/s** | 11.29 MB/s |
-| **Lines/sec** | 50,981 | **618,100** | 151,042 |
-| **Processing Time** | 2.081s | **0.167s** | 0.672s |
-| **Code Lines** | 183 | **127** | 473 |
-
-**Key insight**: Rust `regex` crate ใช้ SIMD + DFA engine — เร็วกว่า Go RE2 ถึง **12x**
-
-### 8. Vector DB Ingester
-แปลงเอกสารเป็น Vector Embeddings — Memory Management benchmark
-
-| Metric | Go | Rust | **Zig** 🏆 |
-|--------|-----|------|-----------|
-| **Avg Time** | 233ms | 302ms | **219ms** |
-| **Throughput** | 25,344 c/s | 38,453 c/s | **57,481 c/s** |
-| **Binary Size** | 1.9M | **450K** | 1.1M |
-| **Code Lines** | 216 | 253 | **193** |
-
-**Key insight**: Zig ชนะ 2.27x ด้วย manual memory management — Rust มี outlier (501ms) แต่ variance ยังดีกว่า Go
-
-### 9. Local ASR/LLM Proxy
-ASR/LLM Proxy พร้อม Worker Pool และ Job Queue — Async vs Sync I/O
-
-| Metric | Go | **Rust** 🏆 | Zig |
-|--------|-----|-----------|-----|
-| **Throughput** | 242 req/s | **1,526 req/s** | 115 req/s |
-| **Avg Latency** | 191ms | **31ms** | 402ms |
-| **Memory** | 2,968 KB | **1,248 KB** | 72,499 KB |
-| **Binary Size** | 5.7MB | 3.8MB | 7.5MB |
-| **Code Lines** | 317 | 207 | 221 |
-
-**Key insight**: **Rust ชนะขาด 6.3x** เหนือ Go เพราะ `tokio` async multiplexes 50 connections โดยไม่บล็อก thread
-
-### 10. Log Aggregator Sidecar
-ดึง Log จาก Container แปลงเป็น JSON และส่งต่อ — HTTP Client Performance
-
-| Metric | Go | Rust | **Zig** 🏆 |
-|--------|-----|------|-----------|
-| **Throughput** | 22,750 l/s | 25,782 l/s | **54,014 l/s** |
-| **Avg Latency** | 44ms | 39ms | **18ms** |
-| **Binary Size** | 5.9MB | 5.9MB | 7.5MB |
-| **Code Lines** | 370 | 385 | 448 |
-
-**Key insight**: **Zig ชนะขาด 2.4x** เหนือ Rust และ Go เพราะ `readToEndAlloc` + `splitScalar` อ่านไฟล์ครั้งเดียว ไม่มี async overhead
+แนวทางการวัดผล:
+- Non-HTTP workloads: 5 runs (1 warm-up + 4 measured)
+- HTTP workloads: ใช้ `wrk` และ Docker network
+- Zig output ต้อง capture `2>&1`
 
 ---
 
-## 🏆 Overall Score (8 projects)
+## Statistics Format (มาตรฐานร่วม)
 
-| ภาษา | Wins | จุดเด่น |
-|------|------|---------|
-| **Zig** | 4 | FFmpeg (vfe/hls) + Vector DB + Log Aggregator — sync I/O + manual memory |
-| **Rust** | 3 | ASR Proxy (6.3x) + Log masking (12x) + Subtitle — async tokio + SIMD regex |
-| **Go** | 3 | Reverse proxy + Frame extractor + API Gateway — connection pooling + stdlib |
+ทุกภาษาในโปรเจกต์เดียวกันต้องรายงานรูปแบบเดียวกัน:
+
+```text
+--- Statistics ---
+Total processed: <N>
+Processing time: <X.XXX>s
+Average latency: <X.XXX>ms
+Throughput: <X.XX> items/sec
+```
+
+> ชื่อ field อาจปรับตาม domain (เช่น requests/chunks/lines) แต่โครงสร้างต้องเท่ากัน
 
 ---
 
 ## Quick Start
 
 ### Prerequisites
+
 ```bash
 # macOS
-brew install ffmpeg zig docker
+brew install docker ffmpeg zig go rust
 
-# Ubuntu/Debian
-sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev libswscale-dev docker.io
+# Ubuntu/Debian (ตัวอย่าง)
+sudo apt-get update
+sudo apt-get install -y docker.io ffmpeg curl build-essential
 ```
 
-### สร้าง Test Data
-```bash
-# Media projects
-cd <project-name>/test-data
-ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p sample.mp4
+### Local Build (ภายในแต่ละภาษา)
 
-# Audio projects
-ffmpeg -f lavfi -i sine=frequency=440:duration=10 -ar 16000 -ac 1 -c:a pcm_s16le sample.wav
-```
-
-### Run Benchmark
-```bash
-cd <project-name>
-bash benchmark/run.sh
-# ผลลัพธ์บันทึกอัตโนมัติใน benchmark/results/
-```
-
-### Local Build
 ```bash
 # Go
 unset GOROOT && go build -o ../bin/<name>-go .
@@ -221,48 +137,23 @@ zig build -Doptimize=ReleaseFast
 
 ## Rules & Standards
 
-- **Benchmark**: Docker เสมอ — 5 runs (1 warm-up + 4 measured) สำหรับ non-HTTP
-- **Statistics**: `--- Statistics --- / Total processed / Processing time / Average latency / Throughput`
-- **README**: 8 sections มาตรฐาน รวม raw benchmark output
-- **Docker image**: `<prefix>-go`, `<prefix>-rust`, `<prefix>-zig`
+ยึดตามไฟล์ใน `.windsurf/rules/` เป็นหลัก โดยเฉพาะ:
 
-ดู `.windsurf/rules/project-rules.md` สำหรับ checklist และ mandatory rules
+1. [`project-rules.md`](./.windsurf/rules/project-rules.md)
+2. [`project-structure.md`](./.windsurf/rules/project-structure.md)
 
----
-
-## Language Summary
-
-| ภาษา | จุดเด่น | จุดที่ต้องระวัง |
-|------|---------|----------------|
-| **Go** | เขียนง่าย, stdlib ครบ, build เร็ว | CGO memory ซับซ้อน, binary ใหญ่เมื่อใช้ deps |
-| **Rust** | Memory safe, performance สม่ำเสมอ, variance ต่ำ | Build time นาน, env vars สำหรับ FFI |
-| **Zig** | Binary เล็ก, C interop ตรง, `comptime` ทรงพลัง | Ecosystem เล็ก, API ยัง evolving |
+สาระสำคัญ:
+- Benchmark ต้องผ่าน Docker
+- `main()` เน้น orchestration เท่านั้น
+- มี Stats struct แยกชัดเจน
+- Docker image naming: `<prefix>-go`, `<prefix>-rust`, `<prefix>-zig`
 
 ---
 
-## Key Lessons
+## สรุปภาพรวมเชิงเทคนิค
 
-- **Framework choice**: Zig manual HTTP 8K req/s → Zap 52K req/s (+6x)
-- **Regex engine**: Rust SIMD regex เร็วกว่า Go RE2 ถึง 12x
-- **Connection pooling**: Go `httputil.ReverseProxy` ชนะขาดด้าน TCP proxy
-- **Memory model**: Zig manual memory ให้ throughput สูงสุดในงาน data processing
-- **Stability**: Rust variance ต่ำสุด (11%) เหมาะ production workloads
-- **Docker overhead**: ~400-500ms container startup รวมใน FFmpeg benchmarks
+- **Go** เด่นในงาน network/runtime ที่ใช้ stdlib ได้ตรงจุด
+- **Rust** เด่นในงาน async throughput สูง และ parser/regex
+- **Zig** เด่นในงาน data/system ที่ได้ประโยชน์จาก low-overhead + manual memory
 
----
-
-## Projects ที่วางแผนไว้
-
-ดูรายละเอียดทั้งหมดใน [`plan.md`](./plan.md) — 9 กลุ่ม 27 projects (8/27 done)
-
-| กลุ่ม | Projects | สถานะ |
-|-------|---------|--------|
-| 1 Media (FFmpeg) | vfe, hls, sbe | ✅ Done |
-| 2 Networking | proxy, gateway, audio | ✅ Done |
-| 3 AI/Data | llm-proxy, vector-db, log-masker | ✅ Done |
-| 4 DevOps | log-aggregator, health-check, watchdog | 1/3 Done |
-| 5 Systems | kv-store, bittorrent, bytecode-vm | ⬜ |
-| 6 Integration | sheets-sync, crawler, tor-tracker | ⬜ |
-| 7 Low-level Networking | dns, port-scanner, quic | ⬜ |
-| 8 Image Processing | png-encoder, jpeg-pipeline, phash | ⬜ |
-| 9 Data Engineering | sqlite-engine, csv-aggregator, parquet | ⬜ |
+รายละเอียดเชิงลึกของแต่ละโจทย์ ให้ดู `README.md` ในโฟลเดอร์โปรเจกต์นั้นๆ
