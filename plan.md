@@ -27,8 +27,8 @@
 | 7.3 | QUIC Ping Client | ⬜ | — | — | — |
 | 8.1 | PNG Encoder from Scratch | ✅ | 58,142,585 items/s | 47,791,195 items/s | 26,833,474 items/s |
 | 8.2 | JPEG Thumbnail Pipeline | ✅ | 236,263 items/s | 229,690 items/s | 220,198 items/s |
-| 8.3 | Perceptual Hash (pHash) | ⬜ | — | — | — |
-| 9.1 | SQLite Query Engine (subset) | ⬜ | — | — | — |
+| 8.3 | Perceptual Hash (pHash) | ✅ | 12.77 items/s | 13.70 items/s | 14.48 items/s |
+| 9.1 | SQLite Query Engine (subset) | ✅ | 282,688,842 items/s | 358,383,573 items/s | 897,198,108 items/s |
 | 9.2 | CSV Stream Aggregator | ⬜ | — | — | — |
 | 9.3 | Parquet File Reader | ⬜ | — | — | — |
 
@@ -79,11 +79,11 @@
 *เน้น pure algorithm implementation ไม่พึ่ง library — เห็น performance ของภาษาล้วนๆ*
 - ✅ **PNG Encoder from Scratch:** implement DEFLATE compression + PNG chunk writing โดยไม่ใช้ libpng (ฝึก Bit Manipulation, Compression, และ Memory Layout) — **Go เร็วสุดใน baseline** (58.14M items/s vs Rust 47.79M vs Zig 26.83M)
 - ✅ **JPEG Thumbnail Pipeline:** decode JPEG → resize (bilinear/lanczos) → re-encode ด้วย libjpeg หรือ pure impl (ฝึก SIMD-friendly loop, Cache Locality) — **Go throughput สูงสุดเล็กน้อย** (236K items/s vs Rust 230K vs Zig 220K)
-- ⬜ **Perceptual Hash (pHash):** คำนวณ DCT-based image fingerprint สำหรับ duplicate detection (ฝึก Math-heavy computation และ SIMD/vectorization)
+- ✅ **Perceptual Hash (pHash):** คำนวณ DCT-based image fingerprint สำหรับ duplicate detection (ฝึก Math-heavy computation และ SIMD/vectorization) — **Zig throughput สูงสุดเล็กน้อย** (14.48 items/s vs Rust 13.70 vs Go 12.77)
 
 ## 9. กลุ่มข้อมูลขนาดใหญ่ (Data Engineering Primitives)
 *เน้น streaming data processing, columnar format, และ zero-copy parsing*
-- ⬜ **SQLite Query Engine (subset):** implement B-tree page reader + SQL SELECT/WHERE parser อย่างง่าย (ฝึก File Format Parsing, Algorithmic thinking, Zero-copy reads)
+- ✅ **SQLite Query Engine (subset):** implement B-tree page reader + SQL SELECT/WHERE parser อย่างง่าย (ฝึก File Format Parsing, Algorithmic thinking, Zero-copy reads) — **Zig throughput สูงสุดชัดเจน** (897.20M items/s vs Rust 358.38M vs Go 282.69M)
 - ⬜ **CSV Stream Aggregator:** อ่าน CSV ไฟล์ขนาดหลาย GB แบบ streaming, GROUP BY + SUM/COUNT โดยไม่โหลดทั้งหมดใน memory (ฝึก Streaming I/O, Memory efficiency)
 - ⬜ **Parquet File Reader:** parse Parquet column metadata + decode RLE/bit-packing encoding ให้ได้ค่า column จริง (ฝึก Columnar Format, Bit manipulation, Schema handling)
 
@@ -91,7 +91,7 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (14/27)
+### ✅ Completed Projects (17/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
@@ -106,6 +106,9 @@
 12. **Tiny Health Check Agent** — service health policy loop, **657,289,106 checks/s (Zig)** vs 511,991,959 checks/s (Rust) vs 393,222,263 checks/s (Go)
 13. **PNG Encoder from Scratch** — pure algorithm PNG encoding, **58,142,585 items/s (Go)** vs 47,791,195 items/s (Rust) vs 26,833,474 items/s (Zig)
 14. **JPEG Thumbnail Pipeline** — JPEG thumbnail generation pipeline, **236,263 items/s (Go)** vs 229,690 items/s (Rust) vs 220,198 items/s (Zig)
+15. **Perceptual Hash (pHash)** — DCT-based image fingerprint, **14.48 items/s (Zig)** vs 13.70 items/s (Rust) vs 12.77 items/s (Go)
+16. **SQLite Query Engine (subset)** — raw B-tree scan/query benchmark, **897,198,108 items/s (Zig)** vs 358,383,573 items/s (Rust) vs 282,688,842 items/s (Go)
+17. **Small Bytecode VM** — virtual machine instruction execution, **432,795 instr/s (Zig)** vs 280,545 instr/s (Rust) vs 240,449 instr/s (Go)
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -124,11 +127,11 @@
 
 ### 🎯 ถัดไป (Next Projects)
 - **กลุ่ม 7**: DNS Resolver (low-level networking)  
-- **กลุ่ม 8**: Perceptual Hash (pHash) (pure algorithms)
 - **กลุ่ม 9**: CSV Stream Aggregator (data engineering primitives)
+- **กลุ่ม 9**: Parquet File Reader (data engineering primitives)
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 14 (51.9%)
+- **Completed**: 17 (63%)
 - **In Progress**: 0
-- **Remaining**: 13 (48.1%)
+- **Remaining**: 10 (37%)
