@@ -19,7 +19,7 @@
 | 5.1 | In-memory Key-Value Store | ✅ | 14,549,643 items/s | 6,589,801 items/s | 20,747,797 items/s |
 | 5.2 | Custom BitTorrent Client | ✅ | 3,405 items/s | 4,880 items/s | 5,382 items/s |
 | 5.3 | Small Bytecode VM | ✅ | 240,449 instr/s | 280,545 instr/s | 432,795 instr/s |
-| 6.1 | Sheets-to-DB Sync | ⬜ | — | — | — |
+| 6.1 | Sheets-to-DB Sync | ✅ | 69,121,538 items/s | 7,248,737 items/s | 73,838,600 items/s |
 | 6.2 | Web Accessibility Crawler | ⬜ | — | — | — |
 | 6.3 | Automated TOR Tracker | ⬜ | — | — | — |
 | 7.1 | DNS Resolver | ✅ | 5,963 items/s | 6,155 items/s | 5,492 items/s |
@@ -65,7 +65,7 @@
 
 ## 6. กลุ่มงาน Automation และการเชื่อมต่อระบบ (Integration & Data)
 *เน้นการใช้งานจริงในมุม Business Analyst / Data Analyst*
-- ⬜ **Sheets-to-DB Sync:** ระบบ Sync ข้อมูลจาก Google Sheets ลง MySQL/Pocketbase อัตโนมัติ
+- ✅ **Sheets-to-DB Sync:** ระบบ Sync ข้อมูลจาก Google Sheets ลง MySQL/Pocketbase อัตโนมัติ — **Zig เร็วสุดเล็กน้อย** (73,838,600 items/s vs Go 69,121,538 vs Rust 7,248,737)
 - ⬜ **Web Accessibility Crawler:** บอทสำรวจหน้าเว็บเพื่อหาจุดที่ผิดหลัก Accessibility (ฝึก Web Scraping & DOM Parsing)
 - ⬜ **Automated TOR Tracker:** ตัวดึงข้อมูลจากเอกสาร TOR มาสรุปสถานะลง Dashboard (ฝึก Text Extraction)
 
@@ -91,7 +91,7 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (24/27)
+### ✅ Completed Projects (25/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
@@ -116,6 +116,7 @@
 22. **QUIC Ping Client** — UDP ping-loop transport benchmark, **6,338 items/s (Zig)** vs 6,284 items/s (Rust) vs 6,013 items/s (Go)
 23. **In-memory Key-Value Store** — in-memory map operations benchmark, **20,747,797 items/s (Zig)** vs 14,549,643 items/s (Go) vs 6,589,801 items/s (Rust)
 24. **Custom BitTorrent Client** — BitTorrent handshake benchmark, **5,382 items/s (Zig)** vs 4,880 items/s (Rust) vs 3,405 items/s (Go)
+25. **Sheets-to-DB Sync** — CSV-to-DB upsert sync benchmark, **73,838,600 items/s (Zig)** vs 69,121,538 items/s (Go) vs 7,248,737 items/s (Rust)
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -133,12 +134,11 @@
 - **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช่ Alpine)
 
 ### 🎯 ถัดไป (Next Projects)
-- **กลุ่ม 6**: Sheets-to-DB Sync (integration & data)
 - **กลุ่ม 6**: Web Accessibility Crawler (integration & data)
 - **กลุ่ม 6**: Automated TOR Tracker (integration & data)
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 24 (88.9%)
+- **Completed**: 25 (92.6%)
 - **In Progress**: 0
-- **Remaining**: 3 (11.1%)
+- **Remaining**: 2 (7.4%)
