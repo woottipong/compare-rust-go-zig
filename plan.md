@@ -25,7 +25,7 @@
 | 7.1 | DNS Resolver | ⬜ | — | — | — |
 | 7.2 | TCP Port Scanner | ⬜ | — | — | — |
 | 7.3 | QUIC Ping Client | ⬜ | — | — | — |
-| 8.1 | PNG Encoder from Scratch | ⬜ | — | — | — |
+| 8.1 | PNG Encoder from Scratch | ✅ | 58,142,585 items/s | 47,791,195 items/s | 26,833,474 items/s |
 | 8.2 | JPEG Thumbnail Pipeline | ⬜ | — | — | — |
 | 8.3 | Perceptual Hash (pHash) | ⬜ | — | — | — |
 | 9.1 | SQLite Query Engine (subset) | ⬜ | — | — | — |
@@ -77,7 +77,7 @@
 
 ## 8. กลุ่มประมวลผลรูปภาพ Zero-dependency (Image Processing from Scratch)
 *เน้น pure algorithm implementation ไม่พึ่ง library — เห็น performance ของภาษาล้วนๆ*
-- ⬜ **PNG Encoder from Scratch:** implement DEFLATE compression + PNG chunk writing โดยไม่ใช้ libpng (ฝึก Bit Manipulation, Compression, และ Memory Layout)
+- ✅ **PNG Encoder from Scratch:** implement DEFLATE compression + PNG chunk writing โดยไม่ใช้ libpng (ฝึก Bit Manipulation, Compression, และ Memory Layout) — **Go เร็วสุดใน baseline** (58.14M items/s vs Rust 47.79M vs Zig 26.83M)
 - ⬜ **JPEG Thumbnail Pipeline:** decode JPEG → resize (bilinear/lanczos) → re-encode ด้วย libjpeg หรือ pure impl (ฝึก SIMD-friendly loop, Cache Locality)
 - ⬜ **Perceptual Hash (pHash):** คำนวณ DCT-based image fingerprint สำหรับ duplicate detection (ฝึก Math-heavy computation และ SIMD/vectorization)
 
@@ -91,7 +91,7 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (12/27)
+### ✅ Completed Projects (13/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
@@ -104,6 +104,7 @@
 10. **Log Aggregator Sidecar** — HTTP client performance, **54,014 l/s (Zig)** vs 22,750 l/s (Go)
 11. **Container Watchdog** — policy engine loop, **577,372 items/s (Rust)** vs 513,349 items/s (Zig) vs 394,963 items/s (Go)
 12. **Tiny Health Check Agent** — service health policy loop, **657,289,106 checks/s (Zig)** vs 511,991,959 checks/s (Rust) vs 393,222,263 checks/s (Go)
+13. **PNG Encoder from Scratch** — pure algorithm PNG encoding, **58,142,585 items/s (Go)** vs 47,791,195 items/s (Rust) vs 26,833,474 items/s (Zig)
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -122,11 +123,11 @@
 
 ### 🎯 ถัดไป (Next Projects)
 - **กลุ่ม 7**: DNS Resolver (low-level networking)  
-- **กลุ่ม 8**: PNG Encoder from Scratch (pure algorithms)
+- **กลุ่ม 8**: JPEG Thumbnail Pipeline (pure algorithms)
 - **กลุ่ม 9**: CSV Stream Aggregator (data engineering primitives)
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 12 (44.4%)
+- **Completed**: 13 (48.1%)
 - **In Progress**: 0
-- **Remaining**: 15 (55.6%)
+- **Remaining**: 14 (51.9%)
