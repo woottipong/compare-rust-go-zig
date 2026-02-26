@@ -1,0 +1,13 @@
+# id,name,expected_up,base_ms,jitter_ms
+1,auth-service,true,22,8
+2,payments-service,true,35,12
+3,user-service,true,28,9
+4,search-service,true,31,14
+5,inventory-service,true,26,10
+6,reporting-service,false,40,20
+7,notification-service,true,18,7
+8,billing-service,false,45,15
+9,catalog-service,true,24,9
+10,analytics-service,true,38,16
+11,cdn-probe,true,20,6
+12,legacy-api,false,50,25
