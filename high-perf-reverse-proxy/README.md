@@ -96,7 +96,7 @@ bash benchmark/run.sh
 
 > Benchmark: `wrk -t4 -c50 -d5s` ผ่าน Docker network พร้อม 3 Python mock backends
 
-## ผลการวัด (Benchmark Results)
+## Benchmark Results
 
 ```
 ╔══════════════════════════════════════════╗
@@ -129,6 +129,8 @@ bash benchmark/run.sh
 **Key insight**: Go ชนะขาดเพราะ `httputil.ReverseProxy` มี connection pooling — reuse TCP connections ลด handshake overhead
 
 ---
+
+### Summary
 
 ## ตารางเปรียบเทียบ
 

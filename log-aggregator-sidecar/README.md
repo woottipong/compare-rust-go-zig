@@ -114,7 +114,7 @@ bash benchmark/run.sh
 | **HTTP Client** | net/http | reqwest + rustls | std.http.Client |
 | **Concurrency** | goroutines | tokio async | Thread + Mutex |
 
-## ผลการวัด (Benchmark Results)
+## Benchmark Results
 
 ```
 ╔══════════════════════════════════════════╗
@@ -161,6 +161,8 @@ bash benchmark/run.sh
 ```
 
 **Key insight**: **Zig ชนะขาด ~2.4x เหนือ Rust และ ~2.4x เหนือ Go** เพราะใช้ `readToEndAlloc` + `splitScalar` อ่านไฟล์ครั้งเดียวทั้งหมดแทนที่จะ read line-by-line และ batch flush แบบ sync ไม่มี async overhead
+
+### Summary
 
 ## สรุปผล
 

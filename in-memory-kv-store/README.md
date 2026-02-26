@@ -99,7 +99,7 @@ bash benchmark/run.sh
 
 รัน 5 ครั้ง: 1 warm-up + 4 วัดผล แสดง Average throughput และ binary size
 
-## ผลการวัด (Benchmark Results)
+## Benchmark Results
 
 วัดด้วย 100,000 operations (1 warm-up + 4 measured), Docker-based, Apple M-series
 
@@ -137,6 +137,8 @@ bash benchmark/run.sh
   Rust: 836.00KB
   Zig: 2.20MB
 ```
+
+### Summary
 
 ## สรุปผลเปรียบเทียบ
 

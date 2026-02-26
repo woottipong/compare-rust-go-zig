@@ -105,6 +105,8 @@ cd hls-stream-segmenter/test-data
 ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p sample.mp4
 ```
 
+### Summary
+
 ## การเปรียบเทียบ
 
 | Aspect | Go | Rust | Zig |
@@ -119,7 +121,7 @@ ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p sam
 
 > *Docker + I/O overhead included. Go ช้ากว่า Rust/Zig ใน Docker เพราะ bookworm + glibc FFmpeg มี decode overhead สูงกว่า
 
-## ผลการวัด (Benchmark Results)
+## Benchmark Results
 
 ```
 ╔══════════════════════════════════════════╗
@@ -167,6 +169,8 @@ ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p sam
   Rust: 274 lines
   Zig : 266 lines
 ```
+
+**Key insight:** HLS segmentation เป็นงานที่โดน FFmpeg decode/encode และ file I/O ครอบงำเป็นหลัก จึงเห็น Zig/Rust เร็วกว่า Go แบบสม่ำเสมอ แต่ระยะห่างไม่มากเท่างาน pure algorithm เพราะ runtime overhead ของภาษาเป็นสัดส่วนเล็กกว่าต้นทุน I/O.
 
 ## หมายเหตุ
 - **Go**: `golang:1.25-bookworm` + `debian:bookworm-slim` — ใช้ C helper wrapper (`hls_sws_scale`) เพื่อหลีกเลี่ยง `*C.SwsContext` field ใน struct ซึ่งไม่ทำงานบน bookworm arm64

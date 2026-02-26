@@ -151,13 +151,7 @@ bash benchmark/run.sh
 
 ### Benchmark Results (5 runs with warm-up)
 
-| Metric | Go | **Rust** | **Zig** 🏆 |
-|--------|-----|----------|-----------|
-| **Avg Throughput** | 21,799 chunks/s | 38,945 chunks/s | **53,617 chunks/s** |
-| **Avg Processing Time** | 299ms | 229ms | **215ms** |
-| **Min/Max Time** | 252-390ms | 223-247ms | **207-236ms** |
-| **Variance** | 55% | 11% | **14%** |
-| **Speedup vs Go** | 1.0x | **1.79x** | **2.46x** |
+### Summary
 
 > **Test**: 500 documents, 924 chunks, 2.8MB — 5 runs (1 warm-up + 4 measured) on Docker
 

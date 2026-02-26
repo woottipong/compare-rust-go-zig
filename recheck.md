@@ -27,3 +27,5 @@ Sheets-to-DB Sync
 Web Accessibility Crawler
 
 Automated TOR Tracker
+
+README standardization pass (all projects)

@@ -127,7 +127,7 @@ bash benchmark/run.sh
 
 ---
 
-## ผลการวัด (Benchmark Results)
+## Benchmark Results
 
 ```
 ╔══════════════════════════════════════════╗
@@ -185,6 +185,8 @@ bash benchmark/run.sh
 
 ---
 
+### Summary
+
 ## ตารางเปรียบเทียบ
 
 | Aspect | Go | Rust | Zig |
@@ -195,6 +197,8 @@ bash benchmark/run.sh
 | **Buffer Size** | 64KB | 64KB | 8KB |
 | **Memory Safety** | GC | Ownership | Manual |
 | **Code Complexity** | ต่ำ (regex ทำงานให้) | ต่ำ (regex ทำงานให้) | สูง (manual matching) |
+
+**Key insight:** งานนี้เป็น pattern-matching หนักและมี string replace จำนวนมาก ทำให้ Rust `regex` crate ได้ประโยชน์จาก optimized engine ชัดเจน (SIMD-friendly path + allocation control) จึงชนะ throughput แบบทิ้งระยะเหนือ Go และ Zig.
 
 ---
 

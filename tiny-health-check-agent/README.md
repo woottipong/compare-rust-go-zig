@@ -137,6 +137,8 @@ bash benchmark/run.sh
 | Throughput (max) | 439,259,711 checks/sec | 584,189,127 checks/sec | **690,908,183 checks/sec** |
 | Binary Size | 1.50MB | **388KB** | 2.21MB |
 
+### Summary
+
 ## Key Insight
 
 1. **Zig ชนะ throughput เฉลี่ย** ที่ ~657M checks/sec (~28.4% เร็วกว่า Rust, ~67.1% เร็วกว่า Go)

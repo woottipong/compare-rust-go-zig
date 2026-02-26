@@ -75,7 +75,7 @@ bash benchmark/run.sh
 
 (benchmark รัน 5 ครั้ง: 1 warm-up + 4 measured ผ่าน Docker)
 
-## ผลการวัด (Benchmark Results)
+## Benchmark Results
 
 ```text
 ╔══════════════════════════════════════════╗
@@ -137,6 +137,8 @@ bash benchmark/run.sh
 
 ผลลัพธ์ถูกบันทึกไว้ที่:
 `benchmark/results/parquet-file-reader_20260226_231756.txt`
+
+### Summary
 
 ## ตารางเปรียบเทียบ
 

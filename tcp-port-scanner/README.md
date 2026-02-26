@@ -2,6 +2,21 @@
 
 สแกนช่วง TCP port แบบ timeout-based แล้ววัด throughput ของงาน scan แบบหลายรอบ
 
+## โครงสร้าง
+
+```text
+tcp-port-scanner/
+├── go/
+├── rust/
+├── zig/
+├── test-data/
+│   └── mock_tcp.py
+├── benchmark/
+│   ├── results/
+│   └── run.sh
+└── README.md
+```
+
 ## Benchmark
 
 ```bash
@@ -37,4 +52,4 @@ bash benchmark/run.sh
 | Throughput | 664.03 items/s | **108365.36 items/s** | 276.57 items/s |
 | Binary Size | 2.1MB | **388KB** | 1.4MB |
 
-**Insight:** Rust เด่นมากสำหรับ workload นี้ (latency และ throughput) ขณะที่ Zig มีความแปรปรวนสูงสุด.
+**Insight:** Rust ชนะชัดเจนเพราะ `TcpStream::connect_timeout` + address parsing path มี overhead ต่ำมากสำหรับช่วงพอร์ตสั้นและ workload แบบ tight loop ขณะที่ Go/Zig ใช้เส้นทาง socket/connect ที่แพงกว่าในงานนี้ จึงเห็น throughput ต่างกันระดับ orders of magnitude.

@@ -90,7 +90,7 @@ bash benchmark/run.sh
 
 *(หมายเหตุ: รัน 5 ครั้ง: 1 warm-up + 4 วัดผล — ใช้เวลา ~50-60 วินาที เพราะจำลอง real-time audio 10s ต่อรอบ)*
 
-## ผลการวัด (Benchmark Results)
+## Benchmark Results
 
 ```
 ╔══════════════════════════════════════════╗
@@ -151,6 +151,8 @@ bash benchmark/run.sh
 ```
 
 **Key insight**: Throughput ใกล้เคียงกันทุกภาษา (dominated โดย real-time simulation) — Zig latency ต่ำสุดในระดับ nanoseconds
+
+### Summary
 
 ## ตารางเปรียบเทียบ (Docker Benchmark — sample.wav 10s, 16kHz mono)
 

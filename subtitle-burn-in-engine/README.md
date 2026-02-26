@@ -138,7 +138,7 @@ EOF
 
 ---
 
-## ผลการวัด (Benchmark Results)
+## Benchmark Results
 
 ```
 ╔══════════════════════════════════════════╗
@@ -178,12 +178,16 @@ EOF
 > **Test**: 30s video + SRT subtitle — 5 runs (1 warm-up + 4 measured) on Docker  
 > **Results saved to**: `benchmark/results/subtitle-burn-in-engine_20260225_233519.txt`
 
+**Key insight:** subtitle burn-in มีทั้ง text rendering (libass) และ video re-encoding (FFmpeg) ทำให้เป็น mixed workload ที่ไม่ใช่ pure compute; Zig ชนะเล็กน้อยจาก control ฝั่ง memory/path ที่ตรงกว่า แต่ทั้งสามภาษาอยู่ในช่วงเวลาที่ใกล้กันเมื่อเทียบกับต้นทุน encode.
+
 ## หมายเหตุ
 - **Go**: `golang:1.25-bookworm` + `debian:bookworm-slim`, CGO memory management ซับซ้อนกับ libass + FFmpeg
 - **Rust**: `libass-sys` + `scopeguard`, bookworm runtime, binary เล็กเท่า Go (1.6MB)
 - **Zig**: `@cImport` สำหรับ FFmpeg + libass, bookworm runtime — เร็วสุด variance ต่ำสุด
 - **Re-encoding**: decode → burn subtitle → encode กลับ — FFmpeg encode เป็น bottleneck
 - **Docker overhead**: ตัวเลข ~1.3-1.9s รวม container startup และ FFmpeg init
+
+### Summary
 
 ## สรุปผล
 - **Zig** เร็วสุด (1350ms avg) และ variance ต่ำสุด

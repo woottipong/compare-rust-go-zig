@@ -187,7 +187,7 @@ Response:
 | **Concurrency** | goroutines + channels | tokio async | zap threads |
 | **HTTP Client** | net/http | reqwest + rustls | std.http.Client |
 
-## ผลการวัด (Benchmark Results)
+## Benchmark Results
 
 ```
 ╔══════════════════════════════════════════╗
@@ -239,6 +239,8 @@ Response:
 **Key insight**: **Rust ชนะขาด ~6.3x เหนือ Go และ ~13x เหนือ Zig** เพราะ `tokio` async I/O multiplexes requests บน thread pool โดยไม่บล็อก — 50 concurrent connections ถูก handle โดยไม่ต้องรอ thread ว่าง
 
 **Zig ช้าเพราะ**: `std.http.Client` ใน Zig 0.15 สร้าง client ใหม่ทุก request + Zap (facil.io) ใช้ memory สูง (~72MB) เนื่องจาก thread stack allocation
+
+### Summary
 
 ## สรุปผล
 

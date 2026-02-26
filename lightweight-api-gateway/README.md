@@ -121,7 +121,7 @@ bash benchmark/run.sh
 | **Binary Size** | 9.1MB | 1.6MB | 233KB |
 | **Code Lines** | 209 | 173 | 146 |
 
-## ผลการวัด (Benchmark Results)
+## Benchmark Results
 
 ```
 ╔══════════════════════════════════════════╗
@@ -154,6 +154,8 @@ bash benchmark/run.sh
 ```
 
 **Key insight**: ทุกภาษาอยู่ใน ballpark เดียวกัน (~50-57K req/s) เมื่อใช้ async framework ที่เหมาะสม
+
+### Summary
 
 ## สรุปผล
 - **Rust (axum)** เร็วสุด 57,056 req/s, memory ต่ำสุด (2.5MB) — Tokio async I/O เป็น winner

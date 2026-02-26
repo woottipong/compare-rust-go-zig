@@ -99,6 +99,8 @@ bash benchmark/run.sh
 
 ผลลัพธ์จะถูก save อัตโนมัติลง `benchmark/results/video-frame-extractor_YYYYMMDD_HHMMSS.txt`
 
+### Summary
+
 ## การเปรียบเทียบ
 
 | Aspect | Go | Rust | Zig |
@@ -112,7 +114,7 @@ bash benchmark/run.sh
 
 > *Docker container overhead included (~400-500ms startup). ทุกภาษาเร็วใกล้เคียงกัน — FFmpeg I/O เป็น bottleneck
 
-## ผลการวัด (Benchmark Results)
+## Benchmark Results
 
 ```
 ╔══════════════════════════════════════════╗
@@ -160,6 +162,8 @@ bash benchmark/run.sh
   Rust: 192 lines
   Zig : 169 lines
 ```
+
+**Key insight:** การดึงเฟรมเดียวจากวิดีโอถูกครอบงำด้วย FFmpeg decode path และ container startup จึงทำให้ตัวเลข 3 ภาษาใกล้กันมาก; ความต่างหลักในงานนี้จึงไปอยู่ที่ binary size/maintainability มากกว่าความเร็ว runtime ล้วน.
 
 ## หมายเหตุ
 - **Go**: `golang:1.25-bookworm` + `debian:bookworm-slim` — ใช้ C helper wrapper แทน `*C.SwsContext` field โดยตรง
