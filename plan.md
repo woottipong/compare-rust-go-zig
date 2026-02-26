@@ -22,15 +22,15 @@
 | 6.1 | Sheets-to-DB Sync | ⬜ | — | — | — |
 | 6.2 | Web Accessibility Crawler | ⬜ | — | — | — |
 | 6.3 | Automated TOR Tracker | ⬜ | — | — | — |
-| 7.1 | DNS Resolver | ⬜ | — | — | — |
-| 7.2 | TCP Port Scanner | ⬜ | — | — | — |
+| 7.1 | DNS Resolver | ✅ | 5,963 items/s | 6,155 items/s | 5,492 items/s |
+| 7.2 | TCP Port Scanner | ✅ | 664 items/s | 108,365 items/s | 277 items/s |
 | 7.3 | QUIC Ping Client | ⬜ | — | — | — |
 | 8.1 | PNG Encoder from Scratch | ✅ | 58,142,585 items/s | 47,791,195 items/s | 26,833,474 items/s |
 | 8.2 | JPEG Thumbnail Pipeline | ✅ | 236,263 items/s | 229,690 items/s | 220,198 items/s |
 | 8.3 | Perceptual Hash (pHash) | ✅ | 12.77 items/s | 13.70 items/s | 14.48 items/s |
 | 9.1 | SQLite Query Engine (subset) | ✅ | 282,688,842 items/s | 358,383,573 items/s | 897,198,108 items/s |
-| 9.2 | CSV Stream Aggregator | ⬜ | — | — | — |
-| 9.3 | Parquet File Reader | ⬜ | — | — | — |
+| 9.2 | CSV Stream Aggregator | ✅ | 6,062,819 items/s | 8,003,336 items/s | 23,183,717 items/s |
+| 9.3 | Parquet File Reader | ✅ | 119,200,833 items/s | 143,730,005 items/s | 140,448,514 items/s |
 
 
 ## 1. กลุ่มงานวิดีโอและมัลติมีเดีย (Video & Media Processing)
@@ -71,8 +71,8 @@
 
 ## 7. กลุ่มเครือข่ายระดับต่ำ (Low-Level Networking)
 *เน้น raw socket, binary protocol parsing, และ concurrency ที่วัดได้จริง*
-- ⬜ **DNS Resolver:** parse UDP DNS packet, query A/AAAA/CNAME records ด้วย raw socket (ฝึก Binary Protocol Parsing + UDP)
-- ⬜ **TCP Port Scanner:** scan หลาย port พร้อมกันด้วย concurrency model ของแต่ละภาษา — goroutines vs tokio tasks vs Zig threads (ฝึก Concurrent I/O และ Timeout Handling)
+- ✅ **DNS Resolver:** parse UDP DNS packet, query A/AAAA/CNAME records ด้วย raw socket (ฝึก Binary Protocol Parsing + UDP) — **Rust เร็วสุด** (6,155 items/s vs Go 5,963 vs Zig 5,492)
+- ✅ **TCP Port Scanner:** scan หลาย port พร้อมกันด้วย concurrency model ของแต่ละภาษา — goroutines vs tokio tasks vs Zig threads (ฝึก Concurrent I/O และ Timeout Handling) — **Rust ชนะชัดเจน** (108,365 items/s vs Go 664 vs Zig 277)
 - ⬜ **QUIC Ping Client:** implement minimal QUIC handshake + ping ด้วย `quic-go` / `quinn` / raw UDP (ฝึก Modern Transport Protocol และ TLS Integration)
 
 ## 8. กลุ่มประมวลผลรูปภาพ Zero-dependency (Image Processing from Scratch)
@@ -84,14 +84,14 @@
 ## 9. กลุ่มข้อมูลขนาดใหญ่ (Data Engineering Primitives)
 *เน้น streaming data processing, columnar format, และ zero-copy parsing*
 - ✅ **SQLite Query Engine (subset):** implement B-tree page reader + SQL SELECT/WHERE parser อย่างง่าย (ฝึก File Format Parsing, Algorithmic thinking, Zero-copy reads) — **Zig throughput สูงสุดชัดเจน** (897.20M items/s vs Rust 358.38M vs Go 282.69M)
-- ⬜ **CSV Stream Aggregator:** อ่าน CSV ไฟล์ขนาดหลาย GB แบบ streaming, GROUP BY + SUM/COUNT โดยไม่โหลดทั้งหมดใน memory (ฝึก Streaming I/O, Memory efficiency)
-- ⬜ **Parquet File Reader:** parse Parquet column metadata + decode RLE/bit-packing encoding ให้ได้ค่า column จริง (ฝึก Columnar Format, Bit manipulation, Schema handling)
+- ✅ **CSV Stream Aggregator:** อ่าน CSV ไฟล์ขนาดหลาย GB แบบ streaming, GROUP BY + SUM/COUNT โดยไม่โหลดทั้งหมดใน memory (ฝึก Streaming I/O, Memory efficiency) — **Zig throughput สูงสุดชัดเจน** (23.18M items/s vs Rust 8.00M vs Go 6.06M)
+- ✅ **Parquet File Reader:** parse Parquet column metadata + decode RLE/bit-packing encoding ให้ได้ค่า column จริง (ฝึก Columnar Format, Bit manipulation, Schema handling) — **Rust throughput สูงสุดเล็กน้อย** (143.73M items/s vs Zig 140.45M vs Go 119.20M)
 
 ---
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (17/27)
+### ✅ Completed Projects (21/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
@@ -109,6 +109,10 @@
 15. **Perceptual Hash (pHash)** — DCT-based image fingerprint, **14.48 items/s (Zig)** vs 13.70 items/s (Rust) vs 12.77 items/s (Go)
 16. **SQLite Query Engine (subset)** — raw B-tree scan/query benchmark, **897,198,108 items/s (Zig)** vs 358,383,573 items/s (Rust) vs 282,688,842 items/s (Go)
 17. **Small Bytecode VM** — virtual machine instruction execution, **432,795 instr/s (Zig)** vs 280,545 instr/s (Rust) vs 240,449 instr/s (Go)
+18. **CSV Stream Aggregator** — streaming GROUP BY/SUM/COUNT, **23,183,717 items/s (Zig)** vs 8,003,336 items/s (Rust) vs 6,062,819 items/s (Go)
+19. **Parquet File Reader** — RLE/bit-pack parquet-subset decode, **143,730,005 items/s (Rust)** vs 140,448,514 items/s (Zig) vs 119,200,833 items/s (Go)
+20. **DNS Resolver** — UDP DNS packet query/parse benchmark, **6,155 items/s (Rust)** vs 5,963 items/s (Go) vs 5,492 items/s (Zig)
+21. **TCP Port Scanner** — timeout-based multi-port scan benchmark, **108,365 items/s (Rust)** vs 664 items/s (Go) vs 277 items/s (Zig)
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -126,12 +130,12 @@
 - **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช่ Alpine)
 
 ### 🎯 ถัดไป (Next Projects)
-- **กลุ่ม 7**: DNS Resolver (low-level networking)  
-- **กลุ่ม 9**: CSV Stream Aggregator (data engineering primitives)
-- **กลุ่ม 9**: Parquet File Reader (data engineering primitives)
+- **กลุ่ม 5**: In-memory Key-Value Store (systems fundamentals)
+- **กลุ่ม 5**: Custom BitTorrent Client (systems fundamentals)
+- **กลุ่ม 7**: QUIC Ping Client (low-level networking)
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 17 (63%)
+- **Completed**: 21 (77.8%)
 - **In Progress**: 0
-- **Remaining**: 10 (37%)
+- **Remaining**: 6 (22.2%)
