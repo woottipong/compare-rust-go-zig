@@ -20,8 +20,8 @@
 | 5.2 | Custom BitTorrent Client | ✅ | 3,405 items/s | 4,880 items/s | 5,382 items/s |
 | 5.3 | Small Bytecode VM | ✅ | 240,449 instr/s | 280,545 instr/s | 432,795 instr/s |
 | 6.1 | Sheets-to-DB Sync | ✅ | 69,121,538 items/s | 7,248,737 items/s | 73,838,600 items/s |
-| 6.2 | Web Accessibility Crawler | ⬜ | — | — | — |
-| 6.3 | Automated TOR Tracker | ⬜ | — | — | — |
+| 6.2 | Web Accessibility Crawler | ✅ | 1,339,630 items/s | 4,237,100 items/s | 3,606,971 items/s |
+| 6.3 | Automated TOR Tracker | ✅ | 4,742,942 items/s | 6,755,853 items/s | 15,810,537 items/s |
 | 7.1 | DNS Resolver | ✅ | 5,963 items/s | 6,155 items/s | 5,492 items/s |
 | 7.2 | TCP Port Scanner | ✅ | 664 items/s | 108,365 items/s | 277 items/s |
 | 7.3 | QUIC Ping Client | ✅ | 6,013 items/s | 6,284 items/s | 6,338 items/s |
@@ -66,8 +66,8 @@
 ## 6. กลุ่มงาน Automation และการเชื่อมต่อระบบ (Integration & Data)
 *เน้นการใช้งานจริงในมุม Business Analyst / Data Analyst*
 - ✅ **Sheets-to-DB Sync:** ระบบ Sync ข้อมูลจาก Google Sheets ลง MySQL/Pocketbase อัตโนมัติ — **Zig เร็วสุดเล็กน้อย** (73,838,600 items/s vs Go 69,121,538 vs Rust 7,248,737)
-- ⬜ **Web Accessibility Crawler:** บอทสำรวจหน้าเว็บเพื่อหาจุดที่ผิดหลัก Accessibility (ฝึก Web Scraping & DOM Parsing)
-- ⬜ **Automated TOR Tracker:** ตัวดึงข้อมูลจากเอกสาร TOR มาสรุปสถานะลง Dashboard (ฝึก Text Extraction)
+- ✅ **Web Accessibility Crawler:** บอทสำรวจหน้าเว็บเพื่อหาจุดที่ผิดหลัก Accessibility (ฝึก Web Scraping & DOM Parsing) — **Rust เร็วสุด** (4,237,100 items/s vs Zig 3,606,971 vs Go 1,339,630)
+- ✅ **Automated TOR Tracker:** ตัวดึงข้อมูลจากเอกสาร TOR มาสรุปสถานะลง Dashboard (ฝึก Text Extraction) — **Zig เร็วสุดชัดเจน** (15,810,537 items/s vs Rust 6,755,853 vs Go 4,742,942)
 
 ## 7. กลุ่มเครือข่ายระดับต่ำ (Low-Level Networking)
 *เน้น raw socket, binary protocol parsing, และ concurrency ที่วัดได้จริง*
@@ -91,7 +91,7 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (25/27)
+### ✅ Completed Projects (27/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
@@ -117,6 +117,8 @@
 23. **In-memory Key-Value Store** — in-memory map operations benchmark, **20,747,797 items/s (Zig)** vs 14,549,643 items/s (Go) vs 6,589,801 items/s (Rust)
 24. **Custom BitTorrent Client** — BitTorrent handshake benchmark, **5,382 items/s (Zig)** vs 4,880 items/s (Rust) vs 3,405 items/s (Go)
 25. **Sheets-to-DB Sync** — CSV-to-DB upsert sync benchmark, **73,838,600 items/s (Zig)** vs 69,121,538 items/s (Go) vs 7,248,737 items/s (Rust)
+26. **Web Accessibility Crawler** — HTML accessibility scan benchmark, **4,237,100 items/s (Rust)** vs 3,606,971 items/s (Zig) vs 1,339,630 items/s (Go)
+27. **Automated TOR Tracker** — TOR text status extraction benchmark, **15,810,537 items/s (Zig)** vs 6,755,853 items/s (Rust) vs 4,742,942 items/s (Go)
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -134,11 +136,10 @@
 - **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช่ Alpine)
 
 ### 🎯 ถัดไป (Next Projects)
-- **กลุ่ม 6**: Web Accessibility Crawler (integration & data)
-- **กลุ่ม 6**: Automated TOR Tracker (integration & data)
+- เสร็จครบทุกโปรเจกต์ในแผน 27/27 แล้ว
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 25 (92.6%)
+- **Completed**: 27 (100.0%)
 - **In Progress**: 0
-- **Remaining**: 2 (7.4%)
+- **Remaining**: 0 (0.0%)

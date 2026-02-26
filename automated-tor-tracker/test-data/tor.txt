@@ -1,0 +1,10 @@
+REQ-001 completed budget approval and procurement
+REQ-002 in progress waiting for vendor response
+REQ-003 blocked by legal review risk high
+REQ-004 done deployment package accepted
+REQ-005 ongoing data migration checkpoint
+REQ-006 todo waiting signature
+REQ-007 completed UAT signoff and closure
+REQ-008 blocked due to dependency risk in infra
+REQ-009 in progress preparing final report
+REQ-010 done handover to operations
