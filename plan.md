@@ -16,7 +16,7 @@
 | 4.1 | Log Aggregator Sidecar | ✅ | 22,750 l/s | 25,782 l/s | 54,014 l/s |
 | 4.2 | Tiny Health Check Agent | ✅ | 393,222,263 checks/s | 511,991,959 checks/s | 657,289,106 checks/s |
 | 4.3 | Container Watchdog | ✅ | 394,963 items/s | 577,372 items/s | 513,349 items/s |
-| 5.1 | In-memory Key-Value Store | ⬜ | — | — | — |
+| 5.1 | In-memory Key-Value Store | ✅ | 14,549,643 items/s | 6,589,801 items/s | 20,747,797 items/s |
 | 5.2 | Custom BitTorrent Client | ⬜ | — | — | — |
 | 5.3 | Small Bytecode VM | ✅ | 240,449 instr/s | 280,545 instr/s | 432,795 instr/s |
 | 6.1 | Sheets-to-DB Sync | ⬜ | — | — | — |
@@ -24,7 +24,7 @@
 | 6.3 | Automated TOR Tracker | ⬜ | — | — | — |
 | 7.1 | DNS Resolver | ✅ | 5,963 items/s | 6,155 items/s | 5,492 items/s |
 | 7.2 | TCP Port Scanner | ✅ | 664 items/s | 108,365 items/s | 277 items/s |
-| 7.3 | QUIC Ping Client | ⬜ | — | — | — |
+| 7.3 | QUIC Ping Client | ✅ | 6,013 items/s | 6,284 items/s | 6,338 items/s |
 | 8.1 | PNG Encoder from Scratch | ✅ | 58,142,585 items/s | 47,791,195 items/s | 26,833,474 items/s |
 | 8.2 | JPEG Thumbnail Pipeline | ✅ | 236,263 items/s | 229,690 items/s | 220,198 items/s |
 | 8.3 | Perceptual Hash (pHash) | ✅ | 12.77 items/s | 13.70 items/s | 14.48 items/s |
@@ -59,7 +59,7 @@
 
 ## 5. กลุ่มพื้นฐานระบบและวิทยาการคอมพิวเตอร์ (Systems Fundamentals)
 *เน้นทำความเข้าใจไส้ในของภาษาและการจัดการ Memory*
-- ⬜ **In-memory Key-Value Store:** สร้างฐานข้อมูลขนาดเล็กคล้าย Redis (ฝึก Data Structures & GC vs Manual Memory)
+- ✅ **In-memory Key-Value Store:** สร้างฐานข้อมูลขนาดเล็กคล้าย Redis (ฝึก Data Structures & GC vs Manual Memory) — **Zig ชนะ throughput** (20,747,797 items/s vs Go 14,549,643 vs Rust 6,589,801)
 - ⬜ **Custom BitTorrent Client:** เขียนโปรโตคอลดาวน์โหลดไฟล์แบบ P2P (ฝึก Binary Protocol & Network Sockets)
 - ✅ **Small Bytecode VM:** สร้าง Virtual Machine จำลองรันชุดคำสั่งพื้นฐาน (ฝึก CPU & Instruction Sets)
 
@@ -73,7 +73,7 @@
 *เน้น raw socket, binary protocol parsing, และ concurrency ที่วัดได้จริง*
 - ✅ **DNS Resolver:** parse UDP DNS packet, query A/AAAA/CNAME records ด้วย raw socket (ฝึก Binary Protocol Parsing + UDP) — **Rust เร็วสุด** (6,155 items/s vs Go 5,963 vs Zig 5,492)
 - ✅ **TCP Port Scanner:** scan หลาย port พร้อมกันด้วย concurrency model ของแต่ละภาษา — goroutines vs tokio tasks vs Zig threads (ฝึก Concurrent I/O และ Timeout Handling) — **Rust ชนะชัดเจน** (108,365 items/s vs Go 664 vs Zig 277)
-- ⬜ **QUIC Ping Client:** implement minimal QUIC handshake + ping ด้วย `quic-go` / `quinn` / raw UDP (ฝึก Modern Transport Protocol และ TLS Integration)
+- ✅ **QUIC Ping Client:** benchmark ping loop บน UDP transport ที่จำลอง handshake/ping flow เพื่อเทียบ runtime overhead ระหว่างภาษา (ฝึก Transport latency instrumentation) — **Zig เร็วสุดเล็กน้อย** (6,338 items/s vs Rust 6,284 vs Go 6,013)
 
 ## 8. กลุ่มประมวลผลรูปภาพ Zero-dependency (Image Processing from Scratch)
 *เน้น pure algorithm implementation ไม่พึ่ง library — เห็น performance ของภาษาล้วนๆ*
@@ -91,7 +91,7 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (21/27)
+### ✅ Completed Projects (23/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
@@ -113,6 +113,8 @@
 19. **Parquet File Reader** — RLE/bit-pack parquet-subset decode, **143,730,005 items/s (Rust)** vs 140,448,514 items/s (Zig) vs 119,200,833 items/s (Go)
 20. **DNS Resolver** — UDP DNS packet query/parse benchmark, **6,155 items/s (Rust)** vs 5,963 items/s (Go) vs 5,492 items/s (Zig)
 21. **TCP Port Scanner** — timeout-based multi-port scan benchmark, **108,365 items/s (Rust)** vs 664 items/s (Go) vs 277 items/s (Zig)
+22. **QUIC Ping Client** — UDP ping-loop transport benchmark, **6,338 items/s (Zig)** vs 6,284 items/s (Rust) vs 6,013 items/s (Go)
+23. **In-memory Key-Value Store** — in-memory map operations benchmark, **20,747,797 items/s (Zig)** vs 14,549,643 items/s (Go) vs 6,589,801 items/s (Rust)
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -130,12 +132,12 @@
 - **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช่ Alpine)
 
 ### 🎯 ถัดไป (Next Projects)
-- **กลุ่ม 5**: In-memory Key-Value Store (systems fundamentals)
 - **กลุ่ม 5**: Custom BitTorrent Client (systems fundamentals)
-- **กลุ่ม 7**: QUIC Ping Client (low-level networking)
+- **กลุ่ม 6**: Sheets-to-DB Sync (integration & data)
+- **กลุ่ม 6**: Web Accessibility Crawler (integration & data)
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 21 (77.8%)
+- **Completed**: 23 (85.2%)
 - **In Progress**: 0
-- **Remaining**: 6 (22.2%)
+- **Remaining**: 4 (14.8%)

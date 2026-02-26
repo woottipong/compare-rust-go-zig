@@ -59,8 +59,8 @@ pub fn main() !void {
 
     const host_z = try allocator.dupeZ(u8, cfg.host);
     defer allocator.free(host_z);
-    const port_z = try std.fmt.allocPrintZ(allocator, "{d}", .{cfg.port});
-    defer allocator.free(port_z);
+    var port_buf: [16]u8 = undefined;
+    const port_z = try std.fmt.bufPrintZ(&port_buf, "{d}", .{cfg.port});
 
     var hints: c.addrinfo = std.mem.zeroes(c.addrinfo);
     hints.ai_family = c.AF_INET;
