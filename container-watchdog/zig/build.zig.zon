@@ -1,0 +1,7 @@
+.{
+    .name = .container_watchdog,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0x285b38d1ccf94640,
+}

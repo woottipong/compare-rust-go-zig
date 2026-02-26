@@ -15,10 +15,10 @@
 | 3.3 | Custom Log Masker | ✅ | 3.91 MB/s | 41.71 MB/s | 11.68 MB/s |
 | 4.1 | Log Aggregator Sidecar | ✅ | 22,750 l/s | 25,782 l/s | 54,014 l/s |
 | 4.2 | Tiny Health Check Agent | ⬜ | — | — | — |
-| 4.3 | Container Watchdog | ⬜ | — | — | — |
+| 4.3 | Container Watchdog | ✅ | 394,963 items/s | 577,372 items/s | 513,349 items/s |
 | 5.1 | In-memory Key-Value Store | ⬜ | — | — | — |
 | 5.2 | Custom BitTorrent Client | ⬜ | — | — | — |
-| 5.3 | Small Bytecode VM | ⬜ | — | — | — |
+| 5.3 | Small Bytecode VM | ✅ | 240,449 instr/s | 280,545 instr/s | 432,795 instr/s |
 | 6.1 | Sheets-to-DB Sync | ⬜ | — | — | — |
 | 6.2 | Web Accessibility Crawler | ⬜ | — | — | — |
 | 6.3 | Automated TOR Tracker | ⬜ | — | — | — |
@@ -55,13 +55,13 @@
 *เน้นความประหยัดทรัพยากรและขนาดไฟล์ที่เล็ก (Static Binary)*
 - ✅ **Log Aggregator Sidecar:** ดึง Log จาก Container ไปแปลงเป็น JSON และส่งต่อ (ฝึกการทำโปรแกรมตัวเล็กแต่ประสิทธิภาพสูง) — **Zig ชนะ 2.4x** (54,014 l/s vs Go 22,750 l/s)
 - ⬜ **Tiny Health Check Agent:** โปรแกรมเช็คสถานะ Service และแจ้งเตือนผ่าน Discord/Line (ฝึกการทำ Zero-dependency Binary)
-- ⬜ **Container Watchdog:** เฝ้าดูการใช้ Resource ของ Container และจัดการ Restart เมื่อถึงเงื่อนไข (ฝึก System Calls)
+- ✅ **Container Watchdog:** เฝ้าดูการใช้ Resource ของ Container และจัดการ Restart เมื่อถึงเงื่อนไข (ฝึก System Calls) — **Rust ชนะ throughput + binary เล็กสุด** (577K items/s, 388KB)
 
 ## 5. กลุ่มพื้นฐานระบบและวิทยาการคอมพิวเตอร์ (Systems Fundamentals)
 *เน้นทำความเข้าใจไส้ในของภาษาและการจัดการ Memory*
 - ⬜ **In-memory Key-Value Store:** สร้างฐานข้อมูลขนาดเล็กคล้าย Redis (ฝึก Data Structures & GC vs Manual Memory)
 - ⬜ **Custom BitTorrent Client:** เขียนโปรโตคอลดาวน์โหลดไฟล์แบบ P2P (ฝึก Binary Protocol & Network Sockets)
-- ⬜ **Small Bytecode VM:** สร้าง Virtual Machine จำลองรันชุดคำสั่งพื้นฐาน (ฝึก CPU & Instruction Sets)
+- ✅ **Small Bytecode VM:** สร้าง Virtual Machine จำลองรันชุดคำสั่งพื้นฐาน (ฝึก CPU & Instruction Sets)
 
 ## 6. กลุ่มงาน Automation และการเชื่อมต่อระบบ (Integration & Data)
 *เน้นการใช้งานจริงในมุม Business Analyst / Data Analyst*
@@ -91,7 +91,7 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (10/27)
+### ✅ Completed Projects (11/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
@@ -102,6 +102,7 @@
 8. **Vector DB Ingester** — Memory management, **53,617 chunks/s (Zig)** vs 21,799 chunks/s (Go)
 9. **Local ASR/LLM Proxy** — Worker pool + queue, **1,526 req/s (Rust)** vs 242 req/s (Go)
 10. **Log Aggregator Sidecar** — HTTP client performance, **54,014 l/s (Zig)** vs 22,750 l/s (Go)
+11. **Container Watchdog** — policy engine loop, **577,372 items/s (Rust)** vs 513,349 items/s (Zig) vs 394,963 items/s (Go)
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -119,12 +120,12 @@
 - **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช่ Alpine)
 
 ### 🎯 ถัดไป (Next Projects)
-- **กลุ่ม 4**: Tiny Health Check Agent (DevOps) - เหลือ 2 projects
+- **กลุ่ม 4**: Tiny Health Check Agent (DevOps) - เหลือ 1 project
 - **กลุ่ม 7**: DNS Resolver (low-level networking)  
 - **กลุ่ม 8**: PNG Encoder from Scratch (pure algorithms)
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 10 (37.0%)
+- **Completed**: 11 (40.7%)
 - **In Progress**: 0
-- **Remaining**: 17 (63.0%)
+- **Remaining**: 16 (59.3%)
