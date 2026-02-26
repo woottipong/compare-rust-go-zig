@@ -124,6 +124,14 @@ func readIntCol(data []byte, off int, t uint64) int64 {
 	return 0
 }
 
+// readRealCol reads a REAL column, handling both float64 (type 7) and integer types.
+func readRealCol(data []byte, off int, t uint64) float64 {
+	if t == 7 {
+		return math.Float64frombits(binary.BigEndian.Uint64(data[off:]))
+	}
+	return float64(readIntCol(data, off, t))
+}
+
 func pageBase(pageNum, pageSize uint32) int {
 	return int(uint64(pageNum-1) * uint64(pageSize))
 }
@@ -237,15 +245,16 @@ func query(data []byte, pageSize uint32, leafPages []uint32, repeats int) uint64
 				cellOff += n
 				hEnd := hStart + int(hLen)
 
-				// col[0] type (hostname TEXT)
+						// col[0] type = id (NULL, rowid alias — 0 bytes in record)
 				t0, n := readVarint(data, cellOff)
 				cellOff += n
-				// col[1] type (cpu_pct REAL=7) — not needed for offset calc, skip
-				_, _ = cellOff, n
+						// col[1] = hostname TEXT, col[2] = cpu_pct (REAL or stored as integer)
+				t1, n := readVarint(data, cellOff)
+				t2, _ := readVarint(data, cellOff+n)
 
-				// cpu_pct value is immediately after hostname value
-				cpuOff := hEnd + colSize(t0)
-				cpu := math.Float64frombits(binary.BigEndian.Uint64(data[cpuOff:]))
+				// skip id (0 bytes) + hostname; decode cpu_pct per actual serial type
+				cpuOff := hEnd + colSize(t0) + colSize(t1)
+				cpu := readRealCol(data, cpuOff, t2)
 
 				rowsScanned++
 				if cpu > 80.0 {

@@ -87,6 +87,15 @@ fn readIntCol(data: []const u8, off: usize, t: u64) i64 {
     };
 }
 
+/// Read a REAL column, handling float64 (type 7) and integer types.
+fn readRealCol(data: []const u8, off: usize, t: u64) f64 {
+    if (t == 7) {
+        const bits = std.mem.readInt(u64, data[off..][0..8], .big);
+        return @bitCast(bits);
+    }
+    return @as(f64, @floatFromInt(readIntCol(data, off, t)));
+}
+
 fn pageBase(page_num: u32, page_size: u32) usize {
     return (@as(usize, page_num) - 1) * @as(usize, page_size);
 }
@@ -209,14 +218,18 @@ fn query(data: []const u8, page_size: u32, leaf_pages: []const u32, repeats: usi
                 cell_off += vr.consumed;
                 const h_end = h_start + @as(usize, h_len);
 
-                // col[0] type (hostname TEXT)
+                // col[0] type = id (NULL, rowid alias — 0 bytes in record)
                 vr = readVarint(data, cell_off);
                 const t0 = vr.value;
+                // col[1] = hostname TEXT, col[2] = cpu_pct (REAL or integer type)
+                const vr1 = readVarint(data, cell_off + vr.consumed);
+                const t1 = vr1.value;
+                const vr2 = readVarint(data, cell_off + vr.consumed + vr1.consumed);
+                const t2 = vr2.value;
 
-                // cpu_pct is immediately after hostname in the value area
-                const cpu_off = h_end + colSize(t0);
-                const cpu_bits = std.mem.readInt(u64, data[cpu_off..][0..8], .big);
-                const cpu: f64 = @bitCast(cpu_bits);
+                // skip id (0 bytes) + hostname; decode cpu_pct per actual serial type
+                const cpu_off = h_end + colSize(t0) + colSize(t1);
+                const cpu = readRealCol(data, cpu_off, t2);
 
                 rows_scanned += 1;
                 if (cpu > 80.0) {

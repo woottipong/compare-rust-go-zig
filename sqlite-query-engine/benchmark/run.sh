@@ -5,7 +5,7 @@
 set -e
 
 INPUT_DB="${1:-test-data/metrics.db}"
-REPEATS="${2:-1000}"
+REPEATS="${2:-2000}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"

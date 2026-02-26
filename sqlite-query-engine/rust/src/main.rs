@@ -124,6 +124,18 @@ fn read_int_col(data: &[u8], off: usize, t: u64) -> i64 {
     }
 }
 
+/// Read a REAL column, handling float64 (type 7) and integer types.
+fn read_real_col(data: &[u8], off: usize, t: u64) -> f64 {
+    if t == 7 {
+        f64::from_bits(u64::from_be_bytes([
+            data[off], data[off+1], data[off+2], data[off+3],
+            data[off+4], data[off+5], data[off+6], data[off+7],
+        ]))
+    } else {
+        read_int_col(data, off, t) as f64
+    }
+}
+
 fn page_base(page_num: u32, page_size: u32) -> usize {
     (page_num as u64 - 1) as usize * page_size as usize
 }
@@ -258,22 +270,14 @@ fn query(data: &[u8], page_size: u32, leaf_pages: &[u32], repeats: usize) -> u64
                 cell_off += n;
                 let h_end = h_start + h_len as usize;
 
-                // col[0] type (hostname TEXT)
-                let (t0, _) = read_varint(data, cell_off);
+                // col[0] = id (NULL), col[1] = hostname, col[2] = cpu_pct
+                let (t0, n0) = read_varint(data, cell_off);
+                let (t1, n1) = read_varint(data, cell_off + n0);
+                let (t2, _)  = read_varint(data, cell_off + n0 + n1);
 
-                // cpu_pct is immediately after hostname in the value area
-                let cpu_off = h_end + col_size(t0);
-                let cpu_bits = u64::from_be_bytes([
-                    data[cpu_off],
-                    data[cpu_off + 1],
-                    data[cpu_off + 2],
-                    data[cpu_off + 3],
-                    data[cpu_off + 4],
-                    data[cpu_off + 5],
-                    data[cpu_off + 6],
-                    data[cpu_off + 7],
-                ]);
-                let cpu = f64::from_bits(cpu_bits);
+                // skip id (0 bytes) + hostname; decode cpu_pct per actual serial type
+                let cpu_off = h_end + col_size(t0) + col_size(t1);
+                let cpu = read_real_col(data, cpu_off, t2);
 
                 rows_scanned += 1;
                 if cpu > 80.0 {
