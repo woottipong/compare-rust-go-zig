@@ -17,7 +17,7 @@
 | 4.2 | Tiny Health Check Agent | ✅ | 393,222,263 checks/s | 511,991,959 checks/s | 657,289,106 checks/s |
 | 4.3 | Container Watchdog | ✅ | 394,963 items/s | 577,372 items/s | 513,349 items/s |
 | 5.1 | In-memory Key-Value Store | ✅ | 14,549,643 items/s | 6,589,801 items/s | 20,747,797 items/s |
-| 5.2 | Custom BitTorrent Client | ⬜ | — | — | — |
+| 5.2 | Custom BitTorrent Client | ✅ | 3,405 items/s | 4,880 items/s | 5,382 items/s |
 | 5.3 | Small Bytecode VM | ✅ | 240,449 instr/s | 280,545 instr/s | 432,795 instr/s |
 | 6.1 | Sheets-to-DB Sync | ⬜ | — | — | — |
 | 6.2 | Web Accessibility Crawler | ⬜ | — | — | — |
@@ -60,7 +60,7 @@
 ## 5. กลุ่มพื้นฐานระบบและวิทยาการคอมพิวเตอร์ (Systems Fundamentals)
 *เน้นทำความเข้าใจไส้ในของภาษาและการจัดการ Memory*
 - ✅ **In-memory Key-Value Store:** สร้างฐานข้อมูลขนาดเล็กคล้าย Redis (ฝึก Data Structures & GC vs Manual Memory) — **Zig ชนะ throughput** (20,747,797 items/s vs Go 14,549,643 vs Rust 6,589,801)
-- ⬜ **Custom BitTorrent Client:** เขียนโปรโตคอลดาวน์โหลดไฟล์แบบ P2P (ฝึก Binary Protocol & Network Sockets)
+- ✅ **Custom BitTorrent Client:** เขียนโปรโตคอลดาวน์โหลดไฟล์แบบ P2P (ฝึก Binary Protocol & Network Sockets) — **Zig เร็วสุด** (5,382 items/s vs Rust 4,880 vs Go 3,405)
 - ✅ **Small Bytecode VM:** สร้าง Virtual Machine จำลองรันชุดคำสั่งพื้นฐาน (ฝึก CPU & Instruction Sets)
 
 ## 6. กลุ่มงาน Automation และการเชื่อมต่อระบบ (Integration & Data)
@@ -91,7 +91,7 @@
 
 ## สรุปความคืบหน้า (Progress Summary)
 
-### ✅ Completed Projects (23/27)
+### ✅ Completed Projects (24/27)
 1. **Video Frame Extractor** — FFmpeg C interop, 517ms/545ms/583ms* (Docker)
 2. **HLS Stream Segmenter** — I/O bound streaming, 20874ms/16261ms/15572ms* (Docker)
 3. **Subtitle Burn-in Engine** — Pixel manipulation, 1869ms/1625ms/1350ms* (Docker)
@@ -115,6 +115,7 @@
 21. **TCP Port Scanner** — timeout-based multi-port scan benchmark, **108,365 items/s (Rust)** vs 664 items/s (Go) vs 277 items/s (Zig)
 22. **QUIC Ping Client** — UDP ping-loop transport benchmark, **6,338 items/s (Zig)** vs 6,284 items/s (Rust) vs 6,013 items/s (Go)
 23. **In-memory Key-Value Store** — in-memory map operations benchmark, **20,747,797 items/s (Zig)** vs 14,549,643 items/s (Go) vs 6,589,801 items/s (Rust)
+24. **Custom BitTorrent Client** — BitTorrent handshake benchmark, **5,382 items/s (Zig)** vs 4,880 items/s (Rust) vs 3,405 items/s (Go)
 
 > *Docker overhead included (~400-500ms container startup)
 
@@ -132,12 +133,12 @@
 - **Dockerfile standard**: `golang:1.25-bookworm` + `debian:bookworm-slim` ทุก project (ไม่ใช่ Alpine)
 
 ### 🎯 ถัดไป (Next Projects)
-- **กลุ่ม 5**: Custom BitTorrent Client (systems fundamentals)
 - **กลุ่ม 6**: Sheets-to-DB Sync (integration & data)
 - **กลุ่ม 6**: Web Accessibility Crawler (integration & data)
+- **กลุ่ม 6**: Automated TOR Tracker (integration & data)
 
 ### 📈 สถิติ
 - **Total projects**: 27 (9 groups)
-- **Completed**: 23 (85.2%)
+- **Completed**: 24 (88.9%)
 - **In Progress**: 0
-- **Remaining**: 4 (14.8%)
+- **Remaining**: 3 (11.1%)
