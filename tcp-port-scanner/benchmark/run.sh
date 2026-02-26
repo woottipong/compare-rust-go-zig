@@ -19,10 +19,16 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
-python3 "$PROJECT_DIR/test-data/mock_tcp.py" >/tmp/mock_tcp.log 2>&1 &
-TCP_PID=$!
+TCP_PID=""
+start_mock_server() {
+  [ -n "$TCP_PID" ] && kill "$TCP_PID" >/dev/null 2>&1 || true
+  sleep 0.2
+  python3 "$PROJECT_DIR/test-data/mock_tcp.py" >/tmp/mock_tcp.log 2>&1 &
+  TCP_PID=$!
+  sleep 1
+}
 trap 'kill $TCP_PID >/dev/null 2>&1 || true' EXIT
-sleep 1
+start_mock_server
 
 echo "╔══════════════════════════════════════════╗"
 echo "║        TCP Port Scanner Benchmark        ║"
@@ -88,8 +94,11 @@ run_benchmark() {
   echo ""
 }
 
+start_mock_server
 run_benchmark "Go" "tps-go"
+start_mock_server
 run_benchmark "Rust" "tps-rust"
+start_mock_server
 run_benchmark "Zig" "tps-zig"
 
 get_binary_size() {

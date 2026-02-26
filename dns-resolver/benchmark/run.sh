@@ -3,7 +3,7 @@
 
 set -e
 
-REPEATS="${1:-2000}"
+REPEATS="${1:-10000}"
 DNS_HOST="${2:-host.docker.internal}"
 DNS_PORT="${3:-53535}"
 

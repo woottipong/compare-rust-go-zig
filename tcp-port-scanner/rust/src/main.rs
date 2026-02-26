@@ -1,4 +1,4 @@
-use std::net::{SocketAddr, TcpStream};
+use std::net::{TcpStream, ToSocketAddrs};
 use std::time::{Duration, Instant};
 
 struct Stats {
@@ -30,10 +30,13 @@ fn parse_args() -> Result<(String, u16, u16, usize), String> {
 fn scan(host: &str, sp: u16, ep: u16) -> usize {
     let mut open = 0usize;
     for p in sp..=ep {
-        let addr: SocketAddr = format!("{}:{}", host, p).parse().unwrap_or_else(|_| "127.0.0.1:1".parse().unwrap());
-        if TcpStream::connect_timeout(&addr, Duration::from_millis(50)).is_ok() {
-            open += 1;
-        }
+        let connected = format!("{}:{}", host, p)
+            .to_socket_addrs()
+            .ok()
+            .and_then(|mut addrs| addrs.next())
+            .map(|addr| TcpStream::connect_timeout(&addr, Duration::from_millis(50)).is_ok())
+            .unwrap_or(false);
+        if connected { open += 1; }
     }
     open
 }

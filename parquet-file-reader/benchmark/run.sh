@@ -5,7 +5,7 @@
 set -e
 
 INPUT_FILE="${1:-test-data/sample.parquet}"
-REPEATS="${2:-40}"
+REPEATS="${2:-1500}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
