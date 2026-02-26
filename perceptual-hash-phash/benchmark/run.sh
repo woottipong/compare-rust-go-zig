@@ -5,7 +5,7 @@
 set -e
 
 INPUT_JPG="${1:-test-data/sample.jpg}"
-REPEATS="${2:-20}"
+REPEATS="${2:-30}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"

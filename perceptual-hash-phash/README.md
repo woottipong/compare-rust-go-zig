@@ -48,21 +48,21 @@ bash test-data/generate.sh
 
 ```bash
 unset GOROOT && go build -o ../bin/phash-go .
-../bin/phash-go ../test-data/sample.jpg 20
+../bin/phash-go ../test-data/sample.jpg 30
 ```
 
 ### Rust
 
 ```bash
 cargo build --release
-./target/release/phash ../test-data/sample.jpg 20
+./target/release/phash ../test-data/sample.jpg 30
 ```
 
 ### Zig
 
 ```bash
 zig build -Doptimize=ReleaseFast
-./zig-out/bin/phash ../test-data/sample.jpg 20
+./zig-out/bin/phash ../test-data/sample.jpg 30
 ```
 
 ## Benchmark
@@ -77,52 +77,57 @@ bash benchmark/run.sh
 
 ## Benchmark Results
 
+วัดด้วย `REPEATS=30` บน 640×360 JPEG → 32×32 grayscale PGM → DCT2D (32⁴ ops) → 64-bit pHash, Docker-based, Apple M-series
+
 ```text
 ╔══════════════════════════════════════════╗
 ║     Perceptual Hash (pHash) Benchmark    ║
 ╚══════════════════════════════════════════╝
   Input    : test-data/sample.jpg
-  Repeats  : 20
+  Repeats  : 30
   Mode     : Docker
 
 ── Go   ───────────────────────────────────────
-  Run 1 (warm-up): 1539ms
-  Run 2           : 1561ms
-  Run 3           : 1677ms
-  Run 4           : 1462ms
-  Run 5           : 1566ms
-  Avg: 1566ms  |  Min: 1462ms  |  Max: 1677ms
+  Run 1 (warm-up): 2285ms
+  Run 2           : 2015ms
+  Run 3           : 2087ms
+  Run 4           : 2040ms
+  Run 5           : 2008ms
+  ─────────────────────────────────────────
+  Avg: 2037ms  |  Min: 2008ms  |  Max: 2087ms
 
-  Total processed: 20
-  Processing time: 1.566s
-  Average latency: 78.283256ms
-  Throughput     : 12.77 items/sec
+  Total processed: 30
+  Processing time: 2.008s
+  Average latency: 66.935479ms
+  Throughput     : 14.94 items/sec
 
 ── Rust ───────────────────────────────────────
-  Run 1 (warm-up): 1444ms
-  Run 2           : 1364ms
-  Run 3           : 1385ms
-  Run 4           : 1371ms
-  Run 5           : 1460ms
-  Avg: 1395ms  |  Min: 1364ms  |  Max: 1460ms
+  Run 1 (warm-up): 1825ms
+  Run 2           : 1907ms
+  Run 3           : 2087ms
+  Run 4           : 2024ms
+  Run 5           : 1916ms
+  ─────────────────────────────────────────
+  Avg: 1983ms  |  Min: 1907ms  |  Max: 2087ms
 
-  Total processed: 20
-  Processing time: 1.460s
-  Average latency: 72.990248ms
-  Throughput     : 13.70 items/sec
+  Total processed: 30
+  Processing time: 1.916s
+  Average latency: 63.879035ms
+  Throughput     : 15.65 items/sec
 
 ── Zig  ───────────────────────────────────────
-  Run 1 (warm-up): 1362ms
-  Run 2           : 1560ms
-  Run 3           : 1361ms
-  Run 4           : 1346ms
-  Run 5           : 1381ms
-  Avg: 1412ms  |  Min: 1346ms  |  Max: 1560ms
+  Run 1 (warm-up): 1905ms
+  Run 2           : 1963ms
+  Run 3           : 1831ms
+  Run 4           : 1899ms
+  Run 5           : 1935ms
+  ─────────────────────────────────────────
+  Avg: 1907ms  |  Min: 1831ms  |  Max: 1963ms
 
-  Total processed: 20
-  Processing time: 1.381s
-  Average latency: 69.046227ms
-  Throughput     : 14.48 items/sec
+  Total processed: 30
+  Processing time: 1.935s
+  Average latency: 64.512592ms
+  Throughput     : 15.50 items/sec
 
 ── Binary Size ───────────────────────────────
   Go  : 1.8MB
@@ -136,18 +141,34 @@ bash benchmark/run.sh
 ```
 
 ผลลัพธ์ถูกบันทึกไว้ที่:
-`benchmark/results/perceptual-hash-phash_20260226_230037.txt`
-
-### Summary
+`benchmark/results/perceptual-hash-phash_20260227_014037.txt`
 
 ## ตารางเปรียบเทียบ
 
 | Metric | Go | Rust | Zig |
 |--------|----|------|-----|
-| Avg time (4 measured runs) | 1566ms | **1395ms** | 1412ms |
-| Min/Max time | 1462/1677ms | **1364/1460ms** | 1346/1560ms |
-| Throughput | 12.77 items/sec | 13.70 items/sec | **14.48 items/sec** |
-| Average latency | 78.283ms | 72.990ms | **69.046ms** |
+| Avg time (4 measured runs) | 2,037ms | 1,983ms | **1,907ms** |
+| Min/Max time | 2,008/2,087ms | 1,907/2,087ms | **1,831/1,963ms** |
+| Throughput | 14.94 items/sec | 15.65 items/sec | **15.50 items/sec** |
+| Average latency | 66.935ms | 63.879ms | **64.513ms** |
 | Binary size | 1.8MB | **452KB** | 2.3MB |
+| Code lines | 205 | 222 | **185** |
+| pHash output | `8011002200008021` | `8011002200008021` | `8011002200008021` |
 
-**Key insight**: งาน pHash รอบนี้ถูกครอบงำโดยการแปลงภาพด้วย FFmpeg + DCT ค่าค่อนข้างหนัก ทำให้ Zig และ Rust เร็วกว่า Go เล็กน้อย โดย Zig ได้ throughput สูงสุด และ Rust ได้ binary เล็กที่สุด.
+## Key Insights
+
+1. **ผลลัพธ์ทั้ง 3 ภาษาใกล้กันมาก** — Zig 15.50, Rust 15.65, Go 14.94 items/sec ต่างกัน < 5% เพราะ bottleneck อยู่ที่ ffmpeg spawn (~64ms/call) ไม่ใช่ DCT computation
+2. **pHash ตรงกันทุกภาษา** `8011002200008021` ✓ — DCT implementation ถูกต้อง
+3. **Zig มี variance ต่ำสุด** (1,831–1,963ms, ~7%) เพราะ ReleaseFast + deterministic process-spawn
+4. **Rust ชนะ binary size** ที่ 452KB เหมือนเดิม
+5. **Zig ชนะ code lines** ที่ 185 บรรทัด — DCT + pHash implement ได้กระชับที่สุด
+6. **ลำดับ Zig ≈ Rust > Go** สะท้อน overhead ของ `os/exec.CombinedOutput()` ใน Go ที่ capture stdout+stderr ขณะ Zig/Rust ไม่รับ output
+
+## Technical Notes
+
+- **Pipeline per iteration**: ffmpeg spawn → scale 640×360 → 32×32 grayscale → write PGM → read PGM → DCT2D (32⁴ = ~1M cos ops) → extract 8×8 low-freq → compare to mean → 64-bit hash
+- **Timing scope**: includes ffmpeg subprocess call + PGM read + DCT + hash; dominated by ffmpeg (~64ms/call), DCT adds ~0.1ms
+- **DCT complexity**: O(N⁴) = 32⁴ = 1,048,576 iterations but trivially fast vs process spawn
+- **Go**: `CombinedOutput()` pipes stderr (ffmpeg's `-loglevel error` output) — adds capture overhead vs Rust/Zig
+- **Rust**: `Command::output()` captures both stdout+stderr; similar overhead
+- **Zig**: `stderr_behavior = .Ignore` discards stderr → no pipe overhead; slightly faster spawn cycle

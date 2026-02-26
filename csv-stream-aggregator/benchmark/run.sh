@@ -5,7 +5,7 @@
 set -e
 
 INPUT_CSV="${1:-test-data/sales.csv}"
-REPEATS="${2:-30}"
+REPEATS="${2:-150}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"

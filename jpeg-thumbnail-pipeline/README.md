@@ -48,21 +48,21 @@ bash test-data/generate.sh
 
 ```bash
 unset GOROOT && go build -o ../bin/jpeg-thumbnail-go .
-../bin/jpeg-thumbnail-go ../test-data/sample.jpg ../test-data/out_go.jpg 160 90 20
+../bin/jpeg-thumbnail-go ../test-data/sample.jpg ../test-data/out_go.jpg 160 90 50
 ```
 
 ### Rust
 
 ```bash
 cargo build --release
-./target/release/jpeg-thumbnail ../test-data/sample.jpg ../test-data/out_rust.jpg 160 90 20
+./target/release/jpeg-thumbnail ../test-data/sample.jpg ../test-data/out_rust.jpg 160 90 50
 ```
 
 ### Zig
 
 ```bash
 zig build -Doptimize=ReleaseFast
-./zig-out/bin/jpeg-thumbnail ../test-data/sample.jpg ../test-data/out_zig.jpg 160 90 20
+./zig-out/bin/jpeg-thumbnail ../test-data/sample.jpg ../test-data/out_zig.jpg 160 90 50
 ```
 
 ## Benchmark
@@ -77,53 +77,58 @@ bash benchmark/run.sh
 
 ## Benchmark Results
 
+วัดด้วย `REPEATS=50` บน 1280×720 JPEG → resize เป็น 160×90, Docker-based, Apple M-series
+
 ```text
 ╔══════════════════════════════════════════╗
 ║    JPEG Thumbnail Pipeline Benchmark     ║
 ╚══════════════════════════════════════════╝
   Input    : test-data/sample.jpg
   Resize   : 160x90
-  Repeats  : 20
+  Repeats  : 50
   Mode     : Docker
 
 ── Go   ───────────────────────────────────────
-  Run 1 (warm-up): 1545ms
-  Run 2           : 1295ms
-  Run 3           : 1259ms
-  Run 4           : 1284ms
-  Run 5           : 1219ms
-  Avg: 1264ms  |  Min: 1219ms  |  Max: 1295ms
+  Run 1 (warm-up): 2988ms
+  Run 2           : 2819ms
+  Run 3           : 2948ms
+  Run 4           : 2863ms
+  Run 5           : 2806ms
+  ─────────────────────────────────────────
+  Avg: 2859ms  |  Min: 2806ms  |  Max: 2948ms
 
-  Total processed: 288000
-  Processing time: 1.219s
-  Average latency: 0.004233ms
-  Throughput     : 236263.22 items/sec
+  Total processed: 720000
+  Processing time: 2.806s
+  Average latency: 0.003897ms
+  Throughput     : 256581.56 items/sec
 
 ── Rust ───────────────────────────────────────
-  Run 1 (warm-up): 1233ms
-  Run 2           : 1264ms
-  Run 3           : 1237ms
-  Run 4           : 1226ms
-  Run 5           : 1254ms
-  Avg: 1245ms  |  Min: 1226ms  |  Max: 1264ms
+  Run 1 (warm-up): 2920ms
+  Run 2           : 3591ms
+  Run 3           : 3014ms
+  Run 4           : 3187ms
+  Run 5           : 2830ms
+  ─────────────────────────────────────────
+  Avg: 3155ms  |  Min: 2830ms  |  Max: 3591ms
 
-  Total processed: 288000
-  Processing time: 1.254s
-  Average latency: 0.004354ms
-  Throughput     : 229690.39 items/sec
+  Total processed: 720000
+  Processing time: 2.830s
+  Average latency: 0.003930ms
+  Throughput     : 254421.98 items/sec
 
 ── Zig  ───────────────────────────────────────
-  Run 1 (warm-up): 1238ms
-  Run 2           : 1227ms
-  Run 3           : 1211ms
-  Run 4           : 1217ms
-  Run 5           : 1308ms
-  Avg: 1240ms  |  Min: 1211ms  |  Max: 1308ms
+  Run 1 (warm-up): 2873ms
+  Run 2           : 3321ms
+  Run 3           : 3091ms
+  Run 4           : 3433ms
+  Run 5           : 3056ms
+  ─────────────────────────────────────────
+  Avg: 3225ms  |  Min: 3056ms  |  Max: 3433ms
 
-  Total processed: 288000
-  Processing time: 1.308s
-  Average latency: 0.004541ms
-  Throughput     : 220197.58 items/sec
+  Total processed: 720000
+  Processing time: 3.056s
+  Average latency: 0.004244ms
+  Throughput     : 235600.41 items/sec
 
 ── Binary Size ───────────────────────────────
   Go  : 1.8MB
@@ -137,19 +142,34 @@ bash benchmark/run.sh
 ```
 
 ผลลัพธ์ถูกบันทึกไว้ที่:
-`benchmark/results/jpeg-thumbnail-pipeline_20260226_225459.txt`
-
-### Summary
+`benchmark/results/jpeg-thumbnail-pipeline_20260227_013702.txt`
 
 ## ตารางเปรียบเทียบ
 
 | Metric | Go | Rust | Zig |
 |--------|----|------|-----|
-| Avg time (4 measured runs) | 1264ms | 1245ms | **1240ms** |
-| Min/Max time | 1219/1295ms | 1226/1264ms | **1211/1308ms** |
-| Total processed | 288,000 | 288,000 | 288,000 |
-| Throughput | **236,263.22 items/sec** | 229,690.39 items/sec | 220,197.58 items/sec |
-| Average latency | **0.004233ms** | 0.004354ms | 0.004541ms |
+| Avg time (4 measured runs) | **2,859ms** | 3,155ms | 3,225ms |
+| Min/Max time | **2,806/2,948ms** | 2,830/3,591ms | 3,056/3,433ms |
+| Total processed | 720,000 | 720,000 | 720,000 |
+| Throughput | **256,581 items/sec** | 254,421 items/sec | 235,600 items/sec |
+| Average latency | **0.003897ms** | 0.003930ms | 0.004244ms |
 | Binary size | 1.8MB | **452KB** | 2.3MB |
+| Code lines | 106 | 128 | **102** |
 
-**Key insight**: เนื่องจากงานถูกครอบงำด้วยการเรียก FFmpeg ในแต่ละรอบ ทำให้เวลาของทั้ง 3 ภาษาใกล้กันมาก โดย Go มี throughput สูงสุดเล็กน้อย และ Rust ได้ binary size เล็กที่สุด.
+## Key Insights
+
+1. **ผลลัพธ์ทั้ง 3 ภาษาใกล้กันมาก** — Go 256K, Rust 254K, Zig 235K items/sec ต่างกันไม่ถึง 9% เพราะ bottleneck คือ ffmpeg subprocess ไม่ใช่ภาษา
+2. **Go มี variance ต่ำที่สุด** (2,806–2,948ms, ~5%) เพราะ `os/exec` + goroutine scheduler ทำงานสม่ำเสมอ
+3. **Rust มี variance สูง** (2,830–3,591ms, ~27%) — Docker CPU scheduling noise มีผลต่อ spawn + wait per call
+4. **Zig ชนะ code lines** ที่ 102 บรรทัด — implementation เรียบง่ายที่สุด
+5. **Rust ชนะ binary size** ที่ 452KB เหมือนเดิม
+6. **งานนี้วัด orchestration overhead + ffmpeg JPEG pipeline** ไม่ใช่ language-level algorithm — เหมาะสำหรับเปรียบเทียบ process-spawn latency ของแต่ละภาษา
+
+## Technical Notes
+
+- **ffmpeg call**: `-f lavfi -i testsrc` → 1280×720 JPEG input; `scale=160:90:flags=bilinear` → 160×90 JPEG output
+- **Timing scope**: timer ครอบ REPEATS × (fork + exec + wait) ไม่รวม file I/O load phase
+- **Total processed**: 160 × 90 × 50 = 720,000 output pixels per Docker run
+- **Go**: `os/exec.Command` → `CombinedOutput()` blocks until child exits
+- **Rust**: `std::process::Command` → `.output()` blocks; stderr captured
+- **Zig**: `std.process.Child` → `.spawn()` + `.wait()` pattern; stderr piped

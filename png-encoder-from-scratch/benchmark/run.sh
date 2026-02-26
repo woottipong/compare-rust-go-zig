@@ -5,7 +5,7 @@
 set -e
 
 INPUT_PPM="${1:-test-data/sample.ppm}"
-REPEATS="${2:-30}"
+REPEATS="${2:-500}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
