@@ -66,9 +66,9 @@
 ## Epic 6: 🔴 Rust Performance Fix (Critical)
 | Task | Description | Status | Priority | Depends On |
 |------|-------------|--------|:--------:|------------|
-| 6.1 | Rust Stats: เปลี่ยน Arc\<Mutex\<Stats\>\> → AtomicU64 (Profile A+B) | [TODO] | 🔴 | — |
-| 6.2 | Rust Broadcast: แก้ blocking await ใน RwLock → try_send (Profile A+B) | [TODO] | 🔴 | — |
-| 6.3 | Rust: รัน unit tests verify refactor ไม่ break | [TODO] | 🔴 | 6.1, 6.2 |
+| 6.1 | Rust Stats: เปลี่ยน Arc\<Mutex\<Stats\>\> → AtomicU64 (Profile A+B) | [DONE] | 🔴 | — |
+| 6.2 | Rust Broadcast: แก้ blocking await ใน RwLock → try_send (Profile A+B) | [DONE] | 🔴 | — |
+| 6.3 | Rust: รัน unit tests verify refactor ไม่ break | [DONE] | 🔴 | 6.1, 6.2 |
 
 ---
 

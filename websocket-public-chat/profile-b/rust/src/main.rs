@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use clap::Parser;
 use tokio::net::TcpListener;
-use tokio::sync::Mutex;
+
 
 use hub::new_clients;
 use client::handle_connection;
@@ -32,7 +32,7 @@ async fn main() {
     eprintln!("websocket-public-chat: listening on {addr}");
 
     let clients = new_clients();
-    let stats = Arc::new(Mutex::new(Stats::new()));
+    let stats = Arc::new(Stats::new());
 
     let stats_clone = Arc::clone(&stats);
     let clients_clone = Arc::clone(&clients);
@@ -59,5 +59,5 @@ async fn main() {
         serve.await;
     }
 
-    stats.lock().await.print_stats();
+    stats.print_stats();
 }

@@ -13,7 +13,7 @@ use axum::{
 };
 use clap::Parser;
 use tokio::net::TcpListener;
-use tokio::sync::Mutex;
+
 
 use hub::new_clients;
 use client::handle_connection;
@@ -22,7 +22,7 @@ use stats::Stats;
 #[derive(Clone)]
 struct AppState {
     clients: hub::Clients,
-    stats: Arc<Mutex<Stats>>,
+    stats: Arc<Stats>,
 }
 
 #[derive(Parser)]
@@ -55,7 +55,7 @@ async fn main() {
 
     let state = AppState {
         clients: new_clients(),
-        stats: Arc::new(Mutex::new(Stats::new())),
+        stats: Arc::new(Stats::new()),
     };
 
     let app = Router::new()
@@ -77,5 +77,5 @@ async fn main() {
         serve.await.expect("server error");
     }
 
-    state.stats.lock().await.print_stats();
+    state.stats.print_stats();
 }

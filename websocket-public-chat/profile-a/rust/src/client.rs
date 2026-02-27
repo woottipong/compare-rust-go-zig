@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{SinkExt, StreamExt};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::mpsc;
 use tokio::time::{interval, timeout};
 use uuid::Uuid;
 
@@ -45,12 +45,12 @@ impl RateLimiter {
 pub async fn handle_connection(
     socket: WebSocket,
     clients: Clients,
-    stats: Arc<Mutex<Stats>>,
+    stats: Arc<Stats>,
 ) {
     let id = Uuid::new_v4();
     let (tx, mut rx) = mpsc::channel::<Message>(64);
 
-    stats.lock().await.add_connection();
+    stats.add_connection();
 
     let (mut sink, mut stream) = socket.split();
 
@@ -120,10 +120,10 @@ pub async fn handle_connection(
             }
             MSG_CHAT => {
                 if !limiter.allow() {
-                    stats.lock().await.add_dropped();
+                    stats.add_dropped();
                     continue;
                 }
-                stats.lock().await.add_message();
+                stats.add_message();
                 broadcast_except(&clients, id, Message::Text(raw)).await;
             }
             MSG_PONG => {}
@@ -135,7 +135,7 @@ pub async fn handle_connection(
     // cleanup
     clients.write().await.remove(&id);
     drop(write_task);
-    stats.lock().await.remove_connection();
+    stats.remove_connection();
     let _ = user_id;
 }
 

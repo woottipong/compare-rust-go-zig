@@ -1,7 +1,7 @@
 # Task 6.1: Rust Stats — เปลี่ยน Arc<Mutex<Stats>> → AtomicU64
 
 ## Status
-[TODO]
+[DONE]
 
 ## Description
 ปัจจุบัน Rust ใช้ `Arc<Mutex<Stats>>` สำหรับ counter ธรรมดา (total_messages, dropped_messages, total_connections, active_conns) ทำให้ทุก client ต้องแย่ง Mutex เดียวกันทุกครั้งที่ส่งข้อความ
@@ -11,12 +11,12 @@
 **ต้องแก้ทั้ง Profile A และ B** (ไฟล์ stats.rs เหมือนกันทั้งสอง profile)
 
 ## Acceptance Criteria
-- [ ] `Stats` struct ใช้ `AtomicU64` สำหรับทุก counter field
-- [ ] `add_message()`, `add_dropped()`, `add_connection()`, `remove_connection()` เป็น `&self` (ไม่ใช่ `&mut self`)
-- [ ] `client.rs` ไม่ต้อง `.lock().await` สำหรับ stats อีกต่อไป — ส่ง `Arc<Stats>` ตรงๆ
-- [ ] `main.rs` ไม่ต้อง `Mutex::new(Stats::new())` — ใช้ `Arc::new(Stats::new())` ตรงๆ
-- [ ] Unit tests ใน stats.rs ยังคงผ่าน
-- [ ] Profile A (Axum) + Profile B (tokio-tungstenite) แก้ทั้งคู่
+- [x] `Stats` struct ใช้ `AtomicU64` สำหรับทุก counter field
+- [x] `add_message()`, `add_dropped()`, `add_connection()`, `remove_connection()` เป็น `&self` (ไม่ใช่ `&mut self`)
+- [x] `client.rs` ไม่ต้อง `.lock().await` สำหรับ stats อีกต่อไป — ส่ง `Arc<Stats>` ตรงๆ
+- [x] `main.rs` ไม่ต้อง `Mutex::new(Stats::new())` — ใช้ `Arc::new(Stats::new())` ตรงๆ
+- [x] Unit tests ใน stats.rs ยังคงผ่าน
+- [x] Profile A (Axum) + Profile B (tokio-tungstenite) แก้ทั้งคู่
 
 ## Tests Required
 - unit test: `test_stats_counters` — verify counter increment/decrement ทำงานถูกต้อง

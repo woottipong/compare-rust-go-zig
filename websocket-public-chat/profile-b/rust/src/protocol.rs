@@ -6,7 +6,6 @@ pub const MSG_PING: &str = "ping";
 pub const MSG_PONG: &str = "pong";
 pub const MSG_LEAVE: &str = "leave";
 
-pub const CHAT_PAYLOAD_SIZE: usize = 128;
 pub const ROOM: &str = "public";
 pub const RATE_LIMIT_MSG_PER_SEC: usize = 10;
 pub const PING_INTERVAL_SEC: u64 = 30;

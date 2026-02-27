@@ -13,13 +13,17 @@ pub fn new_clients() -> Clients {
 
 /// Broadcast a message to all clients except the sender.
 pub async fn broadcast_except(clients: &Clients, sender_id: Uuid, msg: WsMessage) {
-    let guard = clients.read().await;
-    for (id, tx) in guard.iter() {
-        if *id == sender_id {
-            continue;
-        }
-        // ignore send errors — client may have disconnected
-        let _ = tx.send(msg.clone()).await;
+    let targets: Vec<mpsc::Sender<WsMessage>> = {
+        let guard = clients.read().await;
+        guard
+            .iter()
+            .filter(|(id, _)| **id != sender_id)
+            .map(|(_, tx)| tx.clone())
+            .collect()
+    };
+
+    for tx in targets {
+        let _ = tx.try_send(msg.clone());
     }
 }
 
@@ -68,5 +72,28 @@ mod tests {
 
         clients.write().await.remove(&id);
         assert_eq!(clients.read().await.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_full_channel() {
+        let clients = new_clients();
+        let id1 = Uuid::new_v4();
+        let id2 = Uuid::new_v4();
+
+        // small channel that will fill up
+        let (tx, mut rx) = mpsc::channel(1);
+        
+        // Fill the channel
+        let msg = WsMessage::Text(r#"{"type":"chat","text":"hello"}"#.into());
+        let _ = tx.try_send(msg.clone());
+
+        clients.write().await.insert(id2, tx);
+
+        // This should not panic or block
+        broadcast_except(&clients, id1, msg).await;
+
+        // Ensure we only have 1 message in the channel
+        rx.recv().await.unwrap();
+        assert!(rx.try_recv().is_err());
     }
 }

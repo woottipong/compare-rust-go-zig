@@ -1,7 +1,7 @@
 # Task 6.2: Rust Broadcast — แก้ blocking await ใน RwLock → try_send
 
 ## Status
-[TODO]
+[DONE]
 
 ## Description
 `broadcast_except()` ปัจจุบัน hold `RwLock` read guard ตลอดรอบ broadcast และใช้ `tx.send(msg.clone()).await` ซึ่ง **await ภายใน lock** — ถ้า receiver ช้า จะ block ทั้ง broadcast loop ทำให้ throughput ต่ำ 560 msg/s (เทียบกับ Go 2,551 และ Zig 2,951)
@@ -13,12 +13,12 @@
 **ต้องแก้ทั้ง Profile A และ B**
 
 ## Acceptance Criteria
-- [ ] `broadcast_except()` ไม่ hold lock ระหว่าง send
-- [ ] ใช้ `try_send()` แทน `send().await` — non-blocking
-- [ ] ไม่มี `.await` ภายใน `RwLock` guard scope
-- [ ] Unit tests: `test_broadcast_to_others` ยังคงผ่าน
-- [ ] Unit tests: `test_state_cleanup` ยังคงผ่าน
-- [ ] Profile A (Axum) + Profile B (tokio-tungstenite) แก้ทั้งคู่
+- [x] `broadcast_except()` ไม่ hold lock ระหว่าง send
+- [x] ใช้ `try_send()` แทน `send().await` — non-blocking
+- [x] ไม่มี `.await` ภายใน `RwLock` guard scope
+- [x] Unit tests: `test_broadcast_to_others` ยังคงผ่าน
+- [x] Unit tests: `test_state_cleanup` ยังคงผ่าน
+- [x] Profile A (Axum) + Profile B (tokio-tungstenite) แก้ทั้งคู่
 
 ## Tests Required
 - unit test: `test_broadcast_to_others` — verify ว่า sender ไม่ได้รับ, ที่เหลือได้รับ

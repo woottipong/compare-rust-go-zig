@@ -1,7 +1,7 @@
 # Task 6.3: Rust — รัน unit tests ทั้งหมด verify refactor
 
 ## Status
-[TODO]
+[DONE]
 
 ## Description
 หลังจากแก้ Task 6.1 (AtomicU64 Stats) และ 6.2 (broadcast try_send) ต้อง verify ว่า:
@@ -10,11 +10,11 @@
 3. ไม่มี compile warning ที่เกี่ยวข้อง
 
 ## Acceptance Criteria
-- [ ] `cd profile-a/rust && cargo test` — ผ่านทั้งหมด
-- [ ] `cd profile-b/rust && cargo test` — ผ่านทั้งหมด
-- [ ] `docker build -t wsca-rust profile-a/rust/` — สำเร็จ
-- [ ] `docker build -t wsc-rust profile-b/rust/` — สำเร็จ
-- [ ] ไม่มี compile warning เกี่ยวกับ unused import (Mutex ที่ไม่ใช้แล้ว)
+- [x] `cd profile-a/rust && cargo test` — ผ่านทั้งหมด
+- [x] `cd profile-b/rust && cargo test` — ผ่านทั้งหมด
+- [x] `docker build -t wsca-rust profile-a/rust/` — สำเร็จ
+- [x] `docker build -t wsc-rust profile-b/rust/` — สำเร็จ
+- [x] ไม่มี compile warning เกี่ยวกับ unused import (Mutex ที่ไม่ใช้แล้ว)
 
 ## Tests Required
 - `stats::tests::test_stats_counters` — verify AtomicU64 counters
