@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-REPEATS="${1:-100000}"
+REPEATS="${1:-700000}"
 INPUT_FILE="${2:-pages.html}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

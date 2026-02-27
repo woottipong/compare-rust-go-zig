@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-REPEATS="${1:-200000}"
+REPEATS="${1:-2000000}"
 SHEET_FILE="${2:-sheet.csv}"
 DB_FILE="${3:-db.csv}"
 

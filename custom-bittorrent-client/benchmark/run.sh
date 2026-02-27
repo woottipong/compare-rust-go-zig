@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-REPEATS="${1:-2000}"
+REPEATS="${1:-6000}"
 HOST="${2:-mock-peer}"
 PORT="${3:-6881}"
 
