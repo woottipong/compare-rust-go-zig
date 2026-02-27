@@ -75,17 +75,17 @@
 ## Epic 7: 🟡 Go Performance Fix (Medium)
 | Task | Description | Status | Priority | Depends On |
 |------|-------------|--------|:--------:|------------|
-| 7.1 | Go: ลด sendBufSize 256→64 + ลด Read/WriteBufferSize (Profile A+B) | [TODO] | 🟡 | — |
-| 7.2 | Go: รัน unit tests verify | [TODO] | 🟡 | 7.1 |
+| 7.1 | Go: ลด sendBufSize 256→64 + ลด Read/WriteBufferSize (Profile A+B) | [DONE] | 🟡 | — |
+| 7.2 | Go: รัน unit tests verify | [DONE] | 🟡 | 7.1 |
 
 ---
 
 ## Epic 8: 🟡 Benchmark Methodology Improvement
 | Task | Description | Status | Priority | Depends On |
 |------|-------------|--------|:--------:|------------|
-| 8.1 | Script: เพิ่ม CPU sampling + pin resources (--cpus/--memory) | [TODO] | 🟡 | — |
-| 8.2 | Script: เพิ่ม multi-run (3x) + randomize order + stdev | [TODO] | 🟡 | 8.1 |
-| 8.3 | k6: เพิ่ม E2E latency metric ใน steady.js | [TODO] | 🟡 | — |
+| 8.1 | Script: เพิ่ม CPU sampling + pin resources (--cpus/--memory) | [DONE] | 🟡 | — |
+| 8.2 | Script: เพิ่ม multi-run (3x) + randomize order + stdev | [DONE] | 🟡 | 8.1 |
+| 8.3 | k6: เพิ่ม E2E latency metric ใน steady.js | [DONE] | 🟡 | — |
 
 ---
 

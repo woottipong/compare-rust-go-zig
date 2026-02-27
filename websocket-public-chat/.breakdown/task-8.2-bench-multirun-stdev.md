@@ -1,7 +1,7 @@
 # Task 8.2: Benchmark Script — Multi-run (3x) + randomize order + stdev
 
 ## Status
-[TODO]
+[DONE]
 
 ## Description
 ปัจจุบันรัน benchmark แค่ 1 ครั้ง และเรียงลำดับ go → rust → zig ทุกครั้ง ทำให้:
@@ -14,11 +14,11 @@
 - **Summary with stdev**: แสดงค่าเฉลี่ย ± standard deviation
 
 ## Acceptance Criteria
-- [ ] env var `BENCH_RUNS=3` (default 1 เพื่อ backward compat)
-- [ ] เมื่อ BENCH_RUNS>1 ลำดับภาษาถูก shuffle ทุกรอบ
-- [ ] Summary table แสดง mean ± stdev เมื่อ BENCH_RUNS>1
-- [ ] ผลแต่ละรอบยังเก็บแยกไฟล์ปกติ
-- [ ] BENCH_RUNS=1 ทำงานเหมือนเดิมทุกประการ
+- [x] env var `BENCH_RUNS=3` (default 1 เพื่อ backward compat)
+- [x] เมื่อ BENCH_RUNS>1 ลำดับภาษาถูก shuffle ทุกรอบ
+- [x] Summary table แสดง mean ± stdev เมื่อ BENCH_RUNS>1
+- [x] ผลแต่ละรอบยังเก็บแยกไฟล์ปกติ
+- [x] BENCH_RUNS=1 ทำงานเหมือนเดิมทุกประการ
 
 ## Tests Required
 - manual: รัน `BENCH_RUNS=2 bash benchmark/run-profile-b.sh` verify 2 รอบ + summary

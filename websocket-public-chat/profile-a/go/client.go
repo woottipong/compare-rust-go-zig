@@ -13,7 +13,7 @@ const (
 	pongWait       = 60 * time.Second
 	pingPeriod     = PingIntervalSec * time.Second
 	maxMessageSize = 512
-	sendBufSize    = 256
+	sendBufSize    = 64
 	tokenBucketMax = RateLimitMsgPerSec
 )
 

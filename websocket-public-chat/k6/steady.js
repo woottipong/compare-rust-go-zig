@@ -2,11 +2,12 @@
 // 100 VUs, 1 chat msg/sec each, 60s duration
 import ws from 'k6/ws';
 import { check } from 'k6';
-import { Counter } from 'k6/metrics';
+import { Counter, Trend } from 'k6/metrics';
 
 const chatMsgsSent = new Counter('chat_msgs_sent');
 const chatMsgsReceived = new Counter('chat_msgs_received');
 const wsErrors = new Counter('ws_errors');
+const msgDeliveryLatency = new Trend('msg_delivery_latency', true);
 
 const WS_URL = __ENV.WS_URL || 'ws://localhost:8080/ws';
 
@@ -36,13 +37,24 @@ export default function () {
       if (msg.type === 'ping') {
         socket.send(JSON.stringify({ type: 'pong', ts: msg.ts }));
       } else if (msg.type === 'chat') {
+        if (msg.text) {
+          const match = msg.text.match(/ts:(\d+)/);
+          if (match) {
+            const sendTs = parseInt(match[1]);
+            const latency = Date.now() - sendTs;
+            if (latency >= 0 && latency < 60000) {
+              msgDeliveryLatency.add(latency);
+            }
+          }
+        }
         chatMsgsReceived.add(1);
       }
     });
 
     // send 1 msg/sec for the full duration; padding brings total JSON to ~128 bytes
     socket.setInterval(() => {
-      const text = `hello from ${userId}` + ' '.repeat(67);
+      const sendTs = Date.now();
+      const text = `hello from ${userId}|ts:${sendTs}` + ' '.repeat(40);
       socket.send(JSON.stringify({ type: 'chat', room: 'public', user: userId, text }));
       chatMsgsSent.add(1);
     }, 1000);

@@ -1,7 +1,7 @@
 # Task 7.1: Go — ลด sendBufSize + Read/WriteBufferSize
 
 ## Status
-[TODO]
+[DONE]
 
 ## Description
 Go ใช้ memory สูงใน saturation (195–207 MiB) สาเหตุหลักมาจาก:
@@ -13,11 +13,11 @@ Go ใช้ memory สูงใน saturation (195–207 MiB) สาเหต�
 **ต้องแก้ทั้ง Profile A และ B**
 
 ## Acceptance Criteria
-- [ ] `sendBufSize` ลดจาก 256 → 64
-- [ ] `ReadBufferSize` ลดจาก 1024 → 512
-- [ ] `WriteBufferSize` ลดจาก 1024 → 512
-- [ ] Unit tests ทั้งหมดผ่าน
-- [ ] Profile A (GoFiber) + Profile B (net/http) แก้ทั้งคู่
+- [x] `sendBufSize` ลดจาก 256 → 64
+- [x] `ReadBufferSize` ลดจาก 1024 → 512
+- [x] `WriteBufferSize` ลดจาก 1024 → 512
+- [x] Unit tests ทั้งหมดผ่าน
+- [x] Profile A (GoFiber) + Profile B (net/http) แก้ทั้งคู่
 
 ## Tests Required
 - `go test ./...` ใน profile-a/go/ — ผ่าน

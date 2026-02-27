@@ -1,7 +1,7 @@
 # Task 7.2: Go — รัน unit tests ทั้งหมด verify
 
 ## Status
-[TODO]
+[DONE]
 
 ## Description
 หลังจากแก้ Task 7.1 (ลด buffer sizes) ต้อง verify ว่า:
@@ -9,10 +9,10 @@
 2. `docker build` ผ่านทั้งคู่
 
 ## Acceptance Criteria
-- [ ] `cd profile-a/go && go test ./...` — ผ่านทั้งหมด
-- [ ] `cd profile-b/go && go test ./...` — ผ่านทั้งหมด
-- [ ] `docker build -t wsca-go profile-a/go/` — สำเร็จ
-- [ ] `docker build -t wsc-go profile-b/go/` — สำเร็จ
+- [x] `cd profile-a/go && go test ./...` — ผ่านทั้งหมด
+- [x] `cd profile-b/go && go test ./...` — ผ่านทั้งหมด
+- [x] `docker build -t wsca-go profile-a/go/` — สำเร็จ
+- [x] `docker build -t wsc-go profile-b/go/` — สำเร็จ
 
 ## Tests Required
 - `TestRateLimiter` — verify token bucket

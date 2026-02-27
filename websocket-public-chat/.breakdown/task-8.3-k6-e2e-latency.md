@@ -1,7 +1,7 @@
 # Task 8.3: k6 — เพิ่ม E2E Latency Metric ใน steady.js
 
 ## Status
-[TODO]
+[DONE]
 
 ## Description
 ปัจจุบัน k6 วัดแค่:
@@ -16,10 +16,10 @@
 - บันทึกเป็น k6 Trend metric → ได้ p50/p95/p99 ของ delivery latency
 
 ## Acceptance Criteria
-- [ ] k6 output มี `msg_delivery_latency` metric ใหม่
-- [ ] แสดง p50, p95, p99 ของ delivery latency
-- [ ] ไม่กระทบ scenario อื่น (burst, churn, saturation)
-- [ ] Latency วัดเป็น milliseconds
+- [x] k6 output มี `msg_delivery_latency` metric ใหม่
+- [x] แสดง p50, p95, p99 ของ delivery latency
+- [x] ไม่กระทบ scenario อื่น (burst, churn, saturation)
+- [x] Latency วัดเป็น milliseconds
 
 ## Tests Required
 - manual: รัน steady scenario ต่อ Go server → verify `msg_delivery_latency` ปรากฏใน output

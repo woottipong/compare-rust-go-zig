@@ -35,6 +35,9 @@ func main() {
 
 	app.Get("/ws", websocket.New(func(c *websocket.Conn) {
 		serveWs(hub, c)
+	}, websocket.Config{
+		ReadBufferSize:  512,
+		WriteBufferSize: 512,
 	}))
 
 	app.Get("/health", func(c *fiber.Ctx) error {

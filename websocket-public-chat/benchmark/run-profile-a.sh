@@ -50,7 +50,7 @@ start_server() {
     local image=$1 cname=$2
     shift 2
     docker rm -f "$cname" >/dev/null 2>&1 || true   # remove stale container if present
-    docker run -d --network "$NETWORK" --name "$cname" "$image" "$@" >/dev/null
+    docker run -d --network "$NETWORK" --name "$cname" --cpus 2 --memory 512m "$image" "$@" >/dev/null
     local i=0
     while [ $i -lt 20 ]; do
         if docker logs "$cname" 2>&1 | grep -qiE "listening|port"; then
@@ -146,14 +146,33 @@ run_scenario() {
     } &
     local mem_pid=$!
 
+    local cpu_file="/tmp/wsca_${lang}_${scenario}_cpu"
+    echo "0" > "$cpu_file"
+    {
+        peak_cpu=0
+        while true; do
+            raw=$(docker stats --no-stream --format "{{.CPUPerc}}" "$cname" 2>/dev/null) || break
+            [ -z "$raw" ] && break
+            cpu_val=$(echo "$raw" | tr -d '%' | awk '{printf "%.0f", $1}')
+            if [ -n "$cpu_val" ] && [ "$cpu_val" -gt "$peak_cpu" ] 2>/dev/null; then
+                peak_cpu=$cpu_val
+                echo "$peak_cpu" > "$cpu_file"
+            fi
+            sleep 1
+        done
+    } &
+    local cpu_pid=$!
+
     local k6_out; k6_out=$(run_k6 "$scenario" "$cname")
 
-    kill "$mem_pid" 2>/dev/null || true
-    wait "$mem_pid" 2>/dev/null || true
+    kill "$mem_pid" "$cpu_pid" 2>/dev/null || true
+    wait "$mem_pid" "$cpu_pid" 2>/dev/null || true
 
     local srv_out; srv_out=$(wait_and_collect "$cname")
     local peak_mem; peak_mem=$(cat "$mem_file" 2>/dev/null || echo "0")
     rm -f "$mem_file"
+    local peak_cpu; peak_cpu=$(cat "$cpu_file" 2>/dev/null || echo "0")
+    rm -f "$cpu_file"
 
     local tp;  tp=$(parse_throughput "$srv_out");    tp="${tp:-0}"
     local p95; p95=$(parse_p95_connect "$k6_out"); p95="${p95:-N/A}"
@@ -164,12 +183,15 @@ run_scenario() {
     echo "    drop rate:    $(parse_dropped "$srv_out")"
     echo "    connect p95:  $p95"
     echo "    peak memory:  ${peak_mem} MiB"
+    echo "    peak cpu:     ${peak_cpu}%"
+
     echo "    k6:"
     parse_k6_summary "$k6_out"
 
-    printf '%s' "$tp"       > "/tmp/wsca_${lang}_${scenario}_tp"
-    printf '%s' "$p95"      > "/tmp/wsca_${lang}_${scenario}_p95"
-    printf '%s' "$peak_mem" > "/tmp/wsca_${lang}_${scenario}_mem_peak"
+    printf '%s\n' "$tp"       >> "/tmp/wsca_${lang}_${scenario}_tp"
+    printf '%s\n' "$p95"      >> "/tmp/wsca_${lang}_${scenario}_p95"
+    printf '%s\n' "$peak_mem" >> "/tmp/wsca_${lang}_${scenario}_mem_peak"
+    printf '%s\n' "$peak_cpu" >> "/tmp/wsca_${lang}_${scenario}_cpu_peak"
 }
 
 run_language_scenarios() {
@@ -200,22 +222,43 @@ run_language_scenarios() {
     echo ""
 }
 
+format_stat() {
+    awk '{sum+=$1; sumsq+=$1*$1; n++} END {
+        if(n>1) {
+            mean=sum/n;
+            stdev=sqrt((sumsq/n) - (mean*mean));
+            printf "%.1f±%.1f", mean, stdev
+        } else if (n==1) {
+            printf "%.2f", $1
+        } else {
+            printf "N/A"
+        }
+    }' "$1" 2>/dev/null || echo "N/A"
+}
+
 print_summary_table() {
-    echo "╔══════════════════════════════════════════════════════════════════╗"
-    echo "║               Profile A — Results Summary                       ║"
-    echo "╚══════════════════════════════════════════════════════════════════╝"
+    echo "╔═══════════════════════════════════════════════════════════════════════════════════════╗"
+    echo "║               Profile A — Results Summary                                             ║"
+    echo "╚═══════════════════════════════════════════════════════════════════════════════════════╝"
     echo ""
-    printf "%-8s  %14s  %13s  %18s  %10s\n" \
-        "Language" "Steady (msg/s)" "Burst (msg/s)" "Saturation (msg/s)" "Peak Mem"
-    printf "%-8s  %14s  %13s  %18s  %10s\n" \
-        "────────" "──────────────" "─────────────" "──────────────────" "────────"
+    printf "%-8s  %18s  %18s  %18s  %10s  %10s\n" \
+        "Language" "Steady (msg/s)" "Burst (msg/s)" "Saturation (msg/s)" "Peak Mem" "Peak CPU"
+    printf "%-8s  %18s  %18s  %18s  %10s  %10s\n" \
+        "────────" "──────────────────" "──────────────────" "──────────────────" "──────────" "──────────"
 
     for lang in "${LANGUAGES[@]}"; do
-        st=$(cat  "/tmp/wsca_${lang}_steady_tp"       2>/dev/null || echo "N/A")
-        bu=$(cat  "/tmp/wsca_${lang}_burst_tp"        2>/dev/null || echo "N/A")
-        sa=$(cat  "/tmp/wsca_${lang}_saturation_tp"   2>/dev/null || echo "N/A")
-        mem=$(cat "/tmp/wsca_${lang}_steady_mem_peak" 2>/dev/null || echo "N/A")
-        printf "%-8s  %14s  %13s  %18s  %10s\n" "$lang" "$st" "$bu" "$sa" "${mem} MiB"
+        st=$(format_stat "/tmp/wsca_${lang}_steady_tp")
+        bu=$(format_stat "/tmp/wsca_${lang}_burst_tp")
+        sa=$(format_stat "/tmp/wsca_${lang}_saturation_tp")
+        mem=$(format_stat "/tmp/wsca_${lang}_saturation_mem_peak")
+        cpu=$(format_stat "/tmp/wsca_${lang}_saturation_cpu_peak")
+        
+        mem_str="${mem} MiB"
+        if [ "$mem" = "N/A" ] || [ "$mem" = "N/A MiB" ]; then mem_str="N/A"; fi
+        cpu_str="${cpu}%"
+        if [ "$cpu" = "N/A" ] || [ "$cpu" = "N/A%" ]; then cpu_str="N/A"; fi
+        
+        printf "%-8s  %18s  %18s  %18s  %10s  %10s\n" "$lang" "$st" "$bu" "$sa" "$mem_str" "$cpu_str"
     done
 }
 
@@ -243,16 +286,40 @@ printf "  %-6s" "k6:"
 if docker build -q -t wsc-k6 "$K6_DIR" >/dev/null 2>&1; then echo " ✓"; else echo " ✗"; die "k6 build failed"; fi
 echo
 
+shuffle_array() {
+    local -a arr=("$@")
+    local n=${#arr[@]}
+    for ((i = n - 1; i > 0; i--)); do
+        j=$((RANDOM % (i + 1)))
+        local tmp="${arr[$i]}"
+        arr[$i]="${arr[$j]}"
+        arr[$j]="$tmp"
+    done
+    echo "${arr[@]}"
+}
+
 # ── run benchmark ──────────────────────────────────────────────────────────
 
-for lang in "${LANGUAGES[@]}"; do
-    run_language_scenarios "$lang"
+rm -f /tmp/wsca_*_*_tp /tmp/wsca_*_*_p95 /tmp/wsca_*_*_mem_peak /tmp/wsca_*_*_cpu_peak
+
+BENCH_RUNS=${BENCH_RUNS:-1}
+
+for run in $(seq 1 "$BENCH_RUNS"); do
+    if [ "$BENCH_RUNS" -gt 1 ]; then
+        IFS=' ' read -ra LANG_ORDER <<< "$(shuffle_array "${LANGUAGES[@]}")"
+        echo "Run $run/$BENCH_RUNS — order: ${LANG_ORDER[*]}"
+    else
+        LANG_ORDER=("${LANGUAGES[@]}")
+    fi
+    for lang in "${LANG_ORDER[@]}"; do
+        run_language_scenarios "$lang"
+    done
 done
 
 # ── summary table ──────────────────────────────────────────────────────────
 
 print_summary_table
-rm -f /tmp/wsca_*_*_tp /tmp/wsca_*_*_p95 /tmp/wsca_*_*_mem_peak
+rm -f /tmp/wsca_*_*_tp /tmp/wsca_*_*_p95 /tmp/wsca_*_*_mem_peak /tmp/wsca_*_*_cpu_peak
 
 # ── binary sizes ───────────────────────────────────────────────────────────
 

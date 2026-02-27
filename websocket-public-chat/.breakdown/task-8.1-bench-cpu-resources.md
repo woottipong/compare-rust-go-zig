@@ -1,7 +1,7 @@
 # Task 8.1: Benchmark Script — เพิ่ม CPU sampling + pin resources
 
 ## Status
-[TODO]
+[DONE]
 
 ## Description
 ปัจจุบัน benchmark script ไม่ได้:
@@ -15,10 +15,10 @@
 **ต้องแก้ทั้ง run-profile-a.sh และ run-profile-b.sh**
 
 ## Acceptance Criteria
-- [ ] Output ของแต่ละ scenario มี `peak cpu: X%` เพิ่มเข้ามา
-- [ ] Summary table มีคอลัมน์ Peak CPU เพิ่ม
-- [ ] Container ทุกตัวรันด้วย `--cpus 2 --memory 512m`
-- [ ] Script ยังทำงานได้ปกติ (ไม่ break existing output format)
+- [x] Output ของแต่ละ scenario มี `peak cpu: X%` เพิ่มเข้ามา
+- [x] Summary table มีคอลัมน์ Peak CPU เพิ่ม
+- [x] Container ทุกตัวรันด้วย `--cpus 2 --memory 512m`
+- [x] Script ยังทำงานได้ปกติ (ไม่ break existing output format)
 
 ## Tests Required
 - manual: รัน `bash benchmark/run-profile-b.sh` ให้ครบ 1 ภาษา verify output format
