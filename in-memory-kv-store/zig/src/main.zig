@@ -89,7 +89,7 @@ fn printConfig(num_ops: usize) void {
 
 fn printStats(stats: Stats) void {
     std.debug.print("--- Statistics ---\n", .{});
-    std.debug.print("Total operations: {d}\n", .{stats.total_ops});
+    std.debug.print("Total processed: {d}\n", .{stats.total_ops});
     std.debug.print("Processing time: {d:.3}s\n", .{@as(f64, @floatFromInt(stats.processing_ns)) / 1_000_000_000.0});
     std.debug.print("Average latency: {d:.6}ms\n", .{stats.avgLatencyMs()});
     std.debug.print("Throughput: {d:.0} ops/sec\n", .{stats.throughput()});

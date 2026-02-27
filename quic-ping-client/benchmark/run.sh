@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-REPEATS="${1:-3000}"
+REPEATS="${1:-10000}"
 HOST="${2:-host.docker.internal}"
 PORT="${3:-56000}"
 

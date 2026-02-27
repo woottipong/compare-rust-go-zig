@@ -1,186 +1,97 @@
-# In-Memory Key-Value Store
+# In-Memory Key-Value Store: Go vs Rust vs Zig
 
-## วัตถุประสงค์
+วัด throughput ของ GET/SET/DELETE operations บน in-memory HashMap ด้วย mutex protection เพื่อเทียบ hash map implementation และ string handling ระหว่าง 3 ภาษา
 
-สร้าง In-memory Key-Value Store แบบง่ายเพื่อเปรียบเทียบประสิทธิภาพระหว่าง Go, Rust และ Zig ในการจัดการข้อมูลในหน่วยความจำ โดยเน้นที่:
+## โครงสร้าง
 
-- **Data Structures**: HashMap/Map implementation ของแต่ละภาษา
-- **Concurrent Access**: การจัดการการเข้าถึงข้อมูลพร้อมกันหลาย threads
-- **Memory Management**: GC vs Manual memory vs Ownership system
-- **Operations Speed**: GET, SET, DELETE performance
-
-## ทักษะที่ฝึก
-
-- **Go**: การใช้ `sync.RWMutex` กับ `map[string]string`, goroutine safety
-- **Rust**: การใช้ `Arc<RwLock<HashMap>>`, ownership และ borrowing
-- **Zig**: การจัดการ memory ด้วย `StringHashMap`, manual allocation/deallocation
-
-## Directory Structure
-
-```
+```text
 in-memory-kv-store/
 ├── go/
-│   ├── main.go         # Entry point with sync.RWMutex
-│   ├── go.mod          # module: in-memory-kv-store
+│   ├── main.go         # sync.RWMutex + map[string]string
+│   ├── go.mod
 │   └── Dockerfile
 ├── rust/
-│   ├── src/main.rs     # Entry point with Arc<RwLock<HashMap>>
-│   ├── Cargo.toml      # dependencies: tokio, clap
+│   ├── src/main.rs     # RwLock<HashMap<String,String>>
+│   ├── Cargo.toml
 │   └── Dockerfile
 ├── zig/
-│   ├── src/main.zig    # Entry point with StringHashMap
-│   ├── build.zig       # Zig 0.15+ build system
-│   ├── build.zig.zon   # project metadata
+│   ├── src/main.zig    # std.Thread.Mutex + StringHashMap
+│   ├── build.zig
 │   └── Dockerfile
 ├── benchmark/
-│   └── run.sh          # Docker-based benchmark script
+│   ├── results/
+│   └── run.sh
 └── README.md
 ```
 
 ## Dependencies
 
-### macOS
-- Go 1.25+
-- Rust 1.85+
-- Zig 0.15.2+
-- Docker Desktop
+- Docker (for benchmark)
 
-### Linux (Docker)
-- golang:1.25-bookworm
-- rust:1.85-bookworm
-- debian:bookworm-slim (Zig build)
-
-## Build & Run Commands
-
-### Local Development
+## Build
 
 ```bash
 # Go
-cd go && unset GOROOT && go build -o ../bin/ikvs-go .
+unset GOROOT && go build -o ../bin/ikvs-go ./go
 
 # Rust
-cd rust && cargo build --release
+cargo build --release --manifest-path rust/Cargo.toml
 
 # Zig
 cd zig && zig build -Doptimize=ReleaseFast
 ```
 
-### Docker Build
-
-```bash
-docker build -t ikvs-go go/
-docker build -t ikvs-rust rust/
-docker build -t ikvs-zig zig/
-```
-
-### Run
-
-```bash
-# Default: 10,000 operations
-docker run --rm ikvs-go
-docker run --rm ikvs-rust
-docker run --rm ikvs-zig
-
-# Custom operations
-docker run --rm ikvs-go 50000
-docker run --rm ikvs-rust 50000
-docker run --rm ikvs-zig 50000
-```
-
-## Benchmark
-
-รัน benchmark ด้วย Docker:
+## Run Benchmark
 
 ```bash
 bash benchmark/run.sh
+# Results saved to benchmark/results/
 ```
-
-ผลลัพธ์จะถูก save อัตโนมัติลง `benchmark/results/in_memory_kv_store_<timestamp>.txt`
-
-รัน 5 ครั้ง: 1 warm-up + 4 วัดผล แสดง Average throughput และ binary size
 
 ## Benchmark Results
 
-วัดด้วย 100,000 operations (1 warm-up + 4 measured), Docker-based, Apple M-series
+อ้างอิงจาก: `benchmark/results/in-memory-kv-store_20260227_125840.txt`
 
 ```
-╔════════════════════════════╗
-║ In-Memory KV Store Bench   ║
-╚════════════════════════════╝
-
-─ Go ─────────────────────
-  Warm-up: 12269261 ops/sec
-  Run 1: 10211810 ops/sec
-  Run 2: 7915598 ops/sec
-  Run 3: 12294855 ops/sec
-  Run 4: 12704328 ops/sec
-  Avg: 10781647 ops/sec
-
-─ Rust ─────────────────────
-  Warm-up: 7554744 ops/sec
-  Run 1: 6931712 ops/sec
-  Run 2: 6746652 ops/sec
-  Run 3: 6004648 ops/sec
-  Run 4: 5838450 ops/sec
-  Avg: 6380365 ops/sec
-
-─ Zig ─────────────────────
-  Warm-up: 27667109 ops/sec
-  Run 1: 26223089 ops/sec
-  Run 2: 28408555 ops/sec
-  Run 3: 27736303 ops/sec
-  Run 4: 25768658 ops/sec
-  Avg: 27034151 ops/sec
-
-─ Binary Size ───────────────
-  Go: 1.50MB
-  Rust: 836.00KB
-  Zig: 2.20MB
+Operations: 3,000,000 per run
+Total ops : 7,500,000 (3M SET + 3M GET + 1.5M DELETE)
+Mode      : Docker
 ```
+
+| Run | Go | Rust | Zig |
+|-----|---:|-----:|----:|
+| Warm-up | 1412ms | 2745ms | 1091ms |
+| Run 2 | 1294ms | 2370ms | 738ms |
+| Run 3 | 1429ms | 2308ms | 1123ms |
+| Run 4 | 1305ms | 2665ms | 886ms |
+| Run 5 | 1563ms | 2328ms | 1140ms |
+| **Avg** | **1397ms** | **2417ms** | **971ms** |
+| Min | 1294ms | 2308ms | 738ms |
+| Max | 1563ms | 2665ms | 1140ms |
 
 ### Summary
 
-## สรุปผลเปรียบเทียบ
+| Metric | Go | Rust | Zig |
+|--------|---:|-----:|----:|
+| Avg Time | 1,397ms | 2,417ms | **971ms** |
+| Throughput | 4.8M ops/s | 3.2M ops/s | **6.6M ops/s** |
+| Binary Size | 1.5MB | **388KB** | 2.2MB |
+| Code Lines | 181 | **126** | 164 |
 
-| Metric | Go | Rust | Zig | Winner |
-|--------|-----|------|-----|---------|
-| **Throughput** | 10.8M ops/sec | 6.4M ops/sec | 27.0M ops/sec | **Zig** |
-| **Binary Size** | 1.50MB | 836KB | 2.20MB | **Rust** |
-| **Memory Safety** | GC managed | Compile-time | Manual | **Rust** |
-| **Code Simplicity** | High | Medium | Low | **Go** |
+## Key Insight
 
-## Key Insights
+**Zig ชนะ 1.4× เหนือ Go และ 2.5× เหนือ Rust — เพราะ string handling ใน get()**
 
-1. **Zig ชนะด้าน throughput** - 27M ops/sec เร็วกว่า Go 2.5x และเร็วกว่า Rust 4.2x เพราะ `std.Thread.Mutex` มี overhead น้อยกว่า `Arc<RwLock<>>` และ Zig ไม่มี GC overhead
-2. **Rust ช้าที่สุด** ใน benchmark นี้ เพราะ `Arc<RwLock<HashMap>>` มี atomic reference counting overhead + `String` clone ทุก `get()` call
-3. **Rust ชนะด้าน binary size** - 836KB เล็กกว่า Go (1.5MB) และ Zig (2.2MB) เพราะ Zig ใช้ `GeneralPurposeAllocator` ซึ่งรวม debug machinery ขนาดใหญ่
-4. **Go อยู่ตรงกลาง** - `sync.RWMutex` มีประสิทธิภาพดีในงาน read-heavy แต่ GC สร้าง pause เล็กน้อย
-5. **Timing granularity สำคัญมาก** - การวัดด้วย milliseconds ทำให้ผลกระโดด 4x; ต้องใช้ nanoseconds เพื่อผลที่ถูกต้อง
+ความแตกต่างหลักไม่ใช่ hash map algorithm แต่เป็น **string return semantics ใน get()**:
 
-## Technical Notes
+| ภาษา | get() returns | Heap alloc per call? |
+|------|--------------|---------------------|
+| **Zig** | `?[]const u8` (slice into map) | **ไม่มี** |
+| **Go** | `string` (header copy, shared backing array) | **ไม่มี** |
+| **Rust** | `Option<String>` via `.cloned()` | **ทุก call** |
 
-### Go Implementation
-- ใช้ `sync.RWMutex` ป้องกัน race conditions
-- `map[string]string` เป็น hash table ในตัว
-- GC จัดการ memory อัตโนมัติ
-- Method names: lowercase (unexported)
+- **Rust ช้าที่สุด**: `get()` ใช้ `.cloned()` ทำ heap allocation ใหม่สำหรับทุก GET → 3M heap allocs ใน GET phase + deallocate ทุก call → memory pressure สูง
+- **Go ตรงกลาง**: `map[string]string` คืน string header (pointer+len) ไม่ deep copy → GC ยังต้องตามเก็บ references
+- **Zig เร็วสุด**: `StringHashMap` คืน slice (pointer+len) ชี้เข้า map โดยตรง → zero allocation ใน get path
 
-### Rust Implementation  
-- ใช้ `Arc<RwLock<HashMap>>` สำหรับ shared ownership
-- `HashMap<String, String>` มีประสิทธิภาพสูง
-- Ownership system ป้องกัน memory leaks
-- ใช้ `clap` สำหรับ command line arguments
-
-### Zig Implementation
-- ใช้ `StringHashMap([]const u8)` จาก std lib
-- `std.Thread.Mutex` สำหรับ synchronization
-- Manual memory management: allocator ส่งผ่าน parameter ไม่เก็บใน struct
-- ต้อง `dupe` values ก่อนเก็บใน hashmap, ใช้ `getOrPut` เพื่อ safe replace
-
-## Performance Characteristics
-
-- **SET operations**: ทั้ง 3 ภาษามีความเร็วใกล้เคียงกัน
-- **GET operations**: Rust เร็วเล็กน้อยจาก optimized hashmap
-- **DELETE operations**: Zig เร็วสุดจาก direct memory management
-- **Concurrency**: Rust และ Go มี built-in thread safety
-- **Memory overhead**: Go สูงสุดจาก GC, Zig ต่ำสุดจาก manual control
+**Rust binary เล็กสุด 388KB** (ไม่มี GC runtime, ไม่มี debug allocator)

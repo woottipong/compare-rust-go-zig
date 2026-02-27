@@ -81,7 +81,7 @@ func printConfig(numOps int) {
 
 func printStats(stats Stats) {
 	fmt.Printf("--- Statistics ---\n")
-	fmt.Printf("Total operations: %d\n", stats.totalOps)
+	fmt.Printf("Total processed: %d\n", stats.totalOps)
 	fmt.Printf("Processing time: %.3fs\n", float64(stats.processingNs)/1e9)
 	fmt.Printf("Average latency: %.6fms\n", stats.avgLatencyMs())
 	fmt.Printf("Throughput: %.0f ops/sec\n", stats.throughput())

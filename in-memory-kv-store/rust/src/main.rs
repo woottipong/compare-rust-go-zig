@@ -1,39 +1,26 @@
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 use std::time::Instant;
-use clap::Parser;
-
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    #[arg(short, long, default_value = "10000")]
-    operations: usize,
-}
 
 struct KVStore {
-    data: Arc<RwLock<HashMap<String, String>>>,
+    data: RwLock<HashMap<String, String>>,
 }
 
 impl KVStore {
     fn new() -> Self {
-        Self {
-            data: Arc::new(RwLock::new(HashMap::new())),
-        }
+        Self { data: RwLock::new(HashMap::new()) }
     }
 
     fn set(&self, key: String, value: String) {
-        let mut data = self.data.write().unwrap();
-        data.insert(key, value);
+        self.data.write().unwrap().insert(key, value);
     }
 
     fn get(&self, key: &str) -> Option<String> {
-        let data = self.data.read().unwrap();
-        data.get(key).cloned()
+        self.data.read().unwrap().get(key).cloned()
     }
 
     fn delete(&self, key: &str) -> bool {
-        let mut data = self.data.write().unwrap();
-        data.remove(key).is_some()
+        self.data.write().unwrap().remove(key).is_some()
     }
 }
 
@@ -44,18 +31,24 @@ struct Stats {
 
 impl Stats {
     fn avg_latency_ms(&self) -> f64 {
-        if self.total_ops == 0 {
-            return 0.0;
-        }
+        if self.total_ops == 0 { return 0.0; }
         self.processing_ns as f64 / 1_000_000.0 / self.total_ops as f64
     }
 
     fn throughput(&self) -> f64 {
-        if self.processing_ns == 0 {
-            return 0.0;
-        }
+        if self.processing_ns == 0 { return 0.0; }
         self.total_ops as f64 * 1_000_000_000.0 / self.processing_ns as f64
     }
+}
+
+fn parse_args() -> Result<usize, String> {
+    let args: Vec<String> = std::env::args().collect();
+    let num_ops = args.get(1)
+        .map(|v| v.parse::<usize>().map_err(|_| "invalid operations".to_string()))
+        .transpose()?
+        .unwrap_or(100000);
+    if num_ops == 0 { return Err("invalid operations".to_string()); }
+    Ok(num_ops)
 }
 
 fn print_config(num_ops: usize) {
@@ -65,19 +58,16 @@ fn print_config(num_ops: usize) {
     println!();
 }
 
-fn print_stats(stats: &Stats) {
+fn print_stats(s: &Stats) {
     println!("--- Statistics ---");
-    println!("Total operations: {}", stats.total_ops);
-    println!("Processing time: {:.3}s", stats.processing_ns as f64 / 1_000_000_000.0);
-    println!("Average latency: {:.6}ms", stats.avg_latency_ms());
-    println!("Throughput: {:.0} ops/sec", stats.throughput());
+    println!("Total processed: {}", s.total_ops);
+    println!("Processing time: {:.3}s", s.processing_ns as f64 / 1_000_000_000.0);
+    println!("Average latency: {:.6}ms", s.avg_latency_ms());
+    println!("Throughput: {:.0} ops/sec", s.throughput());
 }
 
 fn generate_test_data(num_ops: usize) -> (Vec<String>, Vec<String>) {
-    let mut keys = Vec::with_capacity(num_ops);
-    let mut values = Vec::with_capacity(num_ops);
-
-    let key_patterns = vec![
+    let key_patterns = [
         "user:{}:name", "session:{}:token", "product:{}:price",
         "cache:page:{}", "temp:calc:{}", "config:app:{}",
         "auth:user:{}", "cart:item:{}", "order:{}:status",
@@ -85,78 +75,52 @@ fn generate_test_data(num_ops: usize) -> (Vec<String>, Vec<String>) {
         "short", "id:{}", "very_long_key_name_with_descriptors:{}",
         "api:response:{}", "db:query:{}", "file:temp:{}",
     ];
-
-    let value_patterns = vec![
+    let value_patterns = [
         "John Doe", "active", "true", "false", "123.45",
         r#"{"name":"product","price":99.99,"stock":50}"#,
         r#"{"user_id":12345,"session":"abc123xyz","expires":3600}"#,
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload",
         "<html><body><h1>Page Content</h1></body></html>",
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-        "result:42.5:calculation_complete", "pending", "completed", "failed",
-        "1", "2", "3", "4", "5", "10", "100", "1000",
-        "small_value", "medium_sized_value_with_more_content", "very_large_value_that_contains_much_more_text_and_data_to_simulate_real_world_storage_requirements",
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        "result:42.5:done", "pending", "completed", "failed",
+        "1", "2", "3", "100",
+        "small_value", "medium_sized_value_with_more_content",
+        "very_large_value_that_contains_much_more_text_and_data",
         "2024-02-26T18:18:00Z", "admin", "user", "guest",
     ];
 
+    let mut keys = Vec::with_capacity(num_ops);
+    let mut values = Vec::with_capacity(num_ops);
     for i in 0..num_ops {
-        let key_pattern = &key_patterns[i % key_patterns.len()];
-        let value_pattern = &value_patterns[i % value_patterns.len()];
-
-        let key = if key_pattern.contains("{}") {
-            key_pattern.replace("{}", &i.to_string())
-        } else {
-            format!("{}_{}", key_pattern, i)
-        };
-
-        let value = if value_pattern.contains("{}") {
-            value_pattern.replace("{}", &i.to_string())
-        } else {
-            value_pattern.to_string()
-        };
-
+        let pat = key_patterns[i % key_patterns.len()];
+        let key = if pat.contains("{}") { pat.replace("{}", &i.to_string()) }
+                  else { format!("{}_{}", pat, i) };
+        let val = value_patterns[i % value_patterns.len()].to_string();
         keys.push(key);
-        values.push(value);
+        values.push(val);
     }
-
     (keys, values)
 }
 
 fn run_benchmark(num_ops: usize) -> Stats {
     let kv = KVStore::new();
-
-    // Generate realistic test data
     let (keys, values) = generate_test_data(num_ops);
 
     let start = Instant::now();
 
-    // SET operations
-    for i in 0..num_ops {
-        kv.set(keys[i].clone(), values[i].clone());
-    }
-
-    // GET operations
-    for i in 0..num_ops {
-        kv.get(&keys[i]);
-    }
-
-    // DELETE operations (half of them)
-    for i in 0..num_ops/2 {
-        kv.delete(&keys[i]);
-    }
-
-    let elapsed = start.elapsed();
+    for i in 0..num_ops { kv.set(keys[i].clone(), values[i].clone()); }
+    for i in 0..num_ops { kv.get(&keys[i]); }
+    for i in 0..num_ops / 2 { kv.delete(&keys[i]); }
 
     Stats {
-        total_ops: num_ops*2 + num_ops/2, // SET + GET + DELETE
-        processing_ns: elapsed.as_nanos(),
+        total_ops: num_ops * 2 + num_ops / 2,
+        processing_ns: start.elapsed().as_nanos(),
     }
 }
 
 fn main() {
-    let args = Args::parse();
-
-    print_config(args.operations);
-    let stats = run_benchmark(args.operations);
+    let num_ops = parse_args().unwrap_or_else(|e| { eprintln!("Error: {e}"); std::process::exit(1); });
+    print_config(num_ops);
+    let stats = run_benchmark(num_ops);
     print_stats(&stats);
 }
