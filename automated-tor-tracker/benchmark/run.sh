@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-REPEATS="${1:-20000}"
+REPEATS="${1:-1000000}"
 INPUT_FILE="${2:-tor.txt}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -1,101 +1,101 @@
 # Compare Rust / Go / Zig
 
-Repository นี้ใช้ mini projects จริงเพื่อเปรียบเทียบ **Go**, **Rust**, และ **Zig** ในหลายโดเมน เช่น media, networking, systems, data engineering และ integration workloads
+27 mini-projects เปรียบเทียบ **Go**, **Rust**, และ **Zig** แบบวัดผลได้จริงด้วย Docker benchmark
 
-เป้าหมายหลัก:
-- เปรียบเทียบ **performance** แบบวัดผลได้จริง
-- เปรียบเทียบ **binary size / memory behavior / code complexity**
-- สร้าง baseline ที่ทำซ้ำได้ด้วย **Docker benchmark**
+เป้าหมาย: หาว่าแต่ละภาษา **เก่งเรื่องอะไร ด้อยเรื่องอะไร** ในงานจริง ไม่ใช่แค่ microbenchmark สังเคราะห์
 
 ---
 
-## สถานะปัจจุบัน
+## 🏆 ผลรวม (27 โปรเจกต์)
 
-- ✅ Completed: **27/27 projects**
-- ✅ ครบทั้ง **9 groups**
-- ✅ ทุกโปรเจกต์มี **Go + Rust + Zig** implementation
-- ✅ มี benchmark script และผลลัพธ์ใน `benchmark/results/`
+| ภาษา | ชนะ | สัดส่วน |
+|------|----:|--------:|
+| **Zig** | **15** | **56%** |
+| **Rust** | 7 | 26% |
+| **Go** | 5 | 19% |
 
-ดูรายละเอียดทั้งหมดใน [`plan.md`](./plan.md)
-
-### ดูผล benchmark ได้ที่ไหน
-
-1. **ไฟล์ผลรันจริง (raw output):**
-   - `<project-name>/benchmark/results/<project>_<timestamp>.txt`
-2. **สรุปผลรายโปรเจกต์:**
-   - `<project-name>/README.md`
-3. **ภาพรวมทั้ง repository:**
-   - [`plan.md`](./plan.md)
+ดูตารางผลลัพธ์ทั้งหมด → **[SUMMARY.md](./SUMMARY.md)** | ตัวเลข raw → **[PLAN.md](./PLAN.md)**
 
 ---
 
-## Repository Structure
+## ❓ ทำไมแต่ละภาษาถึงชนะ/แพ้
+
+### Zig ชนะมากสุด (56%)
+ไม่มี GC, ไม่มี async runtime → CPU cycles ทุกอันไปที่งานจริง
+- **data loop ซ้ำมาก**: SQLite 897M items/s (3.2× เหนือ Rust), CSV Aggregator 23M items/s
+- **latency ต่ำสุด**: Audio Chunker 17 ns (Go ช้ากว่า 250×!)
+- **ไม่ต้อง clone()**: KV Store ไม่ต้องสร้าง String ใหม่ทุก operation → 3× เหนือ Rust
+
+### Rust ชนะงาน async + regex
+LLVM SIMD + Tokio async I/O
+- **regex/string search ยาว**: Log Masker 41.7 MB/s (10× เหนือ Go) ด้วย SIMD DFA engine
+- **async TCP**: Port Scanner 108K items/s async (Go sync: 664 items/s)
+- **binary เล็กสุด**: ~388KB ทุกโปรเจกต์
+
+### Go ชนะงาน HTTP networking
+stdlib HTTP + connection pooling
+- **Reverse Proxy**: 10,065 r/s (2.8× เหนือ Rust) ด้วย `httputil.ReverseProxy` pool
+- **PNG encoding**: 58.1M items/s ด้วย `image/png` stdlib ที่ optimize ดีมาก
+- **DNS cache**: `net.Dial` cache DNS result → ชนะใน repeated TCP connection workloads
+
+---
+
+## 📁 โครงสร้าง Repository
 
 ```text
 compare-rust-go-zig/
 ├── <project-name>/
-│   ├── go/
-│   ├── rust/
-│   ├── zig/
-│   ├── test-data/
+│   ├── go/           main.go + Dockerfile
+│   ├── rust/         src/main.rs + Cargo.toml + Dockerfile
+│   ├── zig/          src/main.zig + build.zig + Dockerfile
+│   ├── test-data/    gitignored input data
 │   ├── benchmark/
-│   │   ├── run.sh
-│   │   └── results/
-│   └── README.md
-├── plan.md
-└── .windsurf/rules/
-    ├── project-rules.md
-    ├── project-structure.md
-    ├── go-dev.md
-    ├── rust-dev.md
-    └── zig-dev.md
+│   │   ├── run.sh    Docker-based benchmark script
+│   │   └── results/  raw output files (timestamp)
+│   └── README.md     setup + results + key insight
+├── PLAN.md           ตารางผลทุกโปรเจกต์ + winner
+├── SUMMARY.md        วิเคราะห์ patterns + คำแนะนำ
+└── README.md         (ไฟล์นี้)
 ```
 
 ---
 
-## Project Groups
+## 🗂 9 กลุ่มโปรเจกต์
 
-| Group | Theme | Status |
-|---|---|---|
-| 1 | Video & Media Processing | ✅ 3/3 |
-| 2 | Infrastructure & Networking | ✅ 3/3 |
-| 3 | AI & Data Pipeline | ✅ 3/3 |
-| 4 | DevOps Tools | ✅ 3/3 |
-| 5 | Systems Fundamentals | ✅ 3/3 |
-| 6 | Integration & Data | ✅ 3/3 |
-| 7 | Low-Level Networking | ✅ 3/3 |
-| 8 | Image Processing (Zero-dependency) | ✅ 3/3 |
-| 9 | Data Engineering Primitives | ✅ 3/3 |
+| กลุ่ม | Theme | ผู้ชนะ |
+|-------|-------|-------|
+| 1 | Video & Media Processing | Go (1.1), Zig (1.2, 1.3) |
+| 2 | Infrastructure & Networking | Go (2.1), Zig (2.2), Rust (2.3) |
+| 3 | AI & Data Pipeline | Go (3.1), Zig (3.2), Rust (3.3) |
+| 4 | DevOps Tools | Zig (4.1, 4.2), Rust (4.3) |
+| 5 | Systems Fundamentals | Zig (5.1, 5.2, 5.3) |
+| 6 | Integration & Data | Zig (6.1, 6.3), Rust (6.2) |
+| 7 | Low-Level Networking | Rust (7.1, 7.2), Zig (7.3) |
+| 8 | Image Processing (Zero-dependency) | Go (8.1, 8.2), Zig (8.3) |
+| 9 | Data Engineering Primitives | Zig (9.1, 9.2), Rust (9.3) |
 
 ---
 
-## วิธีรัน Benchmark (มาตรฐาน)
-
-แต่ละโปรเจกต์ใช้ benchmark ของตัวเอง:
+## 🚀 วิธีรัน Benchmark
 
 ```bash
+# รัน benchmark โปรเจกต์ใดโปรเจกต์หนึ่ง
 cd <project-name>
 bash benchmark/run.sh
+
+# ผลบันทึกอัตโนมัติใน:
+# <project-name>/benchmark/results/<project>_<timestamp>.txt
 ```
 
-ผลลัพธ์จะถูกบันทึกอัตโนมัติใน:
-
-```text
-<project-name>/benchmark/results/<project>_<timestamp>.txt
-```
-
-แนวทางการวัดผล:
-- Non-HTTP workloads: 5 runs (1 warm-up + 4 measured)
-- HTTP workloads: ใช้ `wrk` และ Docker network
-- Zig output ต้อง capture `2>&1`
+**ข้อกำหนด**: Docker daemon ต้องรันอยู่ (`docker info`)
 
 ---
 
-## Statistics Format (มาตรฐานร่วม)
+## 📊 รูปแบบ Statistics มาตรฐาน
 
-ทุกภาษาในโปรเจกต์เดียวกันต้องรายงานรูปแบบเดียวกัน:
+ทุกภาษาในโปรเจกต์เดียวกันรายงานรูปแบบเดียวกัน:
 
-```text
+```
 --- Statistics ---
 Total processed: <N>
 Processing time: <X.XXX>s
@@ -103,27 +103,12 @@ Average latency: <X.XXX>ms
 Throughput: <X.XX> items/sec
 ```
 
-> ชื่อ field อาจปรับตาม domain (เช่น requests/chunks/lines) แต่โครงสร้างต้องเท่ากัน
-
 ---
 
-## Quick Start
-
-### Prerequisites
+## ⚙️ Build Local (ทดสอบก่อน benchmark)
 
 ```bash
-# macOS
-brew install docker ffmpeg zig go rust
-
-# Ubuntu/Debian (ตัวอย่าง)
-sudo apt-get update
-sudo apt-get install -y docker.io ffmpeg curl build-essential
-```
-
-### Local Build (ภายในแต่ละภาษา)
-
-```bash
-# Go
+# Go (ต้อง unset GOROOT ก่อนทุกครั้ง)
 unset GOROOT && go build -o ../bin/<name>-go .
 
 # Rust
@@ -135,25 +120,8 @@ zig build -Doptimize=ReleaseFast
 
 ---
 
-## Rules & Standards
+## 📖 อ่านต่อ
 
-ยึดตามไฟล์ใน `.windsurf/rules/` เป็นหลัก โดยเฉพาะ:
-
-1. [`project-rules.md`](./.windsurf/rules/project-rules.md)
-2. [`project-structure.md`](./.windsurf/rules/project-structure.md)
-
-สาระสำคัญ:
-- Benchmark ต้องผ่าน Docker
-- `main()` เน้น orchestration เท่านั้น
-- มี Stats struct แยกชัดเจน
-- Docker image naming: `<prefix>-go`, `<prefix>-rust`, `<prefix>-zig`
-
----
-
-## สรุปภาพรวมเชิงเทคนิค
-
-- **Go** เด่นในงาน network/runtime ที่ใช้ stdlib ได้ตรงจุด
-- **Rust** เด่นในงาน async throughput สูง และ parser/regex
-- **Zig** เด่นในงาน data/system ที่ได้ประโยชน์จาก low-overhead + manual memory
-
-รายละเอียดเชิงลึกของแต่ละโจทย์ ให้ดู `README.md` ในโฟลเดอร์โปรเจกต์นั้นๆ
+- **[PLAN.md](./PLAN.md)** — ตารางตัวเลขดิบทุกโปรเจกต์ พร้อมผู้ชนะแต่ละแถว
+- **[SUMMARY.md](./SUMMARY.md)** — วิเคราะห์ว่า "ทำไม" แต่ละภาษาถึงชนะ + คำแนะนำเลือกภาษา
+- **`<project>/README.md`** — รายละเอียด setup, ผล benchmark, และ key insight ของแต่ละโปรเจกต์
