@@ -35,7 +35,7 @@ ensure_network() {
 build_image() {
     local lang=$1
     printf "  %-6s" "$lang:"
-    if docker build -q -t "wsc-${lang}" "$PROJECT_DIR/$lang/" >/dev/null 2>&1; then
+    if docker build -q -t "wsc-${lang}" "$PROJECT_DIR/profile-b/$lang/" >/dev/null 2>&1; then
         echo " ✓"
     else
         echo " ✗"; die "Build failed for $lang"

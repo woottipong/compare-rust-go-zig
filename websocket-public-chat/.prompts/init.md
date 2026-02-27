@@ -136,29 +136,36 @@ Message drop rate: <X.XX>%
 
 ```
 websocket-public-chat/
-├── go/
-│   ├── main.go         # Profile B server
-│   ├── go.mod
-│   └── Dockerfile
-├── rust/
-│   ├── src/main.rs     # Profile B server
-│   ├── Cargo.toml
-│   └── Dockerfile
-├── zig/
-│   ├── src/main.zig    # Profile B server
-│   ├── build.zig
-│   └── Dockerfile
-├── profile-a/          # Profile A (framework) — Epic 5
-│   ├── go/
-│   ├── rust/
-│   └── zig/
+├── profile-b/                    # Profile B (minimal) — benchmarked ✅
+│   ├── go/                       # net/http + gorilla/websocket  → image: wsc-go
+│   │   ├── main.go
+│   │   ├── hub.go
+│   │   ├── client.go
+│   │   ├── stats.go
+│   │   ├── protocol.go
+│   │   ├── go.mod
+│   │   └── Dockerfile
+│   ├── rust/                     # tokio + tokio-tungstenite     → image: wsc-rust
+│   │   ├── src/{main,hub,client,stats,protocol}.rs
+│   │   ├── Cargo.toml
+│   │   └── Dockerfile
+│   └── zig/                      # zap v0.11 (facil.io)          → image: wsc-zig
+│       ├── src/{main,server,hub,stats,protocol}.zig
+│       ├── build.zig
+│       └── Dockerfile
+├── profile-a/                    # Profile A (framework) — Epic 5
+│   ├── go/                       # GoFiber v2 + gofiber/websocket/v2  → image: wsca-go
+│   ├── rust/                     # Axum 0.7 + axum::extract::ws       → image: wsca-rust
+│   └── zig/                      # zap v0.11 (copy — same framework)  → image: wsca-zig
 ├── k6/
-│   ├── steady.js       # Scenario 1
-│   ├── burst.js        # Scenario 2
-│   └── churn.js        # Scenario 3
+│   ├── steady.js                 # Scenario 1
+│   ├── burst.js                  # Scenario 2
+│   ├── churn.js                  # Scenario 3
+│   └── Dockerfile
 ├── benchmark/
-│   ├── run.sh          # รัน Profile B ทั้งหมด
-│   ├── run-profile-a.sh
+│   ├── run.sh                    # wrapper → run-profile-b.sh
+│   ├── run-profile-b.sh          # รัน Profile B (wsc-*)
+│   ├── run-profile-a.sh          # รัน Profile A (wsca-*)
 │   └── results/
 └── README.md
 ```

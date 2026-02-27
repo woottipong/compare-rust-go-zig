@@ -6,38 +6,23 @@ A WebSocket chat room server implemented in **Go**, **Rust**, and **Zig**, bench
 
 ```
 websocket-public-chat/
-├── go/               # net/http + gorilla/websocket
-│   ├── main.go
-│   ├── hub.go        # client registry + broadcast
-│   ├── client.go     # readPump / writePump / token-bucket rate limit
-│   ├── stats.go      # atomic Stats struct
-│   ├── protocol.go
-│   └── Dockerfile
-├── rust/             # tokio + tokio-tungstenite
-│   ├── src/
-│   │   ├── main.rs
-│   │   ├── hub.rs    # Clients map + broadcast_except
-│   │   ├── client.rs # async handle_connection + RateLimiter
-│   │   ├── stats.rs
-│   │   └── protocol.rs
-│   └── Dockerfile
-├── zig/              # zap v0.11 (facil.io)
-│   ├── src/
-│   │   ├── main.zig
-│   │   ├── server.zig  # onUpgrade / onOpen / onMessage / onClose
-│   │   ├── hub.zig     # thread-safe ArrayListUnmanaged registry
-│   │   ├── stats.zig
-│   │   └── protocol.zig
-│   └── Dockerfile
-├── k6/               # load-test scenarios
-│   ├── steady.js     # 100 VUs × 1 msg/s × 60s
-│   ├── burst.js      # ramp 0→1000 VUs over 10s
-│   ├── churn.js      # 200 VUs × connect→2s→leave
+├── profile-b/                    # minimal stdlib servers (benchmarked ✅)
+│   ├── go/                       # net/http + gorilla/websocket  → image: wsc-go
+│   ├── rust/                     # tokio + tokio-tungstenite     → image: wsc-rust
+│   └── zig/                      # zap v0.11 (facil.io)          → image: wsc-zig
+├── profile-a/                    # framework servers (in progress)
+│   ├── go/                       # GoFiber v2 + gofiber/websocket/v2  → image: wsca-go
+│   ├── rust/                     # Axum 0.7 + axum::extract::ws       → image: wsca-rust
+│   └── zig/                      # zap v0.11 (copy — same framework)  → image: wsca-zig
+├── k6/                           # load-test scenarios (shared by both profiles)
+│   ├── steady.js                 # 100 VUs × 1 msg/s × 60s
+│   ├── burst.js                  # ramp 0→1000 VUs over 10s
+│   ├── churn.js                  # 200 VUs × connect→2s→leave
 │   └── Dockerfile
 ├── benchmark/
-│   ├── run.sh             # thin wrapper → delegates to run-profile-b.sh
-│   ├── run-profile-b.sh   # Profile B: Steady / Burst / Churn (k6)
-│   ├── run-profile-a.sh   # Profile A: high-concurrency latency (planned)
+│   ├── run.sh                    # wrapper → run-profile-b.sh
+│   ├── run-profile-b.sh          # Profile B: wsc-go / wsc-rust / wsc-zig
+│   ├── run-profile-a.sh          # Profile A: wsca-go / wsca-rust / wsca-zig
 │   └── results/
 └── docs/
     ├── protocol.md
@@ -63,37 +48,49 @@ Error handling: rate-limited messages are **dropped** (no disconnect); malformed
 ### Local
 
 ```bash
-# Go
-cd go && unset GOROOT && go build -o websocket-public-chat .
+# Go (Profile B)
+cd profile-b/go && unset GOROOT && go build -o websocket-public-chat .
 ./websocket-public-chat --port 8080 --duration 60
 
-# Rust
-cd rust && cargo build --release
+# Rust (Profile B)
+cd profile-b/rust && cargo build --release
 ./target/release/websocket-public-chat --port 8080 --duration 60
 
-# Zig
-cd zig && zig build -Doptimize=ReleaseFast
+# Zig (Profile B)
+cd profile-b/zig && zig build -Doptimize=ReleaseFast
 ./zig-out/bin/websocket-public-chat 8080 60
 ```
 
-### Docker
+### Docker — Profile B
 
 ```bash
-docker build -t wsc-go   go/
-docker build -t wsc-rust rust/
-docker build -t wsc-zig  zig/
+docker build -t wsc-go   profile-b/go/
+docker build -t wsc-rust profile-b/rust/
+docker build -t wsc-zig  profile-b/zig/
 
 docker run --rm wsc-go   --port 8080 --duration 60
 docker run --rm wsc-rust --port 8080 --duration 60
 docker run --rm wsc-zig  8080 60
 ```
 
+### Docker — Profile A
+
+```bash
+docker build -t wsca-go   profile-a/go/
+docker build -t wsca-rust profile-a/rust/
+docker build -t wsca-zig  profile-a/zig/
+
+docker run --rm wsca-go   --port 8080 --duration 60
+docker run --rm wsca-rust --port 8080 --duration 60
+docker run --rm wsca-zig  8080 60
+```
+
 ### Tests
 
 ```bash
-cd go   && go test ./...
-cd rust && cargo test
-cd zig  && zig build test
+cd profile-b/go   && go test ./...
+cd profile-b/rust && cargo test
+cd profile-b/zig  && zig build test
 ```
 
 ## Benchmark
@@ -101,11 +98,11 @@ cd zig  && zig build test
 ```bash
 cd websocket-public-chat
 
-# Profile B — Steady / Burst / Churn (k6)
-bash benchmark/run.sh            # wrapper, delegates to run-profile-b.sh
+# Profile B — minimal stdlib (wsc-go / wsc-rust / wsc-zig)
+bash benchmark/run.sh            # wrapper → run-profile-b.sh
 bash benchmark/run-profile-b.sh  # same, run directly
 
-# Profile A — high-concurrency latency (planned)
+# Profile A — framework layer (wsca-go / wsca-rust / wsca-zig)
 bash benchmark/run-profile-a.sh
 ```
 
