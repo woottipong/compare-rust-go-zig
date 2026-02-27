@@ -1,6 +1,6 @@
 # WebSocket Public Chat — Project Status
 
-> อัปเดตล่าสุด: 2026-02-27 | Epic 0, 1, 2, 3 DONE
+> อัปเดตล่าสุด: 2026-02-27 | ALL EPICS DONE — Project Complete
 > Workflow: ดู WORKFLOW.md ใน root repo
 
 ---
@@ -51,10 +51,10 @@
 
 | Task | Description | Status | Depends On |
 |------|-------------|--------|------------|
-| 4.1 | Steady scenario: 100 clients, 1 msg/sec, 60s | [TODO] | 0.3, 1.3 |
-| 4.2 | Burst scenario: 1000 clients in 10s | [TODO] | 4.1 |
-| 4.3 | Churn scenario: 200 steady + 10 connect/disconnect per 2s | [TODO] | 4.1 |
-| 4.4 | benchmark/run.sh: Profile B all languages + auto-save | [TODO] | 4.1, 2.3, 3.4 |
+| 4.1 | Steady scenario: 100 clients, 1 msg/sec, 60s | [DONE] | 0.3, 1.3 |
+| 4.2 | Burst scenario: 1000 clients in 10s | [DONE] | 4.1 |
+| 4.3 | Churn scenario: 200 steady + 10 connect/disconnect per 2s | [DONE] | 4.1 |
+| 4.4 | benchmark/run.sh: Profile B all languages + auto-save | [DONE] | 4.1, 2.3, 3.4 |
 
 ---
 

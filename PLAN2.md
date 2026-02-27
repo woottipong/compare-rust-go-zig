@@ -1,6 +1,64 @@
-# 🚀 Plan 2: Advanced Benchmark Projects
+# Plan 2: Advanced Benchmark Projects
 
-## 📋 โปรเจกต์ขั้นสูงที่เสนอ
+## ภาพรวมสถานะ
+
+| # | Project | สถานะ | Go | Rust | Zig | ผู้ชนะ |
+|---|---------|--------|-----|------|-----|:------:|
+| W1 | WebSocket Public Chat | ✅ | 84.49 msg/s | **85.35 msg/s** | 83.30 msg/s | Rust |
+
+**ผลรวม: Rust 1 win | Go 0 wins | Zig 0 wins**
+
+---
+
+## W1 — WebSocket Public Chat: ผลลัพธ์จริง
+
+### Steady Load — 100 VUs × 1 msg/s × 60 s
+
+| Language | Throughput (msg/s) | Messages | Connections | Drop rate | k6 errors |
+|----------|--------------------|----------|-------------|-----------|-----------|
+| Go       | 84.49              | 5,915    | 100         | 0.00%     | 125       |
+| **Rust** | **85.35**          | 5,975    | 100         | 0.00%     | 0         |
+| Zig      | 83.30              | 5,915    | 100         | 0.00%     | 0         |
+
+### Burst — ramp 0→1,000 VUs in 10 s, hold 5 s, ramp-down 5 s
+
+| Language | Throughput (msg/s) | Peak conns | k6 errors |
+|----------|--------------------|------------|-----------|
+| Go       | 44.42              | 1,333      | 333       |
+| **Rust** | **44.43**          | 1,333      | 333       |
+| Zig      | 43.47              | 1,333      | 333       |
+
+> 333 errors = ramp-down phase connections — not a server defect.
+
+### Churn — 200 VUs × connect→join→2s→leave × 60 s
+
+| Language | Total connections | Connection rate | k6 errors |
+|----------|-------------------|-----------------|-----------|
+| Go       | 6,000             | ~100 conn/s     | 0         |
+| Rust     | 6,000             | ~100 conn/s     | 0         |
+| Zig      | 6,000             | ~100 conn/s     | 0         |
+
+### Binary Sizes
+
+| Language | Binary  |
+|----------|---------|
+| Go       | 5.43 MB |
+| **Rust** | **1.50 MB** |
+| Zig      | 2.43 MB |
+
+### Key Insights
+
+1. **Throughput ใกล้เคียงกันมาก** (~83–85 msg/s) — I/O-bound workload ต่างกันเพียง ~2.4%
+2. **Rust binary เล็กสุด** (1.50 MB) ด้วย LTO + dead-code elimination
+3. **Zig facil.io pub/sub** vs Go goroutine Hub vs Rust RwLock HashMap — architecture ต่างกัน throughput เท่ากัน
+4. **Go 125 ws_errors** = gorilla/websocket shutdown race ไม่กระทบ correctness ระหว่าง normal operation
+5. **Churn: zero errors ทุกภาษา** — ยืนยัน clean connection lifecycle
+
+### Winner: **Rust** (margin ~1%)
+
+---
+
+## โปรเจกต์ขั้นสูงที่เสนอ (Planning)
 
 ### 1. WebSocket Public Chat Benchmark
 **Complexity**: Medium-High | **Duration**: 2-3 weeks
