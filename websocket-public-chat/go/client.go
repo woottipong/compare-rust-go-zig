@@ -35,10 +35,12 @@ type Client struct {
 }
 
 // allow checks the token bucket and returns true if message may proceed.
+// Uses integer millisecond arithmetic to avoid float truncation: elapsed < 100ms
+// with Seconds() would yield 0 refill even when some tokens are due.
 func (c *Client) allow() bool {
 	now := time.Now()
-	elapsed := now.Sub(c.lastRefill).Seconds()
-	refill := int(elapsed * RateLimitMsgPerSec)
+	elapsedMs := now.Sub(c.lastRefill).Milliseconds()
+	refill := int(elapsedMs) * RateLimitMsgPerSec / 1000
 	if refill > 0 {
 		c.tokens += refill
 		if c.tokens > tokenBucketMax {

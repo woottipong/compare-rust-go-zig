@@ -16,12 +16,12 @@ export const options = {
   duration: '60s',
   thresholds: {
     'ws_errors': ['count==0'],
-    'churn_connects': ['count>5000'],
+    'churn_connects': ['count>5500'],  // 200 VUs × 60s / 2s per cycle = ~6000 expected
   },
 };
 
 export default function () {
-  const userId = `client-${__VU}`;
+  const userId = `client-${String(__VU).padStart(3, '0')}`;
   let hadError = false;
 
   ws.connect(WS_URL, {}, function (socket) {
@@ -39,7 +39,7 @@ export default function () {
       }
     });
 
-    // hold 2s จากนั้น leave
+    // hold 2s then leave — tight cycle maximises connection churn
     socket.setTimeout(() => {
       socket.send(JSON.stringify({ type: 'leave', user: userId }));
       disconnects.add(1);
@@ -48,5 +48,5 @@ export default function () {
   });
 
   check(hadError, { 'no ws error': (v) => v === false });
-  // ไม่ sleep — loop ทันทีเพื่อสร้าง churn สูงสุด
+  // no sleep — loop immediately to maximise churn rate
 }

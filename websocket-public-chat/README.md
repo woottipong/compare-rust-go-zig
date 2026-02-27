@@ -35,7 +35,9 @@ websocket-public-chat/
 │   ├── churn.js      # 200 VUs × connect→2s→leave
 │   └── Dockerfile
 ├── benchmark/
-│   ├── run.sh
+│   ├── run.sh             # thin wrapper → delegates to run-profile-b.sh
+│   ├── run-profile-b.sh   # Profile B: Steady / Burst / Churn (k6)
+│   ├── run-profile-a.sh   # Profile A: high-concurrency latency (planned)
 │   └── results/
 └── docs/
     ├── protocol.md
@@ -98,7 +100,13 @@ cd zig  && zig build test
 
 ```bash
 cd websocket-public-chat
-bash benchmark/run.sh
+
+# Profile B — Steady / Burst / Churn (k6)
+bash benchmark/run.sh            # wrapper, delegates to run-profile-b.sh
+bash benchmark/run-profile-b.sh  # same, run directly
+
+# Profile A — high-concurrency latency (planned)
+bash benchmark/run-profile-a.sh
 ```
 
 k6 scenarios run against each server in sequence; results auto-saved to `benchmark/results/`.

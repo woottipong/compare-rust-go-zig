@@ -14,14 +14,14 @@ export const options = {
   vus: 100,
   duration: '60s',
   thresholds: {
-    'ws_session_duration': ['p(95)<5000'],
+    'ws_session_duration': ['p(95)<65000'],  // 100 VUs × 60s session + headroom
     'chat_msgs_sent': ['count>5000'],
     'ws_errors': ['count==0'],
   },
 };
 
 export default function () {
-  const userId = `client-${__VU}`;
+  const userId = `client-${String(__VU).padStart(3, '0')}`;
   let hadError = false;
 
   ws.connect(WS_URL, {}, function (socket) {
@@ -40,9 +40,9 @@ export default function () {
       }
     });
 
-    // 1 msg/sec ตลอด duration
+    // send 1 msg/sec for the full duration; padding brings total JSON to ~128 bytes
     socket.setInterval(() => {
-      const text = `hello from ${userId}` + ' '.repeat(60);
+      const text = `hello from ${userId}` + ' '.repeat(67);
       socket.send(JSON.stringify({ type: 'chat', room: 'public', user: userId, text }));
       chatMsgsSent.add(1);
     }, 1000);

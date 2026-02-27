@@ -50,6 +50,9 @@ pub const Stats = struct {
         return @as(f64, @floatFromInt(ns)) / 1_000_000_000.0;
     }
 
+    // Returns elapsed_time / message_count (ms per message) — the reciprocal
+    // of throughput. Not end-to-end per-message latency; label preserved for
+    // shared stats output format compatibility across all projects.
     pub fn avgLatencyMs(self: *Stats) f64 {
         self.mu.lock();
         const msgs = self.total_messages;

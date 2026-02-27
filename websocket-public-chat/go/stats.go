@@ -34,8 +34,9 @@ func (s *Stats) elapsedSec() float64 {
 }
 
 func (s *Stats) avgLatencyMs() float64 {
-	// Latency is tracked per-message in a real impl; here we use elapsed/total
-	// as an approximation suitable for the benchmark output format.
+	// Returns elapsed_time / message_count (ms per message) — the reciprocal
+	// of throughput. This is NOT end-to-end per-message latency; the label is
+	// preserved to match the shared stats output format across all projects.
 	total := s.totalMessages.Load()
 	if total == 0 {
 		return 0

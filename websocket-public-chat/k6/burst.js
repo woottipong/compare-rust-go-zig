@@ -22,12 +22,12 @@ export const options = {
   },
   thresholds: {
     'ws_errors': ['count==0'],
-    'ws_session_duration': ['p(95)<10000'],
+    'ws_session_duration': ['p(95)<16000'],  // 10s ramp + 5s hold + headroom
   },
 };
 
 export default function () {
-  const userId = `client-${__VU}`;
+  const userId = `client-${String(__VU).padStart(3, '0')}`;
   let hadError = false;
 
   ws.connect(WS_URL, {}, function (socket) {
@@ -35,8 +35,8 @@ export default function () {
 
     socket.on('open', () => {
       socket.send(JSON.stringify({ type: 'join', room: 'public', user: userId }));
-      // ส่ง 1 message แล้วรอ
-      const text = `burst from ${userId}` + ' '.repeat(60);
+      // send 1 message then hold until timeout; padding brings total JSON to ~128 bytes
+      const text = `burst from ${userId}` + ' '.repeat(67);
       socket.send(JSON.stringify({ type: 'chat', room: 'public', user: userId, text }));
       chatMsgsSent.add(1);
     });

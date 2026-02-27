@@ -28,6 +28,9 @@ impl Stats {
         self.start.elapsed().as_secs_f64()
     }
 
+    // Returns elapsed_time / message_count (ms per message) — the reciprocal
+    // of throughput. Not end-to-end per-message latency; label preserved for
+    // shared stats output format compatibility across all projects.
     pub fn avg_latency_ms(&self) -> f64 {
         if self.total_messages == 0 { return 0.0; }
         self.elapsed_sec() * 1000.0 / self.total_messages as f64

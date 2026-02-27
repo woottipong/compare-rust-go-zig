@@ -22,7 +22,11 @@ pub const Context = struct {
 
 pub const WebsocketHandler = zap.WebSockets.Handler(Context);
 
-// Global state — set during server init before any connections arrive.
+// Global state pointers — required by zap's callback model.
+// zap's on_open/on_message/on_close callbacks are bare function pointers and
+// cannot capture closures or carry user data beyond a per-connection Context.
+// These are written exactly once by server_mod.init() before listener.listen()
+// is called, and are read-only after that point — no concurrency hazard.
 var g_hub: *hub_mod.Hub = undefined;
 var g_stats: *stats_mod.Stats = undefined;
 var g_allocator: std.mem.Allocator = undefined;
