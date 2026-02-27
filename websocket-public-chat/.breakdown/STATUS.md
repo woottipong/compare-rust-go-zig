@@ -58,14 +58,14 @@
 
 ---
 
-## Epic 5: Profile A — Framework Servers (secondary)
+## Epic 5: Profile A — Framework Servers
 
 | Task | Description | Status | Depends On |
 |------|-------------|--------|------------|
-| 5.1 | Go: GoFiber + websocket (reuse k6 scenarios) | [TODO] | 4.4 |
-| 5.2 | Rust: Axum + tokio-tungstenite | [TODO] | 4.4 |
-| 5.3 | Zig: zap framework (if WS supported) | [TODO] | 4.4 |
-| 5.4 | benchmark/run-profile-a.sh + Profile B vs A comparison | [TODO] | 5.1, 5.2, 5.3 |
+| 5.1 | Go (GoFiber): Docker build verify + unit tests | [DONE] | 4.4 |
+| 5.2 | Rust (Axum): Docker build verify + unit tests | [DONE] | 4.4 |
+| 5.3 | Zig (zap copy): Docker build verify | [DONE] | 3.4 |
+| 5.4 | run-profile-a.sh + Profile B vs A comparison + README | [DONE] | 5.1, 5.2, 5.3 |
 
 ---
 

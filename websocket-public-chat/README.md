@@ -10,7 +10,7 @@ websocket-public-chat/
 │   ├── go/                       # net/http + gorilla/websocket  → image: wsc-go
 │   ├── rust/                     # tokio + tokio-tungstenite     → image: wsc-rust
 │   └── zig/                      # zap v0.11 (facil.io)          → image: wsc-zig
-├── profile-a/                    # framework servers (in progress)
+├── profile-a/                    # framework servers (benchmarked ✅)
 │   ├── go/                       # GoFiber v2 + gofiber/websocket/v2  → image: wsca-go
 │   ├── rust/                     # Axum 0.7 + axum::extract::ws       → image: wsca-rust
 │   └── zig/                      # zap v0.11 (copy — same framework)  → image: wsca-zig
@@ -88,9 +88,14 @@ docker run --rm wsca-zig  8080 60
 ### Tests
 
 ```bash
+# Profile B
 cd profile-b/go   && go test ./...
 cd profile-b/rust && cargo test
 cd profile-b/zig  && zig build test
+
+# Profile A
+cd profile-a/go   && go test ./...
+cd profile-a/rust && cargo test
 ```
 
 ## Benchmark
@@ -159,6 +164,65 @@ k6 scenarios run against each server in sequence; results auto-saved to `benchma
 5. **Churn stress test** (6,000 connect/disconnect cycles in 60s at ~100 conn/s) passed with zero errors for all three languages, confirming correct memory cleanup on each language's connection lifecycle.
 
 6. **Rate limiter correctness**: all three use a token-bucket algorithm (10 tokens/s) that drops excess messages without disconnecting — verified by the 0.00% drop rate under the 1 msg/s steady load (well within the limit).
+
+## Results (Profile A — Docker, arm64, 2026-02-27)
+
+### Steady Load — 100 VUs × 1 msg/s × 60 s
+
+| Language | Framework | Throughput (msg/s) | Messages | Connections | Drop rate | k6 errors |
+|----------|-----------|--------------------|----------|-------------|-----------|-----------|
+| Go       | GoFiber   | 84.31              | 5,902    | 100         | 0.00%     | 144       |
+| Rust     | Axum      | **85.31**          | 5,972    | 100         | 0.00%     | 0         |
+| Zig      | zap       | 83.45              | 5,914    | 100         | 0.00%     | 0         |
+
+### Burst — ramp 0→1,000 VUs in 10 s, hold 5 s, ramp-down 5 s
+
+| Language | Framework | Throughput (msg/s) | Messages | Peak conns | k6 errors |
+|----------|-----------|--------------------|----------|------------|-----------|
+| Go       | GoFiber   | 44.56              | 1,337    | 1,337      | 337       |
+| Rust     | Axum      | **44.43**          | 1,333    | 1,333      | 333       |
+| Zig      | zap       | 43.19              | 1,333    | 1,333      | 332       |
+
+### Churn — 200 VUs × connect→join→2s→leave, 60 s
+
+| Language | Framework | Total connections | k6 errors |
+|----------|-----------|-------------------|-----------|
+| Go       | GoFiber   | 6,647             | 647       |
+| Rust     | Axum      | 6,000             | 0         |
+| Zig      | zap       | 6,000             | 0         |
+
+### Binary Sizes
+
+| Language | Profile B | Profile A | Delta |
+|----------|-----------|-----------|-------|
+| Go       | 5.43 MB   | 6.18 MB   | +14%  |
+| Rust     | **1.50 MB** | 1.94 MB | +29%  |
+| Zig      | 2.43 MB   | 2.43 MB   | 0%    |
+
+---
+
+## Profile A vs Profile B — Comparison
+
+| Language | Profile | Framework | Steady (msg/s) | Burst (msg/s) |
+|----------|---------|-----------|----------------|---------------|
+| Go       | B       | net/http + gorilla | 84.49 | 44.42 |
+| Go       | A       | GoFiber v2         | 84.31 | 44.56 |
+| Rust     | B       | tokio-tungstenite  | 85.35 | 44.43 |
+| Rust     | A       | Axum 0.7           | 85.31 | 44.43 |
+| Zig      | B       | zap (facil.io)     | 83.30 | 43.47 |
+| Zig      | A       | zap (same)         | 83.45 | 43.19 |
+
+### Key Insights (Profile A vs B)
+
+1. **Framework overhead on throughput is negligible** — all six configurations deliver 83–85 msg/s steady and ~44 msg/s burst. The bottleneck is the k6 workload, not the language or framework.
+
+2. **GoFiber churn errors (647 vs 0)** — Fiber's fasthttp connection lifecycle is more aggressive than net/http's during rapid connect/disconnect cycles. Rust Axum and Zig show identical behavior to Profile B.
+
+3. **Binary size grows with framework dependencies**: Go +14% (Fiber adds fasthttp), Rust +29% (Axum pulls in hyper + tower stack). Zig is unchanged because Profile A uses the exact same codebase.
+
+4. **Rust remains the smallest binary** across both profiles (1.50 MB → 1.94 MB), still smaller than Zig's 2.43 MB when carrying the facil.io runtime.
+
+---
 
 ## Dependencies
 

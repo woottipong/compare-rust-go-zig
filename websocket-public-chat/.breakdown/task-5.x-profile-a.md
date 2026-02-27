@@ -1,105 +1,206 @@
-# Task 5.1–5.4: Profile A — Framework Servers (Secondary)
+# Task 5.1–5.4: Profile A — Framework Servers
 
 ## Status
-[TODO] — เริ่มได้หลัง Epic 4 เสร็จ (benchmark harness พร้อมแล้ว)
+[TODO] — code exists, ต้องผ่าน verification + unit tests ก่อน benchmark
 
 ---
 
-## Overview
+## สถานะ Code ที่มีแล้ว (ณ 2026-02-27)
 
-Profile A ใช้ framework เพื่อดู delta เทียบกับ Profile B:
-- **เป้าหมาย**: วัดว่า framework abstraction เพิ่มหรือลด throughput/latency เท่าไหร่
-- **Protocol**: ใช้ k6 scripts เดิมทุกตัว (ไม่เปลี่ยน)
-- **Directory**: `profile-a/go/`, `profile-a/rust/`, `profile-a/zig/`
+| Component | Go | Rust | Zig |
+|-----------|----|----|-----|
+| main.go / main.rs / main.zig | ✓ GoFiber | ✓ Axum 0.7 | ✓ copy profile-b |
+| hub | ✓ identical to profile-b | ✓ identical to profile-b | ✓ identical to profile-b |
+| client | ✓ gofiber/websocket API | ✓ axum::extract::ws | ✓ identical to profile-b |
+| stats | ✓ identical to profile-b | ✓ identical to profile-b | ✓ identical to profile-b |
+| protocol | ✓ identical to profile-b | ✓ identical to profile-b | ✓ identical to profile-b |
+| Dockerfile | ✓ | ✓ | ✓ |
+| go.mod / Cargo.toml | ✓ | ✓ | ✓ |
+| unit tests | ✗ ยังไม่มี | ✓ ครบทุก module แล้ว | — (code เหมือน profile-b ที่ผ่านแล้ว) |
+
+**ขาด:**
+- Go: unit tests (hub_test.go, stats_test.go, client_test.go)
+- Rust: Docker build verify เท่านั้น — tests มีครบใน hub.rs, client.rs, stats.rs, protocol.rs
+- Zig: Docker build verify เท่านั้น
+- ทั้งหมด: benchmark run, README update
+
+> **ไม่มี refactor task** — code ทั้ง Go และ Rust สะอาด ไม่มี code smell
+> pattern เหมือน profile-b ที่ผ่าน benchmark แล้ว ไม่ควร refactor ก่อน verify build
 
 ---
 
-## Task 5.1: Profile A — Go (GoFiber + websocket)
+## Task 5.1: Profile A — Go (GoFiber) — Verify + Unit Tests
+
+### Status
+[TODO]
+
+### Description
+Code มีแล้ว (GoFiber v2 + gofiber/websocket/v2) ต้องผ่าน Docker build และ unit tests
 
 ### Acceptance Criteria
-- [ ] `github.com/gofiber/fiber/v2` + `github.com/gofiber/websocket/v2`
-- [ ] endpoint `/ws` upgrade ด้วย Fiber middleware
-- [ ] Hub + broadcast logic เหมือน Profile B (copy, ไม่แชร์ code)
-- [ ] Rate limit + ping/pong เหมือนกัน
-- [ ] Stats output format เหมือนกัน
-- [ ] Dockerfile แยก (profile-a/go/Dockerfile)
+- [ ] `docker build -t wsca-go profile-a/go/` ผ่านโดยไม่ error
+- [ ] `docker run --rm wsca-go --duration 1` start ได้และไม่ crash
+- [ ] `hub_test.go`: `TestHubRegisterUnregister` + `TestBroadcastToOthers` ผ่าน (port จาก profile-b)
+- [ ] `stats_test.go`: `TestStatsAvgLatency` + `TestStatsThroughput` ผ่าน (port จาก profile-b)
+- [ ] `client_test.go`: `TestRateLimiter` ผ่าน (port จาก profile-b)
+- [ ] `unset GOROOT && go test ./...` ผ่าน local
 
 ### Tests Required
-- [ ] รัน k6/steady.js กับ Profile A Go server — ผ่านโดยไม่ error
-- [ ] `go test ./profile-a/go/...` ผ่าน
+```
+profile-a/go/hub_test.go     — TestHubRegisterUnregister, TestBroadcastToOthers
+profile-a/go/stats_test.go   — TestStatsAvgLatency, TestStatsThroughput
+profile-a/go/client_test.go  — TestRateLimiter (no real WS conn needed)
+```
+
+### Notes
+- hub.go ใน profile-a/go เหมือน profile-b/go ทุกประการ → test ใช้ logic เดิม
+- client.go ใช้ `gofiber/websocket.Conn` แทน gorilla → readPump/writePump/allow() API เหมือนกัน
+- ห้ามแก้ logic เพื่อให้ test ผ่าน — ถ้า test fail แปลว่า code มีปัญหา ให้แก้ code
+
+### Dependencies
+- Task 4.4
+
+### Files Affected
+```
+profile-a/go/hub_test.go     (สร้างใหม่)
+profile-a/go/stats_test.go   (สร้างใหม่)
+profile-a/go/client_test.go  (สร้างใหม่)
+```
 
 ---
 
-## Task 5.2: Profile A — Rust (Axum + tokio-tungstenite)
+## Task 5.2: Profile A — Rust (Axum) — Docker Build Verify
+
+### Status
+[TODO]
+
+### Description
+Rust มี tests ครบทุก module อยู่แล้ว:
+- `hub.rs`: `test_broadcast_to_others`, `test_state_cleanup`
+- `client.rs`: `test_rate_limit_drop`, `test_rate_limit_refill`
+- `stats.rs`: `test_stats_counters`, `test_stats_format`
+- `protocol.rs`: `test_pad_to_size`, `test_serde_roundtrip`
+
+งาน: verify ว่า build + tests ผ่านจริง
 
 ### Acceptance Criteria
-- [ ] `axum` + `axum::extract::ws::WebSocket`
-- [ ] handler: `async fn ws_handler(ws: WebSocketUpgrade, ...) -> impl IntoResponse`
-- [ ] AppState, broadcast, rate limit, ping/pong — เหมือน Profile B
-- [ ] Dockerfile แยก
+- [ ] `cargo test --manifest-path profile-a/rust/Cargo.toml` ผ่าน (7 tests)
+- [ ] `docker build -t wsca-rust profile-a/rust/` ผ่านโดยไม่ error
+- [ ] `docker run --rm wsca-rust --port 8080 --duration 1` start ได้และไม่ crash
 
 ### Tests Required
-- [ ] รัน k6/steady.js กับ Profile A Rust server — ผ่าน
-- [ ] `cargo test --manifest-path profile-a/rust/Cargo.toml` ผ่าน
+ไม่ต้องเพิ่ม — รัน tests ที่มีอยู่เพื่อ confirm เท่านั้น
+
+### Notes
+- ถ้า `cargo test` fail: อาจมี type mismatch ระหว่าง `axum::extract::ws::Message` กับ test code
+- ถ้า Docker build fail: ตรวจ binary name ใน `strip` → ต้องตรงกับ `name` ใน Cargo.toml (`websocket-public-chat-profile-a`)
+
+### Dependencies
+- Task 4.4
+
+### Files Affected
+```
+ไม่มีไฟล์ใหม่ — verify only
+```
 
 ---
 
-## Task 5.3: Profile A — Zig (zap framework)
+## Task 5.3: Profile A — Zig (zap) — Docker Build Verify
+
+### Status
+[TODO]
+
+### Description
+profile-a/zig/ เป็น copy ตรงๆ ของ profile-b/zig/ — ใช้ zap v0.11 เหมือนกัน
+ต้องแค่ verify Docker build ด้วย image tag ใหม่
 
 ### Acceptance Criteria
-- [ ] ใช้ `zap` v0.11 สำหรับ HTTP + WS (ถ้ารองรับจาก task 0.4)
-- [ ] ถ้า zap ไม่รองรับ WS → task นี้ใช้ implementation เดิมจาก Profile B (ข้ามไป)
-- [ ] Dockerfile แยก
+- [ ] `docker build -t wsca-zig profile-a/zig/` ผ่านโดยไม่ error
+- [ ] `docker run --rm wsca-zig 8080 1` start ได้และ print stats ก่อน exit
+- [ ] binary size ≤ 5MB (เหมือน profile-b/zig)
 
 ### Tests Required
-- [ ] รัน k6/steady.js กับ Profile A Zig server — ผ่าน
+- smoke test: docker run ไม่ crash (เป็น acceptance criteria)
+- ไม่ต้องเขียน unit tests เพิ่ม เพราะ code เหมือน profile-b ที่ผ่าน test แล้ว
+
+### Notes
+- ถ้า Docker build fail ให้ตรวจ build.zig.zon — ต้องมี `.fingerprint` field
+- image tag: `wsca-zig` (ไม่ใช่ `wsc-zig`)
+
+### Dependencies
+- Task 3.4 (zig profile-b already done)
+
+### Files Affected
+```
+ไม่มีไฟล์ใหม่ — แค่ verify
+```
 
 ---
 
-## Task 5.4: Profile B vs A Comparison + benchmark/run-profile-a.sh
+## Task 5.4: Benchmark + README + Profile B vs A Comparison
+
+### Status
+[TODO]
+
+### Description
+รัน `benchmark/run-profile-a.sh` เก็บผล และอัปเดต README ด้วย comparison table
 
 ### Acceptance Criteria
-- [ ] `benchmark/run-profile-a.sh`: รัน 3 scenarios × 3 ภาษา เหมือน `run.sh`
-- [ ] Results table ใน README เปรียบเทียบ Profile B vs A:
+- [ ] `bash benchmark/run-profile-a.sh` รันสำเร็จ ไม่ crash ระหว่าง run
+- [ ] ผล auto-save ใน `benchmark/results/websocket_profile_a_<timestamp>.txt`
+- [ ] README.md มี section "Profile A vs Profile B" ที่แสดง:
 
 ```
-| Language | Profile | Throughput | P95 Latency | Memory/conn |
-|----------|---------|-----------|-------------|-------------|
-| Go       | B (minimal) | X msg/s | Xms | XKB |
-| Go       | A (fiber)   | X msg/s | Xms | XKB |
-| Rust     | B (minimal) | X msg/s | Xms | XKB |
-| Rust     | A (axum)    | X msg/s | Xms | XKB |
-| Zig      | B (minimal) | X msg/s | Xms | XKB |
-| Zig      | A (zap)     | X msg/s | Xms | XKB |
+| Language | Profile       | Steady (msg/s) | Burst (msg/s) | Churn (msg/s) |
+|----------|--------------|----------------|---------------|---------------|
+| Go       | B (net/http) | X              | X             | X             |
+| Go       | A (fiber)    | X              | X             | X             |
+| Rust     | B (tokio)    | X              | X             | X             |
+| Rust     | A (axum)     | X              | X             | X             |
+| Zig      | B (zap)      | X              | X             | X             |
+| Zig      | A (zap copy) | X              | X             | X             |
 ```
 
-- [ ] Key insight: "framework ทำให้ latency เพิ่ม/ลด X% เพราะอะไร"
-- [ ] Auto-save results ใน `benchmark/results/profile-a_<timestamp>.txt`
+- [ ] README มี "Key Insight" section: framework เพิ่ม/ลด latency เท่าไหร่
+- [ ] STATUS.md: Task 5.1–5.4 เปลี่ยนเป็น [DONE]
 
-## Dependencies
-- Task 4.4 (benchmark harness + run.sh สมบูรณ์แล้ว)
-- Task 5.1, 5.2, 5.3
+### Tests Required
+- Benchmark run ผ่านโดยไม่มี error สำหรับ 3 scenarios × 3 ภาษา = 9 runs
 
-## Files Affected
+### Dependencies
+- Task 5.1 (Go Docker ready)
+- Task 5.2 (Rust Docker ready)
+- Task 5.3 (Zig Docker ready)
+- Task 0.3 (k6 scripts ready — [DONE])
+
+### Files Affected
 ```
-profile-a/
-├── go/
-│   ├── main.go
-│   ├── go.mod
-│   └── Dockerfile
-├── rust/
-│   ├── src/main.rs
-│   ├── Cargo.toml
-│   └── Dockerfile
-└── zig/
-    ├── src/main.zig
-    ├── build.zig
-    └── Dockerfile
-benchmark/run-profile-a.sh
-README.md   # เพิ่ม Profile A section
+README.md               (อัปเดต — เพิ่ม Profile A vs B section)
+.breakdown/STATUS.md    (อัปเดต — Epic 5 [DONE])
+benchmark/results/      (auto-generated ไม่ commit)
 ```
 
-## Notes
-- **Code duplication**: copy-paste จาก Profile B เป็นเรื่องปกติ — อย่า abstract ร่วมกัน เพราะจะ complicate Dockerfile
-- **Framework versions**: Go GoFiber v2 latest, Rust Axum 0.7, Zig zap v0.11
-- **Expected outcome**: Framework เพิ่ม developer ergonomics แต่อาจ +5-20% latency จาก middleware layers
+---
+
+## Full Dependencies Chain
+
+```
+4.4 (profile-b benchmark done) ─┬─→ 5.1 (go verify+test) ─┐
+                                 ├─→ 5.2 (rust verify+test) ─┼─→ 5.4 (benchmark + README)
+3.4 (zig profile-b done) ───────→ 5.3 (zig verify) ─────────┘
+```
+
+## Implementation Order
+
+1. **5.1** — Go: docker build + go test
+2. **5.2** — Rust: docker build + cargo test (parallel กับ 5.1)
+3. **5.3** — Zig: docker build verify (parallel กับ 5.1, 5.2)
+4. **5.4** — Benchmark run + README
+
+## Open Questions
+
+| คำถาม | คำตอบ |
+|-------|-------|
+| profile-a/go client.go ต้องการ `go test` mock สำหรับ fiber.Conn? | ใช้ pattern เดิมจาก profile-b: test hub ตรงๆ ไม่ต้อง mock WS |
+| profile-a/rust client.rs อาจต้องแก้ port เพราะ axum.Message type? | ถ้า compile fail ให้แก้ client.rs — hub.rs/stats.rs ไม่เปลี่ยน |
+| zig: build.zig.zon fingerprint ต่างจาก profile-b? | ใช่ — copy มาแล้ว fingerprint unique ต่อ project ดังนั้น อาจต้องรัน `zig build` เพื่อให้มันบอก suggested value |
