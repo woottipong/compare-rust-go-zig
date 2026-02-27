@@ -1,25 +1,25 @@
 # Task 0.2: Message Protocol Constants + JSON Helpers
 
 ## Status
-[TODO]
+[DONE]
 
 ## Description
 กำหนด message schema, constants, และ helper functions ที่ใช้ร่วมกันทุกภาษา ต้องตกลงให้ชัดก่อนเขียน server logic
 
 ## Acceptance Criteria
-- [ ] Protocol document ใน `docs/protocol.md` (หรือใน README) ระบุ:
+- [x] Protocol document ใน `docs/protocol.md` (หรือใน README) ระบุ:
   - JSON schema แต่ละ message type ครบ
   - ขนาด chat payload = 128 bytes (padding strategy)
   - Error behavior: rate limit drop (ไม่ disconnect), unknown type = ignore
-- [ ] Go: `protocol.go` — struct สำหรับ Message, constants, `padToSize()` helper
-- [ ] Rust: `protocol.rs` — `#[derive(Serialize, Deserialize)]` Message enum/struct, constants
-- [ ] Zig: `protocol.zig` — comptime string constants, struct definitions
+- [x] Go: `protocol.go` — struct สำหรับ Message, constants, `padToSize()` helper
+- [x] Rust: `protocol.rs` — `#[derive(Serialize, Deserialize)]` Message enum/struct, constants
+- [x] Zig: `protocol.zig` — comptime string constants, struct definitions
 
 ## Tests Required
-- [ ] Go: unit test `TestPadToSize` — ตรวจว่า `padToSize("hello", 128)` ให้ผล 128 bytes
-- [ ] Go: unit test `TestMarshalChat` — marshal/unmarshal chat message ได้ถูกต้อง
-- [ ] Rust: unit test `test_pad_to_size` + `test_serde_roundtrip`
-- [ ] Zig: unit test `test_parse_json_message` — parse `{"type":"chat",...}` ได้ถูกต้อง
+- [x] Go: unit test `TestPadToSize` — ตรวจว่า `padToSize("hello", 128)` ให้ผล 128 bytes
+- [x] Go: unit test `TestMarshalChat` — marshal/unmarshal chat message ได้ถูกต้อง
+- [x] Rust: unit test `test_pad_to_size` + `test_serde_roundtrip`
+- [x] Zig: unit test `test_parse_json_message` — parse `{"type":"chat",...}` ได้ถูกต้อง
 
 ## Dependencies
 - Task 0.1 (project skeleton)

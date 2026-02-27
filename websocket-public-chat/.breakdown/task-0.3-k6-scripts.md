@@ -1,23 +1,23 @@
 # Task 0.3: k6 Load-Test Scripts (3 Scenarios)
 
 ## Status
-[TODO]
+[DONE]
 
 ## Description
 เขียน k6 JavaScript scripts สำหรับ 3 scenarios โดยใช้ `k6/ws` API เพื่อทดสอบ WebSocket server
 
 ## Acceptance Criteria
-- [ ] `k6/steady.js`: 100 VUs, 1 msg/sec ต่อ VU, duration 60s
-- [ ] `k6/burst.js`: ramp up 1000 VUs ภายใน 10s, hold 5s, ramp down
-- [ ] `k6/churn.js`: 200 VUs constant, ทุก iteration = connect → join → wait 2s → leave → disconnect
-- [ ] ทุก script collect metrics: `ws_msgs_sent`, `ws_msgs_received`, `ws_session_duration`, `checks`
-- [ ] ทุก script รับ env var `WS_URL` (default: `ws://localhost:8080/ws`)
-- [ ] ทุก script export JSON summary ที่ parse ได้ใน bash
-- [ ] `k6/Dockerfile` — image พร้อมรัน
+- [x] `k6/steady.js`: 100 VUs, 1 msg/sec ต่อ VU, duration 60s
+- [x] `k6/burst.js`: ramp up 1000 VUs ภายใน 10s, hold 5s, ramp down
+- [x] `k6/churn.js`: 200 VUs constant, ทุก iteration = connect → join → wait 2s → leave → disconnect
+- [x] ทุก script collect metrics: `ws_msgs_sent`, `ws_msgs_received`, `ws_session_duration`, `checks`
+- [x] ทุก script รับ env var `WS_URL` (default: `ws://localhost:8080/ws`)
+- [x] ทุก script export JSON summary ที่ parse ได้ใน bash
+- [x] `k6/Dockerfile` — image พร้อมรัน
 
 ## Tests Required
-- [ ] รัน `k6 run --vus 1 --duration 5s k6/steady.js` กับ server จำลอง (echo server) — ไม่ error
-- [ ] verify ว่า output มี `checks` metric ครบ
+- [x] รัน `k6 run --vus 1 --duration 5s k6/steady.js` กับ server จำลอง (echo server) — ไม่ error
+- [x] verify ว่า output มี `checks` metric ครบ
 
 ## Dependencies
 - Task 0.1, 0.2

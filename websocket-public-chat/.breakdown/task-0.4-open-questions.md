@@ -1,7 +1,7 @@
 # Task 0.4: Resolve Open Questions
 
 ## Status
-[TODO]
+[DONE]
 
 ## Description
 ค้นหาและตัดสินใจในประเด็นที่จะกระทบ architecture ก่อนเขียนโค้ด — ถ้า resolve ผิดต้อง refactor ทั้ง epic
@@ -22,7 +22,7 @@ curl -s https://github.com/zigzap/zap/releases/tag/v0.11.0 | grep -i websocket
 - B) `zap` ไม่มี WS → implement manual WS handshake + frame parser ใน std.net
 - C) หา library อื่น: `zig-websocket` หรือ `ws.zig`
 
-**Decision**: `_______` (กรอกหลัง verify)
+**Decision**: ✅ **zap v0.11.0** (Zig 0.15.1 compatible, has WS support via facil.io pub/sub channels)
 
 ---
 
@@ -69,13 +69,13 @@ chat_msgs_sent.................: 6000
 ---
 
 ## Acceptance Criteria
-- [ ] Q1: ระบุ Zig WS approach + สร้าง `zig-ws-spike/` ถ้าเลือก manual implementation (spike 1-2h)
-- [ ] Q2: ยืนยัน Docker network approach ใน `benchmark/run.sh` template
-- [ ] Q3: เขียน bash parse snippet สำหรับ k6 output
-- [ ] Q4: ยืนยัน token bucket approach และ interface ที่ทุกภาษาต้องทำ
+- [x] Q1: ระบุ Zig WS approach + สร้าง `zig-ws-spike/` ถ้าเลือก manual implementation (spike 1-2h)
+- [x] Q2: ยืนยัน Docker network approach ใน `benchmark/run.sh` template
+- [x] Q3: เขียน bash parse snippet สำหรับ k6 output
+- [x] Q4: ยืนยัน token bucket approach และ interface ที่ทุกภาษาต้องทำ
 
 ## Tests Required
-- [ ] Spike test: ถ้าเลือก Zig manual WS → ทำ minimal WS echo server ใน Zig ก่อน (proof of concept)
+- [x] Spike test: ถ้าเลือก Zig manual WS → ทำ minimal WS echo server ใน Zig ก่อน (proof of concept)
 
 ## Dependencies
 - ไม่มี (ทำพร้อม 0.1 ได้)
