@@ -4,21 +4,30 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const zap_dep = b.dependency("zap", .{
+        .target = target,
+        .optimize = optimize,
+        .openssl = false,
+    });
+
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
+    exe_mod.addImport("zap", zap_dep.module("zap"));
 
     const exe = b.addExecutable(.{
         .name = "websocket-public-chat",
         .root_module = exe_mod,
     });
+    exe.linkLibrary(zap_dep.artifact("facil.io"));
 
     b.installArtifact(exe);
 
+    // test step: hub logic (no zap dependency needed)
     const test_mod = b.createModule(.{
-        .root_source_file = b.path("src/protocol.zig"),
+        .root_source_file = b.path("src/hub.zig"),
         .target = target,
         .optimize = optimize,
     });

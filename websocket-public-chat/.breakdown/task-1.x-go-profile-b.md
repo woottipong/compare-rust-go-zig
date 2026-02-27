@@ -1,47 +1,47 @@
 # Task 1.1–1.3: Profile B — Go (net/http + gorilla/websocket)
 
 ## Status
-[TODO]
+[DONE]
 
 ---
 
 ## Task 1.1: WS Server Core — Connect, Join, Broadcast
 
 ### Acceptance Criteria
-- [ ] HTTP endpoint `GET /ws` → upgrade เป็น WebSocket
-- [ ] `Hub` struct: map ของ client connections (thread-safe ด้วย `sync.RWMutex`)
-- [ ] เมื่อ client connect → ลงทะเบียนใน Hub
-- [ ] เมื่อรับ `join` → บันทึก user mapping
-- [ ] เมื่อรับ `chat` → broadcast ไปยัง client อื่นทุกคน (ไม่รวมผู้ส่ง)
-- [ ] เมื่อรับ `leave` หรือ connection error → unregister ออกจาก Hub
+- [x] HTTP endpoint `GET /ws` → upgrade เป็น WebSocket
+- [x] `Hub` struct: map ของ client connections (thread-safe ด้วย `sync.RWMutex`)
+- [x] เมื่อ client connect → ลงทะเบียนใน Hub
+- [x] เมื่อรับ `join` → บันทึก user mapping
+- [x] เมื่อรับ `chat` → broadcast ไปยัง client อื่นทุกคน (ไม่รวมผู้ส่ง)
+- [x] เมื่อรับ `leave` หรือ connection error → unregister ออกจาก Hub
 
 ### Tests Required
-- [ ] `TestBroadcastToOthers`: 3 mock clients, ส่ง chat จาก client 1 → client 2 และ 3 ได้รับ, client 1 ไม่ได้รับ
-- [ ] `TestHubRegisterUnregister`: register 5 clients, unregister 2 → Hub มี 3 clients
+- [x] `TestBroadcastToOthers`: 3 mock clients, ส่ง chat จาก client 1 → client 2 และ 3 ได้รับ, client 1 ไม่ได้รับ
+- [x] `TestHubRegisterUnregister`: register 5 clients, unregister 2 → Hub มี 3 clients
 
 ---
 
 ## Task 1.2: Ping/Pong Keepalive + Per-Client Rate Limit
 
 ### Acceptance Criteria
-- [ ] Server ส่ง `ping` ทุก 30 วินาที ต่อ connection
-- [ ] ถ้า client ไม่ตอบ `pong` ภายใน 30 วินาที → `conn.Close()`
-- [ ] ทุก connection มี token bucket: refill 10 tokens/sec
-- [ ] เมื่อรับ `chat` แล้วไม่มี token → drop message (log ว่า dropped, ไม่ disconnect)
-- [ ] ใช้ `time.Ticker` สำหรับทั้ง ping interval และ rate limit refill
+- [x] Server ส่ง `ping` ทุก 30 วินาที ต่อ connection
+- [x] ถ้า client ไม่ตอบ `pong` ภายใน 30 วินาที → `conn.Close()`
+- [x] ทุก connection มี token bucket: refill 10 tokens/sec
+- [x] เมื่อรับ `chat` แล้วไม่มี token → drop message (log ว่า dropped, ไม่ disconnect)
+- [x] ใช้ `time.Ticker` สำหรับทั้ง ping interval และ rate limit refill
 
 ### Tests Required
-- [ ] `TestPingTimeout`: client ไม่ตอบ pong → connection ถูกปิดภายใน 35 วินาที
-- [ ] `TestRateLimit`: ส่ง 20 messages ใน 1 วินาที → รับผ่านไปแค่ 10, drop 10
+- [x] `TestPingTimeout`: client ไม่ตอบ pong → connection ถูกปิดภายใน 35 วินาที
+- [x] `TestRateLimit`: ส่ง 20 messages ใน 1 วินาที → รับผ่านไปแค่ 10, drop 10
 
 ---
 
 ## Task 1.3: Stats Struct + Docker + Unit Tests
 
 ### Acceptance Criteria
-- [ ] `Stats` struct แยกออกจาก Hub: `totalMessages`, `droppedMessages`, `processingStart`, `connections`
-- [ ] method: `avgLatencyMs()`, `throughput()`, `printStats()`
-- [ ] output format ตามมาตรฐาน repo:
+- [x] `Stats` struct แยกออกจาก Hub: `totalMessages`, `droppedMessages`, `processingStart`, `connections`
+- [x] method: `avgLatencyMs()`, `throughput()`, `printStats()`
+- [x] output format ตามมาตรฐาน repo:
   ```
   --- Statistics ---
   Total messages: <N>
@@ -53,13 +53,13 @@
   Connection success rate: <X.XX>%
   Message drop rate: <X.XX>%
   ```
-- [ ] CLI args: `./server --port 8080 --duration 60`
-- [ ] Dockerfile build ผ่าน + smoke test: server start ฟัง port 8080, ไม่ panic
-- [ ] `go test ./...` ผ่านทั้งหมด
+- [x] CLI args: `./server --port 8080 --duration 60`
+- [x] Dockerfile build ผ่าน + smoke test: server start ฟัง port 8080, ไม่ panic
+- [x] `go test ./...` ผ่านทั้งหมด
 
 ### Tests Required
-- [ ] `TestStatsOutput`: format ตรงกับมาตรฐาน (ใช้ regexp หรือ string match)
-- [ ] integration test: server start → k6 steady 5s → stats ออกมาถูกต้อง
+- [x] `TestStatsOutput`: format ตรงกับมาตรฐาน (ใช้ regexp หรือ string match)
+- [x] integration test: server start → k6 steady 5s → stats ออกมาถูกต้อง
 
 ## Dependencies
 - Task 0.1 (skeleton)

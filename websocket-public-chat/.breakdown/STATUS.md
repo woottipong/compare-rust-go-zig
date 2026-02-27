@@ -1,6 +1,6 @@
 # WebSocket Public Chat — Project Status
 
-> อัปเดตล่าสุด: 2026-02-27 | Epic 0 DONE
+> อัปเดตล่าสุด: 2026-02-27 | Epic 0, 1, 2, 3 DONE
 > Workflow: ดู WORKFLOW.md ใน root repo
 
 ---
@@ -20,9 +20,9 @@
 
 | Task | Description | Status | Depends On |
 |------|-------------|--------|------------|
-| 1.1 | WS server core: connect, join, broadcast | [TODO] | 0.1, 0.2 |
-| 1.2 | Ping/Pong keepalive (30s) + rate limit (10 msg/s) | [TODO] | 1.1 |
-| 1.3 | Stats struct + Docker + unit tests | [TODO] | 1.2 |
+| 1.1 | WS server core: connect, join, broadcast | [DONE] | 0.1, 0.2 |
+| 1.2 | Ping/Pong keepalive (30s) + rate limit (10 msg/s) | [DONE] | 1.1 |
+| 1.3 | Stats struct + Docker + unit tests | [DONE] | 1.2 |
 
 ---
 
@@ -30,9 +30,9 @@
 
 | Task | Description | Status | Depends On |
 |------|-------------|--------|------------|
-| 2.1 | WS server core: connect, join, broadcast | [TODO] | 0.1, 0.2 |
-| 2.2 | Ping/Pong keepalive (30s) + rate limit (10 msg/s) | [TODO] | 2.1 |
-| 2.3 | Stats struct + Docker + unit tests | [TODO] | 2.2 |
+| 2.1 | WS server core: connect, join, broadcast | [DONE] | 0.1, 0.2 |
+| 2.2 | Ping/Pong keepalive (30s) + rate limit (10 msg/s) | [DONE] | 2.1 |
+| 2.3 | Stats struct + Docker + unit tests | [DONE] | 2.2 |
 
 ---
 
@@ -40,10 +40,10 @@
 
 | Task | Description | Status | Depends On |
 |------|-------------|--------|------------|
-| 3.1 | Verify Zig WS library (zap v0.11 or manual) | [TODO] | 0.4 |
-| 3.2 | WS server core: connect, join, broadcast | [TODO] | 3.1 |
-| 3.3 | Ping/Pong keepalive (30s) + rate limit (10 msg/s) | [TODO] | 3.2 |
-| 3.4 | Stats struct + Docker + unit tests | [TODO] | 3.3 |
+| 3.1 | Verify Zig WS library (zap v0.11 or manual) | [DONE] | 0.4 |
+| 3.2 | WS server core: connect, join, broadcast | [DONE] | 3.1 |
+| 3.3 | Ping/Pong keepalive (30s) + rate limit (10 msg/s) | [DONE] | 3.2 |
+| 3.4 | Stats struct + Docker + unit tests | [DONE] | 3.3 |
 
 ---
 
