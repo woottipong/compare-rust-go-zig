@@ -197,8 +197,31 @@ RUN ZIG_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") \
 ## Adding a New Project
 
 1. Create directory structure: `go/`, `rust/`, `zig/`, `test-data/`, `benchmark/run.sh`, `README.md`
-2. Add Docker image name row to the table in `.windsurf/rules/project-rules.md`
+2. Add Docker image name row to the table in `.claude/rules/project-rules.md`
 3. `benchmark/run.sh` must be Docker-based with auto-save to `benchmark/results/`
 4. All 3 languages must emit identical statistics format
 5. `README.md` must include: purpose, directory tree, dependencies, build commands, benchmark results table, and key insight
 6. Update `PLAN.md` with results after benchmarking
+
+## Planning Workflow (สำหรับ project ขนาดใหญ่)
+
+สำหรับ project ที่มีหลาย epic หรือต้องการ design review ก่อน implement ให้ทำตาม **WORKFLOW.md**:
+
+```
+project/
+├── .prompts/init.md        ← requirements (schema, tech stack, use cases)
+└── .breakdown/
+    ├── STATUS.md           ← kanban board (update ทุกครั้งที่ task เปลี่ยน status)
+    └── task-X.X-name.md   ← task cards พร้อม acceptance criteria + dependencies
+```
+
+กฎ: แต่ละ task ต้องมี unit test และ status [DONE] ได้ก็ต่อเมื่อ test ผ่านแล้วเท่านั้น
+
+## Rules File Structure
+
+ไฟล์ใน `.claude/rules/` มีหน้าที่แยกกัน — ไม่ duplicate กัน:
+- **CLAUDE.md** — master reference: build, benchmark, Dockerfile templates, Known Bugs, statistics format
+- **project-rules.md** — checklist ใหม่ทุก project + Docker image naming table + code design rules
+- **project-structure.md** — code patterns ที่ใช้ซ้ำ (Stats struct, helper functions, constants)
+- **global.md** — general code quality principles (language-agnostic)
+- **go-dev.md / rust-dev.md / zig-dev.md** — language-specific deep rules
