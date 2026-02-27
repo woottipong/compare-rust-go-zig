@@ -1,6 +1,6 @@
 # WebSocket Public Chat — Project Status
 
-> อัปเดตล่าสุด: 2026-02-27
+> อัปเดตล่าสุด: 2026-02-27 | Task 0.1 DONE
 > Workflow: ดู WORKFLOW.md ใน root repo
 
 ---
@@ -9,7 +9,7 @@
 
 | Task | Description | Status | Depends On |
 |------|-------------|--------|------------|
-| 0.1 | Project skeleton + Dockerfile templates | [TODO] | — |
+| 0.1 | Project skeleton + Dockerfile templates | [DONE] | — |
 | 0.2 | Message protocol constants + JSON helpers | [TODO] | 0.1 |
 | 0.3 | k6 load-test scripts (3 scenarios) | [TODO] | 0.2 |
 | 0.4 | Resolve Open Questions (Zig WS lib, k6 Docker) | [TODO] | — |

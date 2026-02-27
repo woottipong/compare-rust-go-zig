@@ -1,19 +1,19 @@
 # Task 0.1: Project Skeleton + Dockerfile Templates
 
 ## Status
-[TODO]
+[DONE]
 
 ## Description
 สร้างโครงสร้างไดเรกทอรีและ boilerplate สำหรับทั้ง 3 ภาษา รวมถึง Dockerfile ที่ compile ได้แต่ยังไม่มี logic
 
 ## Acceptance Criteria
-- [ ] โครงสร้างไดเรกทอรีตามที่กำหนดใน `.prompts/init.md`
-- [ ] `go/go.mod` พร้อม dependency: `gorilla/websocket`
-- [ ] `rust/Cargo.toml` พร้อม dependency: `tokio`, `tokio-tungstenite`, `serde_json`
-- [ ] `zig/build.zig` ใช้ Zig 0.15 module syntax (`createModule` + `root_module`)
-- [ ] Dockerfile ทั้ง 3 ภาษา build ผ่านและ produce binary ว่าง (main() เปล่า)
-- [ ] `k6/` directory พร้อม placeholder scripts
-- [ ] `benchmark/results/` directory พร้อม `.gitkeep`
+- [x] โครงสร้างไดเรกทอรีตามที่กำหนดใน `.prompts/init.md`
+- [x] `go/go.mod` พร้อม dependency: `gorilla/websocket`
+- [x] `rust/Cargo.toml` พร้อม dependency: `tokio`, `tokio-tungstenite`, `serde_json`
+- [x] `zig/build.zig` ใช้ Zig 0.15 module syntax (`createModule` + `root_module`)
+- [x] Dockerfile ทั้ง 3 ภาษา build ผ่านและ produce binary ว่าง (main() เปล่า)
+- [x] `k6/` directory พร้อม placeholder scripts
+- [x] `benchmark/results/` directory พร้อม `.gitkeep`
 
 ## Tests Required
 - `docker build` ทั้ง 3 ภาษาผ่าน (automated ใน CI ได้)
