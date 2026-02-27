@@ -3,90 +3,48 @@
 ## Status
 [DONE]
 
+## Priority
+— (build task)
+
 ## Description
-ค้นหาและตัดสินใจในประเด็นที่จะกระทบ architecture ก่อนเขียนโค้ด — ถ้า resolve ผิดต้อง refactor ทั้ง epic
-
-## Questions ที่ต้อง Resolve
-
-### Q1: Zig WebSocket Library
-**คำถาม**: `zap` v0.11 (Zig 0.15) รองรับ WebSocket หรือไม่?
-
-**วิธี verify**:
-```bash
-# อ่าน zap changelog/README
-curl -s https://github.com/zigzap/zap/releases/tag/v0.11.0 | grep -i websocket
-```
-
-**ตัวเลือก**:
-- A) `zap` มี WS → ใช้ zap (ง่ายที่สุด)
-- B) `zap` ไม่มี WS → implement manual WS handshake + frame parser ใน std.net
-- C) หา library อื่น: `zig-websocket` หรือ `ws.zig`
-
-**Decision**: ✅ **zap v0.11.0** (Zig 0.15.1 compatible, has WS support via facil.io pub/sub channels)
-
----
-
-### Q2: Docker Network สำหรับ k6 ↔ Server
-**คำถาม**: ใช้ network ไหนให้ k6 container คุยกับ server container?
-
-**วิธี**: Docker user-defined bridge network
-```bash
-docker network create ws-bench-net
-docker run -d --network ws-bench-net --name ws-server <image>
-docker run --rm --network ws-bench-net grafana/k6 run -e WS_URL=ws://ws-server:8080/ws /scripts/steady.js
-```
-
-**Decision**: ✅ ใช้ Docker bridge network ชื่อ `ws-bench-net`
-
----
-
-### Q3: benchmark/run.sh รูปแบบ metrics
-**คำถาม**: k6 output เป็น JSON หรือ text? parse อย่างไรใน bash?
-
-**วิธี**: k6 `--out json=output.json` หรือ parse stdout
-
-k6 stdout summary:
-```
-✓ connected successfully
-checks.........................: 100.00% ✓ 6000 ✗ 0
-ws_session_duration............: avg=59.99s
-chat_msgs_sent.................: 6000
-```
-
-**Decision**: parse k6 stdout ด้วย `grep` + `awk` คล้าย projects เดิมในรีโป
-
----
-
-### Q4: Rate Limit Implementation
-**คำถาม**: ใช้ token bucket หรือ sliding window?
-
-**ตัดสินใจ**: **Token Bucket** (1 bucket per connection, refill 10 tokens/sec)
-- ง่ายต่อ implement ทั้ง 3 ภาษา
-- Go: `time.Ticker` + counter per connection
-- Rust: `tokio::time::Instant` + counter per connection
-- Zig: `std.time.Instant` + counter per connection
-
----
+ค้นหาและตัดสินใจประเด็นที่กระทบ architecture ก่อนเขียนโค้ด — ถ้า resolve ผิดต้อง refactor ทั้ง epic ดังนั้นต้องทำก่อนเริ่ม Epic 1-3
 
 ## Acceptance Criteria
-- [x] Q1: ระบุ Zig WS approach + สร้าง `zig-ws-spike/` ถ้าเลือก manual implementation (spike 1-2h)
-- [x] Q2: ยืนยัน Docker network approach ใน `benchmark/run.sh` template
-- [x] Q3: เขียน bash parse snippet สำหรับ k6 output
-- [x] Q4: ยืนยัน token bucket approach และ interface ที่ทุกภาษาต้องทำ
+- [x] Q1 resolved: Zig WS library → ใช้ **zap v0.11.0** (facil.io pub/sub)
+- [x] Q2 resolved: Docker network → ใช้ bridge network `ws-bench-net`
+- [x] Q3 resolved: k6 output parsing → parse stdout ด้วย `grep` + `awk`
+- [x] Q4 resolved: Rate limit → **Token Bucket** (10 tokens/sec per connection)
+- [x] บันทึก decisions ใน `docs/decisions.md` (ADR)
+- [x] อัปเดต STATUS.md unblock tasks ที่รอ
 
 ## Tests Required
-- [x] Spike test: ถ้าเลือก Zig manual WS → ทำ minimal WS echo server ใน Zig ก่อน (proof of concept)
+- [x] PoC: Zig WS echo server (`wscat -c ws://localhost:8080` → echo กลับ ไม่ error)
 
 ## Dependencies
 - ไม่มี (ทำพร้อม 0.1 ได้)
 
 ## Files Affected
 ```
-.breakdown/STATUS.md         # update decision และ unblock tasks
-docs/decisions.md            # บันทึก ADR (Architecture Decision Record)
-zig-ws-spike/ (ถ้าต้องการ) # PoC code ทิ้งไปหลัง verify
+.breakdown/STATUS.md       # update decisions + unblock tasks
+docs/decisions.md          # Architecture Decision Records
 ```
 
-## Notes
-- Task นี้ไม่มี deliverable code แต่สำคัญมาก — ถ้าข้ามไปเลือก approach ผิดต้องเสียเวลา
-- Target: resolve ภายใน 1-2 ชั่วโมง ก่อนเริ่ม Epic 1-3
+## Implementation Notes
+
+### Decision Log
+
+| # | คำถาม | Decision | เหตุผล |
+|---|-------|----------|--------|
+| Q1 | Zig WS library | `zap` v0.11.0 | Zig 0.15.1 compatible, มี WS via facil.io pub/sub |
+| Q2 | Docker network | Bridge `ws-bench-net` | k6 container คุยกับ server container ผ่าน service name |
+| Q3 | k6 output format | Parse stdout | เรียบง่าย เหมือน projects อื่นในรีโป |
+| Q4 | Rate limit | Token Bucket | ง่ายต่อ implement ทั้ง 3 ภาษา, predictable behavior |
+
+### Rate Limit Interface (ทุกภาษาต้อง implement)
+```
+tokens    : u32 = 10  (max capacity)
+refill    : +1 token ทุก 100ms (หรือ check elapsed time per message)
+on_exceed : drop message (log, ไม่ disconnect)
+```
+
+> **Note**: Task นี้ไม่มี deliverable code แต่สำคัญมาก — ถ้าข้ามไปแล้วเลือก approach ผิดจะเสียเวลา refactor ทั้ง epic

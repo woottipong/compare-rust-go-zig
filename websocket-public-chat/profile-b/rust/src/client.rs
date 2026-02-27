@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::mpsc;
 use tokio::time::{interval, timeout};
 use tokio_tungstenite::{accept_async, tungstenite::Message as WsMessage};
 use futures_util::{SinkExt, StreamExt};
@@ -43,7 +43,7 @@ impl RateLimiter {
 pub async fn handle_connection(
     stream: TcpStream,
     clients: Clients,
-    stats: Arc<Mutex<Stats>>,
+    stats: Arc<Stats>,
 ) {
     let ws = match accept_async(stream).await {
         Ok(ws) => ws,
@@ -56,7 +56,7 @@ pub async fn handle_connection(
     let id = Uuid::new_v4();
     let (tx, mut rx) = mpsc::channel::<WsMessage>(64);
 
-    stats.lock().await.add_connection();
+    stats.add_connection();
 
     let (mut sink, mut stream) = ws.split();
 
@@ -126,10 +126,10 @@ pub async fn handle_connection(
             }
             MSG_CHAT => {
                 if !limiter.allow() {
-                    stats.lock().await.add_dropped();
+                    stats.add_dropped();
                     continue;
                 }
-                stats.lock().await.add_message();
+                stats.add_message();
                 broadcast_except(&clients, id, WsMessage::Text(raw)).await;
             }
             MSG_PONG => {} // handled via WsMessage::Pong above; JSON pong also ok
@@ -141,7 +141,7 @@ pub async fn handle_connection(
     // cleanup
     clients.write().await.remove(&id);
     drop(write_task); // signal write task to stop
-    stats.lock().await.remove_connection();
+    stats.remove_connection();
     let _ = user_id; // suppress unused warning
 }
 

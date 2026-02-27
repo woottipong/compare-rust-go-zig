@@ -3,24 +3,27 @@
 ## Status
 [DONE]
 
+## Priority
+— (build task)
+
 ## Description
-เขียน k6 JavaScript scripts สำหรับ 3 scenarios โดยใช้ `k6/ws` API เพื่อทดสอบ WebSocket server
+เขียน k6 JavaScript scripts สำหรับ 3 benchmark scenarios (Steady, Burst, Churn) โดยใช้ `k6/ws` API — เป็นเครื่องมือวัดผลกลางที่ทุกภาษาใช้ร่วมกัน ต้อง collect metrics ในรูปแบบเดียวกันเพื่อความ fair
 
 ## Acceptance Criteria
 - [x] `k6/steady.js`: 100 VUs, 1 msg/sec ต่อ VU, duration 60s
-- [x] `k6/burst.js`: ramp up 1000 VUs ภายใน 10s, hold 5s, ramp down
-- [x] `k6/churn.js`: 200 VUs constant, ทุก iteration = connect → join → wait 2s → leave → disconnect
-- [x] ทุก script collect metrics: `ws_msgs_sent`, `ws_msgs_received`, `ws_session_duration`, `checks`
+- [x] `k6/burst.js`: ramp 0→1,000 VUs ใน 10s, hold 5s, ramp down 5s
+- [x] `k6/churn.js`: 200 VUs constant, ทุก iteration = connect→join→2s→leave→disconnect
+- [x] ทุก script collect: `ws_msgs_sent`, `ws_msgs_received`, `ws_session_duration`, `checks`
 - [x] ทุก script รับ env var `WS_URL` (default: `ws://localhost:8080/ws`)
 - [x] ทุก script export JSON summary ที่ parse ได้ใน bash
-- [x] `k6/Dockerfile` — image พร้อมรัน
+- [x] `k6/Dockerfile` พร้อมรัน (`grafana/k6:latest`)
 
 ## Tests Required
-- [x] รัน `k6 run --vus 1 --duration 5s k6/steady.js` กับ server จำลอง (echo server) — ไม่ error
+- [x] `k6 run --vus 1 --duration 5s k6/steady.js` กับ echo server → ไม่ error
 - [x] verify ว่า output มี `checks` metric ครบ
 
 ## Dependencies
-- Task 0.1, 0.2
+- Task 0.1 (k6 directory), Task 0.2 (message schema)
 
 ## Files Affected
 ```
@@ -30,63 +33,27 @@ k6/churn.js
 k6/Dockerfile
 ```
 
-## k6 Script Template (steady.js)
+## Implementation Notes
 
-```javascript
-import ws from 'k6/ws';
-import { check, sleep } from 'k6';
-import { Counter } from 'k6/metrics';
-
-const msgsSent = new Counter('chat_msgs_sent');
-const msgsReceived = new Counter('chat_msgs_received');
-
-const WS_URL = __ENV.WS_URL || 'ws://localhost:8080/ws';
-const USER_PREFIX = 'client';
-
-export const options = {
-  vus: 100,
-  duration: '60s',
-  thresholds: {
-    'ws_session_duration': ['p(95)<50'],   // p95 < 50ms
-    'chat_msgs_sent': ['count>5000'],
-  },
-};
-
-export default function () {
-  const userId = `${USER_PREFIX}-${__VU}`;
-
-  const res = ws.connect(WS_URL, {}, function (socket) {
-    socket.on('open', () => {
-      socket.send(JSON.stringify({ type: 'join', room: 'public', user: userId }));
-    });
-
-    socket.on('message', (data) => {
-      const msg = JSON.parse(data);
-      if (msg.type === 'ping') {
-        socket.send(JSON.stringify({ type: 'pong', ts: msg.ts }));
-      } else if (msg.type === 'chat') {
-        msgsReceived.add(1);
-      }
-    });
-
-    // ส่ง 1 msg/sec ตลอด duration
-    socket.setInterval(() => {
-      const text = 'hello from ' + userId + ' '.repeat(60); // ~128 bytes
-      socket.send(JSON.stringify({ type: 'chat', user: userId, text }));
-      msgsSent.add(1);
-    }, 1000);
-
-    socket.setTimeout(() => {
-      socket.send(JSON.stringify({ type: 'leave', user: userId }));
-      socket.close();
-    }, 60000);
-  });
-
-  check(res, { 'connected successfully': (r) => r && r.status === 101 });
-}
+### Run Command
+```bash
+docker run --rm --network ws-bench-net \
+  -e WS_URL=ws://ws-server:8080/ws \
+  -v "$K6_DIR":/scripts:ro \
+  grafana/k6 run /scripts/steady.js
 ```
 
-## Notes
-- k6 Docker image: `grafana/k6:latest`
-- รันด้วย: `docker run --rm --network <net> -e WS_URL=ws://server:8080/ws grafana/k6 run /scripts/steady.js`
-- mount scripts: `-v "$K6_DIR":/scripts:ro`
+### Metrics ที่ต้อง Collect
+| Metric | Source | ใช้สำหรับ |
+|--------|--------|-----------|
+| `chat_msgs_sent` | Custom Counter | Throughput |
+| `chat_msgs_received` | Custom Counter | Drop rate |
+| `ws_session_duration` | k6 built-in | Latency p95/p99 |
+| `checks` | k6 built-in | Connection success rate |
+
+### k6 Behavior
+- เมื่อรับ `ping` → ตอบ `pong` ทันที (protocol compliance)
+- เมื่อรับ `chat` → increment `msgsReceived` counter
+- steady.js: ส่ง 1 msg/sec ด้วย `setInterval(fn, 1000)`
+- burst.js: connect + join + hold 5s + leave → ไม่ส่ง chat (วัด connection handling)
+- churn.js: connect→join→wait 2s→leave→close → วน loop ตลอด duration

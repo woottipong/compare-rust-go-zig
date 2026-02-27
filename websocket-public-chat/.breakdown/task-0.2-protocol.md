@@ -3,62 +3,48 @@
 ## Status
 [DONE]
 
+## Priority
+— (build task)
+
 ## Description
-กำหนด message schema, constants, และ helper functions ที่ใช้ร่วมกันทุกภาษา ต้องตกลงให้ชัดก่อนเขียน server logic
+กำหนด message schema, constants, และ helper functions ที่ใช้ร่วมกันทุกภาษา — ต้องตกลงให้ชัดก่อนเขียน server logic เพื่อให้ทุกภาษา interop กันได้ผ่าน k6 test scripts ชุดเดียวกัน
 
 ## Acceptance Criteria
-- [x] Protocol document ใน `docs/protocol.md` (หรือใน README) ระบุ:
-  - JSON schema แต่ละ message type ครบ
-  - ขนาด chat payload = 128 bytes (padding strategy)
-  - Error behavior: rate limit drop (ไม่ disconnect), unknown type = ignore
-- [x] Go: `protocol.go` — struct สำหรับ Message, constants, `padToSize()` helper
-- [x] Rust: `protocol.rs` — `#[derive(Serialize, Deserialize)]` Message enum/struct, constants
+- [x] `docs/protocol.md` ระบุ JSON schema ทุก message type ครบ
+- [x] ขนาด chat payload = 128 bytes (รวม JSON overhead)
+- [x] Error behavior: rate limit → drop (ไม่ disconnect), unknown type → ignore
+- [x] Go: `protocol.go` — Message struct, constants, `padToSize()` helper
+- [x] Rust: `protocol.rs` — `#[derive(Serialize, Deserialize)]` Message struct, constants
 - [x] Zig: `protocol.zig` — comptime string constants, struct definitions
 
 ## Tests Required
-- [x] Go: unit test `TestPadToSize` — ตรวจว่า `padToSize("hello", 128)` ให้ผล 128 bytes
-- [x] Go: unit test `TestMarshalChat` — marshal/unmarshal chat message ได้ถูกต้อง
-- [x] Rust: unit test `test_pad_to_size` + `test_serde_roundtrip`
-- [x] Zig: unit test `test_parse_json_message` — parse `{"type":"chat",...}` ได้ถูกต้อง
+- [x] Go: `TestPadToSize` — `padToSize("hello", 128)` → 128 bytes
+- [x] Go: `TestMarshalChat` — marshal/unmarshal roundtrip
+- [x] Rust: `test_pad_to_size` + `test_serde_roundtrip`
+- [x] Zig: `test_parse_json_message` — parse `{"type":"chat",...}` ถูกต้อง
 
 ## Dependencies
 - Task 0.1 (project skeleton)
 
 ## Files Affected
 ```
-go/protocol.go
-rust/src/protocol.rs
-zig/src/protocol.zig
-docs/protocol.md (หรือ docs section ใน README)
+profile-b/go/protocol.go
+profile-b/rust/src/protocol.rs
+profile-b/zig/src/protocol.zig
+docs/protocol.md
 ```
 
-## Protocol Definition
+## Implementation Notes
 
-```go
-// Message types
-const (
-    MsgJoin  = "join"
-    MsgChat  = "chat"
-    MsgPing  = "ping"
-    MsgPong  = "pong"
-    MsgLeave = "leave"
-)
-
-type Message struct {
-    Type string `json:"type"`
-    Room string `json:"room,omitempty"`
-    User string `json:"user,omitempty"`
-    Text string `json:"text,omitempty"`
-    Ts   int64  `json:"ts,omitempty"`
-}
-
-const ChatPayloadSize = 128
-const Room = "public"
-const RateLimitMsgPerSec = 10
-const PingIntervalSec = 30
+### Protocol Constants (ทุกภาษาต้องตรงกัน)
+```
+Message Types : join, chat, ping, pong, leave
+Chat Payload  : 128 bytes (text body ≈ 78 chars หลังหัก JSON overhead ≈ 50 bytes)
+Room          : "public" (single room)
+Rate Limit    : 10 msg/sec per client
+Ping Interval : 30 seconds
 ```
 
-## Notes
-- `text` field ใน chat message ต้อง pad ด้วย space หรือ random chars ให้ครบ 128 bytes รวม JSON overhead
-- ให้ตกลง exact byte count รวม JSON syntax: `{"type":"chat","user":"client-XX","text":"..."}` ≈ 50 bytes overhead → text body ≈ 78 chars
-- Rust: ใช้ `serde_json::Value` หรือ enum `MsgType` — ตัดสินใจตอนเขียน code
+### Padding Strategy
+- `text` field ใน chat message pad ด้วย space ให้ครบ 128 bytes รวม JSON syntax
+- Rust: ใช้ `serde_json::Value` หรือ enum `MsgType` — decision ตอนเขียน code
