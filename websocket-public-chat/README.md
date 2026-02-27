@@ -1,8 +1,8 @@
 # WebSocket Public Chat
 
-A WebSocket chat room server implemented in **Go**, **Rust**, and **Zig**, benchmarked under three load profiles using k6.
+โปรเจกต์เซิร์ฟเวอร์ห้องแชต WebSocket ที่พัฒนา 3 ภาษา (**Go**, **Rust**, **Zig**) และทำ benchmark ด้วย k6 ตามโปรไฟล์โหลดที่กำหนด
 
-## Directory Structure
+## โครงสร้างไดเรกทอรี
 
 ```
 websocket-public-chat/
@@ -18,6 +18,7 @@ websocket-public-chat/
 │   ├── steady.js                 # 100 VUs × 1 msg/s × 60s
 │   ├── burst.js                  # ramp 0→1000 VUs over 10s
 │   ├── churn.js                  # 200 VUs × connect→2s→leave
+│   ├── saturation.js             # 200→500→1000 VUs × 5 msg/s (finds ceiling)
 │   └── Dockerfile
 ├── benchmark/
 │   ├── run.sh                    # wrapper → run-profile-b.sh
@@ -29,23 +30,23 @@ websocket-public-chat/
     └── decisions.md
 ```
 
-## Protocol
+## โปรโตคอล
 
-| Constant | Value |
-|----------|-------|
+| ค่าคงที่ | ค่า |
+|----------|-----|
 | Room | `"public"` |
-| Chat payload size | 128 bytes |
-| Rate limit | 10 msg/s per connection (token bucket) |
-| Ping interval | 30 s |
-| Pong timeout | 60 s |
+| ขนาด chat payload | 128 bytes |
+| Rate limit | 10 msg/s ต่อ connection (token bucket) |
+| Ping interval | 30 วินาที |
+| Pong timeout | 60 วินาที |
 
-Message types: `join` · `chat` · `ping` · `pong` · `leave`
+ชนิดข้อความ: `join` · `chat` · `ping` · `pong` · `leave`
 
-Error handling: rate-limited messages are **dropped** (no disconnect); malformed JSON and unknown types are **silently ignored**.
+การจัดการข้อผิดพลาด: ข้อความที่เกิน rate limit จะถูก **drop** (ไม่ตัดการเชื่อมต่อ), ส่วน JSON ที่ไม่ถูกต้องหรือ type ที่ไม่รู้จักจะถูก **ข้ามแบบเงียบๆ**
 
-## Build & Run
+## วิธี Build และ Run
 
-### Local
+### รันแบบ Local
 
 ```bash
 # Go (Profile B)
@@ -85,7 +86,7 @@ docker run --rm wsca-rust --port 8080 --duration 60
 docker run --rm wsca-zig  8080 60
 ```
 
-### Tests
+### รัน Tests
 
 ```bash
 # Profile B
@@ -111,123 +112,236 @@ bash benchmark/run-profile-b.sh  # same, run directly
 bash benchmark/run-profile-a.sh
 ```
 
-k6 scenarios run against each server in sequence; results auto-saved to `benchmark/results/`.
+k6 จะรันแต่ละ scenario กับแต่ละเซิร์ฟเวอร์ตามลำดับ และบันทึกผลอัตโนมัติที่ `benchmark/results/`
 
-## Results (Profile B — Docker, arm64, 2026-02-27)
+สิ่งที่เก็บในแต่ละรอบ:
+- **Throughput, drop rate, จำนวน connection (ฝั่ง server)** จากสถิติที่พิมพ์ตอน shutdown
+- **Peak memory** จาก `docker stats --no-stream` ระหว่างรัน k6
+- **WebSocket connect p95** จาก metric `ws_connect_duration` (ต้องไม่ใช้ `--quiet`)
 
-### Steady Load — 100 VUs × 1 msg/s × 60 s
+### คำอธิบายแต่ละ Scenario (Steady / Burst / Churn / Saturation)
 
-| Language | Throughput (msg/s) | Messages | Connections | Drop rate | k6 errors |
-|----------|--------------------|----------|-------------|-----------|-----------|
+ส่วนนี้คือคู่มือสั้นๆ ว่าแต่ละการทดสอบใช้วัดอะไร และควรดูค่าไหนเป็นหลัก
+
+### สรุปแบบสั้น (อ่านเร็ว)
+
+#### Scenario 1: Steady Load
+```
+100 clients เชื่อมต่อพร้อมกัน
+แต่ละ client ส่ง 1 chat/sec
+duration: 60 วินาที
+วัด: throughput (msg/sec), latency p95, drop rate
+```
+
+#### Scenario 2: Burst Connect
+```
+1000 clients เชื่อมต่อภายใน 10 วินาที
+ทุก client ส่ง join แล้วรอ 5 วินาที แล้ว leave
+วัด: connection success/error, peak memory
+```
+
+#### Scenario 3: Churn
+```
+200 clients active ต่อเนื่อง
+วนลูป: connect -> join -> รอ 2 วินาที -> leave -> reconnect
+duration: 60 วินาที
+วัด: ความเสถียรของ connect/disconnect, ws_errors, memory trend
+```
+
+#### Scenario 4: Saturation
+```
+ไล่โหลดจาก 200 -> 500 -> 1000 clients
+แต่ละ client ส่ง 5 chat/sec
+วัด: throughput เพดานสูงสุด, connect p95, peak memory
+```
+
+#### 1) Steady
+- **รูปแบบโหลด**: 100 VUs, แต่ละ VU ส่ง 1 ข้อความ/วินาที เป็นเวลา 60 วินาที
+- **วัตถุประสงค์**: วัดเสถียรภาพพื้นฐานในสภาพการใช้งานปกติ
+- **ค่าที่ควรโฟกัส**:
+  - Throughput (msg/s) ควรนิ่ง
+  - Drop rate ควรใกล้ 0% (ยังไม่ชน rate limit)
+  - `ws_errors` ใช้ดูปัญหาเรื่องเชื่อมต่อ/ปิดการเชื่อมต่อ
+
+#### 2) Burst
+- **รูปแบบโหลด**: เพิ่มผู้ใช้จาก 0 → 1000 ภายใน 10 วินาที, ค้าง 5 วินาที, แล้วลดลง 5 วินาที
+- **วัตถุประสงค์**: วัดความทนต่อโหลดที่พุ่งขึ้นเร็ว
+- **ค่าที่ควรโฟกัส**:
+  - Throughput ช่วงที่โหลดพุ่ง
+  - จำนวนการเชื่อมต่อสูงสุดที่ระบบรับได้
+  - `ws_errors` ช่วง ramp-down (มักเกี่ยวกับจังหวะปิดรัน มากกว่าบั๊กหลัก)
+
+#### 3) Churn
+- **รูปแบบโหลด**: 200 VUs วนลูป connect → join → รอ 2 วินาที → leave ต่อเนื่อง 60 วินาที
+- **วัตถุประสงค์**: stress วงจรชีวิตการเชื่อมต่อ (เปิด/ปิดบ่อย)
+- **ค่าที่ควรโฟกัส**:
+  - จำนวน connections รวมที่รองรับได้ (KPI หลัก)
+  - `ws_errors` เพื่อจับสัญญาณปัญหา lifecycle
+  - แนวโน้ม peak memory เพื่อดูโอกาส memory leak
+- **หมายเหตุ**: Churn ไม่ได้เน้นส่ง chat ต่อเนื่อง ดังนั้น msg/s ไม่ใช่ตัวชี้วัดหลัก
+
+#### 4) Saturation
+- **รูปแบบโหลด**: 200 → 500 → 1000 VUs, แต่ละ VU ส่ง 5 ข้อความ/วินาที
+- **วัตถุประสงค์**: หาเพดาน throughput เมื่อระบบถูกกดโหลดหนักต่อเนื่อง
+- **ค่าที่ควรโฟกัส**:
+  - Throughput สูงสุดที่ระบบยังรับไหว
+  - p95 connect latency (`ws_connecting`/`ws_connect_duration`)
+  - Peak memory ที่ระดับ concurrency สูง
+
+### วิธีอ่านผลแบบเร็ว
+
+1. เริ่มจาก **Steady** ก่อน (ภาพรวมการใช้งานปกติ)
+2. ใช้ **Burst** และ **Saturation** เทียบความสามารถรองรับโหลดหนัก
+3. ใช้ **Churn** ดูความแข็งแรงของ connection lifecycle (ไม่เน้น msg/s)
+4. อ่าน `ws_errors` ตามบริบทของ scenario (จังหวะเริ่ม/จบรัน vs ความผิดพลาดระหว่างรันจริง)
+
+### แผนถัดไป: Long-run Benchmark (120 วินาที ถึง 5 นาที)
+
+> สถานะ: วางแผนไว้แล้ว เดี๋ยวทำต่อในรอบถัดไป
+
+เพื่อให้ตอบโจทย์การทดสอบแบบ "อยู่ยาว" จะเพิ่มโหมด benchmark ระยะยาวดังนี้:
+
+- `quick` (โหมดปัจจุบัน): ใช้รอบสั้นสำหรับเทียบผลเร็ว
+- `soak120`: ทดสอบ 120 วินาที
+- `soak300`: ทดสอบ 300 วินาที (5 นาที)
+
+KPI ที่จะเพิ่มในการสรุปผลรอบยาว:
+- ความเสถียรของ `ws_errors` ตลอดช่วงรัน
+- แนวโน้มหน่วยความจำ (peak และพฤติกรรมช่วงท้ายรัน)
+- Throughput ช่วงท้ายเทียบกับช่วงต้น (ดูการตกของประสิทธิภาพ)
+- Drop rate ภายใต้โหลดต่อเนื่อง
+
+เกณฑ์ผ่านเบื้องต้น (Draft):
+- รันครบเวลาโดยไม่ crash
+- `ws_errors` ไม่พุ่งต่อเนื่องผิดปกติ
+- ไม่พบอาการ memory โตต่อเนื่องแบบผิดปกติ
+- Throughput ช่วงท้ายไม่ตกฮวบเมื่อเทียบช่วงต้น
+
+## ผลลัพธ์ (Profile B — Docker, arm64, 2026-02-27)
+
+### Steady Load — 100 VUs × 1 msg/s × 60 วินาที
+
+| ภาษา | Throughput (msg/s) | Messages | Connections | Drop rate | k6 errors |
+|------|--------------------|----------|-------------|-----------|-----------|
 | Go       | 84.49              | 5,915    | 100         | 0.00%     | 125       |
 | Rust     | **85.35**          | 5,975    | 100         | 0.00%     | 0         |
 | Zig      | 83.30              | 5,915    | 100         | 0.00%     | 0         |
 
-### Burst — ramp 0→1,000 VUs in 10 s, hold 5 s, ramp-down 5 s
+### Burst — ramp 0→1,000 VUs ใน 10 วินาที, ค้าง 5 วินาที, ลดลง 5 วินาที
 
-| Language | Throughput (msg/s) | Messages | Peak conns | k6 errors |
-|----------|--------------------|----------|------------|-----------|
+| ภาษา | Throughput (msg/s) | Messages | Peak conns | k6 errors |
+|------|--------------------|----------|------------|-----------|
 | Go       | 44.42              | 1,333    | 1,333      | 333       |
 | Rust     | **44.43**          | 1,333    | 1,333      | 333       |
 | Zig      | 43.47              | 1,333    | 1,333      | 333       |
 
-> The 333 burst errors are connections that attempted to join during ramp-down when the server's duration timer was already nearing expiry — not a server defect.
+> burst error จำนวน 333 เกิดจากการที่บาง connection พยายาม join ช่วง ramp-down ตอนที่เวลา duration ของเซิร์ฟเวอร์ใกล้หมดแล้ว ไม่ใช่บั๊กหลักของเซิร์ฟเวอร์
 
-### Churn — 200 VUs × connect→join→2s→leave, 60 s
+### Churn — 200 VUs × connect→join→2s→leave, 60 วินาที
 
-| Language | Total connections | Connection rate | k6 errors |
-|----------|-------------------|-----------------|-----------|
+| ภาษา | Total connections | Connection rate | k6 errors |
+|------|-------------------|-----------------|-----------|
 | Go       | 6,000             | ~100 conn/s     | 0         |
 | Rust     | 6,000             | ~100 conn/s     | 0         |
 | Zig      | 6,000             | ~100 conn/s     | 0         |
 
-> All three servers handled rapid connect/disconnect with zero errors, confirming clean connection lifecycle management.
+> Churn ไม่ได้เน้นส่งข้อความ chat ต่อเนื่อง ตัวชี้วัดหลักคือ **total connections** (ความสามารถของ connection lifecycle) ไม่ใช่ msg/s โดยผลรอบนี้ทั้ง 3 ภาษาไม่มี error
 
-### Binary Sizes
+### ขนาดไบนารี
 
-| Language | Binary |
-|----------|--------|
+| ภาษา | Binary |
+|------|--------|
 | Go       | 5.43 MB |
 | Rust     | **1.50 MB** |
 | Zig      | 2.43 MB |
 
-## Key Insights
+## สรุปประเด็นสำคัญ
 
-1. **Throughput is nearly identical** across all three languages (~83–85 msg/s steady, ~44 msg/s burst). The bottleneck is the k6 workload parameters (100 VUs × 1 msg/s), not the server implementations — all three hit the same ceiling.
+1. **Throughput ใกล้เคียงกันมาก** ทั้ง 3 ภาษา (~83–85 msg/s ใน steady, ~44 msg/s ใน burst) แปลว่าคอขวดอยู่ที่พารามิเตอร์โหลดของ k6 มากกว่าตัว implementation ของเซิร์ฟเวอร์
 
-2. **Rust produces the smallest binary** (1.50 MB) thanks to aggressive dead-code elimination and LTO. Zig (2.43 MB) beats Go (5.43 MB) despite including the facil.io runtime.
+2. **Rust มีขนาดไบนารีเล็กที่สุด** (1.50 MB) ขณะที่ Zig (2.43 MB) ยังเล็กกว่า Go (5.43 MB)
 
-3. **Zig's facil.io pub/sub broadcast** routes messages through a channel subscription model rather than per-connection iteration — architecturally different from Go's goroutine-per-client Hub and Rust's `RwLock<HashMap>` broadcast loop, yet delivers equivalent throughput.
+3. **กลไก broadcast ของ Zig (facil.io pub/sub)** ใช้แนว channel subscription ซึ่งต่างจาก Go/Rust แต่ throughput ที่ได้ยังอยู่ในระดับใกล้เคียงกัน
 
-4. **Go had 125 ws_errors in steady** vs 0 for Rust and Zig. This is a race in Go's gorilla/websocket close sequence: when the server shuts down at t=70s, in-flight pings racing with the shutdown produce `use of closed network connection` errors visible to k6. Not a correctness issue for normal operation.
+4. ใน steady load ของ Profile B, **Go มี ws_errors 125** ขณะที่ Rust/Zig เป็น 0 โดยพฤติกรรมนี้สัมพันธ์กับวิธี close handshake ที่ต่างกัน ไม่ได้ชี้ว่าระบบใช้งานจริงผิดฟังก์ชันทันที แต่เป็นความต่างเชิง implementation
 
-5. **Churn stress test** (6,000 connect/disconnect cycles in 60s at ~100 conn/s) passed with zero errors for all three languages, confirming correct memory cleanup on each language's connection lifecycle.
+5. **Churn stress test** (connect/disconnect 6,000 รอบใน 60 วินาที) ผ่านโดยไม่มี error ในทั้ง 3 ภาษา สะท้อนว่า lifecycle การเชื่อมต่อและ cleanup ทำงานได้ถูกต้อง
 
-6. **Rate limiter correctness**: all three use a token-bucket algorithm (10 tokens/s) that drops excess messages without disconnecting — verified by the 0.00% drop rate under the 1 msg/s steady load (well within the limit).
+6. **Rate limiter ถูกต้องตามสเปก**: ทั้ง 3 ภาษาใช้ token bucket (10 tokens/s) และ drop ข้อความส่วนเกินโดยไม่ตัดการเชื่อมต่อ
 
-## Results (Profile A — Docker, arm64, 2026-02-27)
+## ผลลัพธ์ (Profile A — Docker, arm64, 2026-02-28)
 
-### Steady Load — 100 VUs × 1 msg/s × 60 s
+### Steady Load — 100 VUs × 1 msg/s × 60 วินาที
 
-| Language | Framework | Throughput (msg/s) | Messages | Connections | Drop rate | k6 errors |
-|----------|-----------|--------------------|----------|-------------|-----------|-----------|
-| Go       | GoFiber   | 84.31              | 5,902    | 100         | 0.00%     | 144       |
-| Rust     | Axum      | **85.31**          | 5,972    | 100         | 0.00%     | 0         |
-| Zig      | zap       | 83.45              | 5,914    | 100         | 0.00%     | 0         |
+| ภาษา | เฟรมเวิร์ก | Throughput (msg/s) | Messages | Connections | Drop rate | k6 errors |
+|------|-----------|--------------------|----------|-------------|-----------|-----------|
+| Go       | GoFiber   | 84.39              | 5,908    | 100         | 0.00%     | 114       |
+| Rust     | Axum      | **85.22**          | 5,966    | 100         | 0.00%     | 0         |
+| Zig      | zap       | 83.26              | 5,903    | 100         | 0.00%     | 0         |
 
-### Burst — ramp 0→1,000 VUs in 10 s, hold 5 s, ramp-down 5 s
+### Burst — ramp 0→1,000 VUs ใน 10 วินาที, ค้าง 5 วินาที, ลดลง 5 วินาที
 
-| Language | Framework | Throughput (msg/s) | Messages | Peak conns | k6 errors |
-|----------|-----------|--------------------|----------|------------|-----------|
-| Go       | GoFiber   | 44.56              | 1,337    | 1,337      | 337       |
+| ภาษา | เฟรมเวิร์ก | Throughput (msg/s) | Messages | Peak conns | k6 errors |
+|------|-----------|--------------------|----------|------------|-----------|
+| Go       | GoFiber   | 44.46              | 1,334    | 1,334      | 334       |
 | Rust     | Axum      | **44.43**          | 1,333    | 1,333      | 333       |
-| Zig      | zap       | 43.19              | 1,333    | 1,333      | 332       |
+| Zig      | zap       | 42.98              | 1,333    | 1,333      | 331       |
 
-### Churn — 200 VUs × connect→join→2s→leave, 60 s
+### Churn — 200 VUs × connect→join→2s→leave, 60 วินาที
 
-| Language | Framework | Total connections | k6 errors |
-|----------|-----------|-------------------|-----------|
-| Go       | GoFiber   | 6,647             | 647       |
+| ภาษา | เฟรมเวิร์ก | Total connections | k6 errors |
+|------|-----------|-------------------|-----------|
+| Go       | GoFiber   | 6,765             | 765       |
 | Rust     | Axum      | 6,000             | 0         |
 | Zig      | zap       | 6,000             | 0         |
 
-### Binary Sizes
+### Saturation — 200→500→1000 VUs × 5 msg/s
 
-| Language | Profile B | Profile A | Delta |
-|----------|-----------|-----------|-------|
+| ภาษา | เฟรมเวิร์ก | Throughput (msg/s) | Messages | Connections | Drop rate | k6 errors |
+|------|-----------|--------------------|----------|-------------|-----------|-----------|
+| Go       | GoFiber   | 2,579.20           | 296,613  | 1,123       | 0.00%     | 36,080    |
+| Rust     | Axum      | 560.44             | 64,464   | 1,000       | 1.36%     | 9,010     |
+| Zig      | zap       | **2,929.32**       | 338,456  | 1,000       | 0.00%     | 805       |
+
+### ขนาดไบนารี
+
+| ภาษา | โปรไฟล์ B | โปรไฟล์ A | ความต่าง |
+|------|-----------|-----------|---------|
 | Go       | 5.43 MB   | 6.18 MB   | +14%  |
 | Rust     | **1.50 MB** | 1.94 MB | +29%  |
 | Zig      | 2.43 MB   | 2.43 MB   | 0%    |
 
 ---
 
-## Profile A vs Profile B — Comparison
+## เปรียบเทียบ Profile A vs Profile B
 
-| Language | Profile | Framework | Steady (msg/s) | Burst (msg/s) |
-|----------|---------|-----------|----------------|---------------|
-| Go       | B       | net/http + gorilla | 84.49 | 44.42 |
-| Go       | A       | GoFiber v2         | 84.31 | 44.56 |
-| Rust     | B       | tokio-tungstenite  | 85.35 | 44.43 |
-| Rust     | A       | Axum 0.7           | 85.31 | 44.43 |
-| Zig      | B       | zap (facil.io)     | 83.30 | 43.47 |
-| Zig      | A       | zap (same)         | 83.45 | 43.19 |
+| ภาษา | โปรไฟล์ | เฟรมเวิร์ก | Steady (msg/s) | Burst (msg/s) | Saturation (msg/s) |
+|------|---------|-----------|----------------|---------------|--------------------|
+| Go       | B       | net/http + gorilla | 84.49 | 44.42 | N/A |
+| Go       | A       | GoFiber v2         | 84.39 | 44.46 | 2,579.20 |
+| Rust     | B       | tokio-tungstenite  | 85.35 | 44.43 | N/A |
+| Rust     | A       | Axum 0.7           | 85.22 | 44.43 | 560.44 |
+| Zig      | B       | zap (facil.io)     | 83.30 | 43.47 | N/A |
+| Zig      | A       | zap (same)         | 83.26 | 42.98 | 2,929.32 |
 
-### Key Insights (Profile A vs B)
+### สรุปประเด็นสำคัญ (Profile A vs B)
 
-1. **Framework overhead on throughput is negligible** — all six configurations deliver 83–85 msg/s steady and ~44 msg/s burst. The bottleneck is the k6 workload, not the language or framework.
+1. **ผลกระทบจาก framework ต่อ throughput ค่อนข้างน้อย** ทั้ง 6 คอนฟิกให้ตัวเลข steady/burst ใกล้กันมาก
 
-2. **GoFiber churn errors (647 vs 0)** — Fiber's fasthttp connection lifecycle is more aggressive than net/http's during rapid connect/disconnect cycles. Rust Axum and Zig show identical behavior to Profile B.
+2. **GoFiber ยังมี churn anomaly** (6,765 connections เทียบกับคาดหมาย 6,000 และ ws_errors 765) ซึ่งเกี่ยวกับพฤติกรรมตอน upgrade connection ของ fasthttp ที่ต่างจาก `net/http`
 
-3. **Binary size grows with framework dependencies**: Go +14% (Fiber adds fasthttp), Rust +29% (Axum pulls in hyper + tower stack). Zig is unchanged because Profile A uses the exact same codebase.
+3. **Saturation แยกความต่างได้ชัดเจน**: Zig (2,929.32 msg/s) และ Go (2,579.20 msg/s) สูงกว่า Rust (560.44 msg/s) มาก พร้อมกับ Rust มี drop rate 1.36%
 
-4. **Rust remains the smallest binary** across both profiles (1.50 MB → 1.94 MB), still smaller than Zig's 2.43 MB when carrying the facil.io runtime.
+4. **ขนาดไบนารีเพิ่มขึ้นเมื่อเพิ่ม framework dependency**: Go +14%, Rust +29%, ส่วน Zig ไม่เปลี่ยนเพราะใช้โค้ดชุดเดิม
+
+5. **Rust ยังเป็นไบนารีที่เล็กที่สุด** ทั้งสองโปรไฟล์ (1.50 MB → 1.94 MB)
 
 ---
 
-## Dependencies
+## Dependencies หลัก
 
-| Language | Key Libraries |
-|----------|---------------|
+| ภาษา | ไลบรารีหลัก |
+|------|---------------|
 | Go       | `gorilla/websocket v1.5.3` |
 | Rust     | `tokio 1`, `tokio-tungstenite 0.26`, `clap 4`, `serde_json` |
 | Zig      | `zap v0.11.0` (wraps facil.io 0.7.4) |
