@@ -26,11 +26,12 @@
 - **latency ต่ำสุด**: Audio Chunker 17 ns (Go ช้ากว่า 250×!)
 - **ไม่ต้อง clone()**: KV Store ไม่ต้องสร้าง String ใหม่ทุก operation → 3× เหนือ Rust
 
-### Rust ชนะงาน async + regex
+### Rust ชนะงาน async + regex + production stability
 LLVM SIMD + Tokio async I/O
 - **regex/string search ยาว**: Log Masker 41.7 MB/s (10× เหนือ Go) ด้วย SIMD DFA engine
 - **async TCP**: Port Scanner 108K items/s async (Go sync: 664 items/s)
 - **binary เล็กสุด**: ~388KB ทุกโปรเจกต์
+- **WebSocket soak (300s+180s)**: 0 ws_errors, memory คงที่, throughput 95 msg/s ตลอด 5 นาที
 
 ### Go ชนะงาน HTTP networking
 stdlib HTTP + connection pooling

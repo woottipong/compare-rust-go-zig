@@ -1,6 +1,8 @@
 # WebSocket Public Chat — Go vs Rust vs Zig
 
-เปรียบเทียบ WebSocket chat server ที่เขียนด้วย 3 ภาษา โดยทดสอบด้วย k6 load test ครอบคลุม 4 รูปแบบโหลด
+เปรียบเทียบ WebSocket chat server ที่เขียนด้วย 3 ภาษา ทดสอบด้วย k6 ครอบคลุม 2 โหมด: **quick** (4 scenarios, ~4 นาที) และ **soak** (long-run, ~25 นาที)
+
+---
 
 ## โครงสร้างโปรเจกต์
 
@@ -15,10 +17,16 @@ websocket-public-chat/
 │   ├── rust/               # tokio-tungstenite     → image: wsc-rust
 │   └── zig/                # websocket.zig (pure)  → image: wsc-zig
 ├── k6/                     # load-test scenarios (shared)
+│   ├── steady.js           # 100 VUs × 60s
+│   ├── burst.js            # 0→1000 VUs spike
+│   ├── churn.js            # 200 VUs × connect/disconnect × 60s
+│   ├── saturation.js       # 200→500→1000 VUs × 5 msg/s
+│   ├── steady-soak.js      # 100 VUs × 300s (soak)
+│   └── churn-soak.js       # 200 VUs × 180s (soak)
 ├── benchmark/
-│   ├── run.sh              # → run-profile-a.sh
-│   ├── run-profile-a.sh
-│   ├── run-profile-b.sh
+│   ├── run-profile-a.sh    # quick benchmark — Profile A
+│   ├── run-profile-b.sh    # quick benchmark — Profile B
+│   ├── run-soak-profile-a.sh  # soak benchmark — Profile A
 │   └── results/
 └── docs/
 ```
@@ -46,11 +54,14 @@ websocket-public-chat/
 ```bash
 cd websocket-public-chat
 
-# Profile A — framework servers
-bash benchmark/run.sh
+# Quick benchmark — Profile A (framework)
+bash benchmark/run-profile-a.sh
 
-# Profile B — minimal/stdlib servers
+# Quick benchmark — Profile B (minimal/stdlib)
 bash benchmark/run-profile-b.sh
+
+# Soak benchmark — Profile A (~25 นาที)
+bash benchmark/run-soak-profile-a.sh
 ```
 
 ผลจะบันทึกอัตโนมัติที่ `benchmark/results/`
@@ -59,63 +70,79 @@ bash benchmark/run-profile-b.sh
 
 ## Benchmark Methodology
 
-- **Platform**: Docker (arm64), --cpus 2 --memory 512m per container
-- **Scenarios**: Steady / Burst / Churn / Saturation (4 รูปแบบ)
-- **Metrics**: throughput, peak memory, peak CPU, k6 errors, connect p95
-- **Tool**: k6 load generator (containerized)
+| รายการ | รายละเอียด |
+|--------|-----------|
+| Platform | Docker (arm64), `--cpus 2 --memory 512m` per container |
+| Quick scenarios | Steady / Burst / Churn / Saturation (4 รูปแบบ) |
+| Soak scenarios | Steady-soak (300s) / Churn-soak (180s) |
+| Metrics | throughput, peak memory, peak CPU, k6 errors, connect p95 |
+| Soak KPIs | memory drift (early vs late), error accumulation (ws_err/s) |
+| Tool | k6 load generator (containerized) |
 
 ---
 
 ## Scenarios ที่ทดสอบ
 
-### 1) Steady — ห้องแชตวันธรรมดา
+### Quick (4 scenarios)
+
+#### 1) Steady — ห้องแชตวันธรรมดา
 > เสมือน: ผู้ใช้ 100 คนนั่งคุยกันอยู่ในห้องเดียว แต่ละคนพิมพ์ข้อความทุก 1 วินาที เป็นเวลา 1 นาที
 
 - **รูปแบบ**: 100 clients × 1 msg/s × 60s
 - **วัด**: throughput ที่นิ่ง, drop rate ≈ 0%, เสถียรภาพพื้นฐาน
 
-### 2) Burst — คนแห่เข้าห้องพร้อมกัน
+#### 2) Burst — คนแห่เข้าห้องพร้อมกัน
 > เสมือน: ประกาศข่าวด่วน คนกด link เข้าห้องแชตพร้อมกัน 1,000 คนภายใน 10 วินาที
 
 - **รูปแบบ**: 0 → 1,000 clients ใน 10s, ค้าง 5s, ออกทั้งหมดใน 5s
 - **วัด**: ความทนต่อ spike, peak memory
 
-### 3) Churn — ผู้ใช้เข้าๆ ออกๆ ตลอดเวลา
-> เสมือน: ห้องแชต live event ที่คนดูเข้ามาดูสักครู่แล้วก็ออก วนซ้ำตลอด 1 ชั่วโมง
+#### 3) Churn — ผู้ใช้เข้าๆ ออกๆ ตลอดเวลา
+> เสมือน: ห้องแชต live event ที่คนดูเข้ามาดูสักครู่แล้วก็ออก
 
 - **รูปแบบ**: 200 clients วน connect→join→รอ 2s→leave ต่อเนื่อง 60s
 - **วัด**: total connections รวม, ws_errors, memory trend
 
-### 4) Saturation — กดโหลดสุดขีด
-> เสมือน: flash sale — ทุกคนส่งข้อความพร้อมกันอย่างรวดเร็ว และจำนวนคนก็เพิ่มขึ้นเรื่อยๆ
+#### 4) Saturation — กดโหลดสุดขีด
+> เสมือน: flash sale — ทุกคนส่งข้อความพร้อมกันอย่างรวดเร็ว
 
 - **รูปแบบ**: 200 → 500 → 1,000 clients, แต่ละคนส่ง 5 msg/s
 - **วัด**: เพดาน throughput, drop rate, connect latency p95
 
+### Soak (2 scenarios)
+
+#### 5) Steady-soak — production readiness test
+- **รูปแบบ**: 100 clients × 1 msg/s × **300s**
+- **วัด**: memory drift (early 60s vs late 60s), ws_errors/s ตลอด 5 นาที
+
+#### 6) Churn-soak — long-run leak detection
+- **รูปแบบ**: 200 clients × connect→2s→leave × **180s**
+- **วัด**: total connections (~18,000), memory stability, error accumulation
+
 ---
 
-## ผลการทดสอบ (Docker, arm64, 2026-02-28)
+## ผลการทดสอบ Quick (Docker, arm64, 2026-02-28)
 
 ### Profile A — Framework (GoFiber · Axum · zap/facil.io)
 
 #### Steady
 | ภาษา | Throughput | Peak memory | Peak CPU | k6 errors |
 |------|-----------|-------------|---------|----------|
-| Go (GoFiber)   | 84.45 msg/s | 12 MiB | 10% | 109 |
+| Go (GoFiber)   | 84.45 msg/s | 12 MiB | 10% | 109 ⚠️ |
 | Rust (Axum)    | **85.39 msg/s** | **5 MiB** | 9% | 0 |
-| Zig (zap)      | 82.94 msg/s | 30 MiB | 1% | 0 |
+| Zig (zap)      | 82.94 msg/s | 30 MiB | **1%** | 0 |
 
 #### Burst
 | ภาษา | Throughput | Peak memory | Peak CPU | k6 errors |
 |------|-----------|-------------|---------|----------|
 | Go (GoFiber)   | **44.46 msg/s** | 38 MiB | 97% | 334 |
 | Rust (Axum)    | 44.43 msg/s | **20 MiB** | 162% | 333 |
-| Zig (zap)      | 43.18 msg/s | 63 MiB | 16% | 331 |
+| Zig (zap)      | 43.18 msg/s | 63 MiB | **16%** | 331 |
 
 #### Churn
 | ภาษา | Total connections | Peak memory | Peak CPU | k6 errors |
 |------|------------------|-------------|---------|----------|
-| Go (GoFiber)   | 7,370 | 16 MiB | 6% | 1,370 ⚠️ |
+| Go (GoFiber)   | 7,370 ⚠️ | 16 MiB | 6% | 1,370 ⚠️ |
 | Rust (Axum)    | 6,000 | **6 MiB** | 5% | 0 |
 | Zig (zap)      | 6,000 | 32 MiB | 8% | 0 |
 
@@ -135,7 +162,7 @@ bash benchmark/run-profile-b.sh
 #### Steady
 | ภาษา | Throughput | Peak memory | Peak CPU | k6 errors |
 |------|-----------|-------------|---------|----------|
-| Go   | 84.28 msg/s | 9 MiB | 6% | 111 |
+| Go   | 84.28 msg/s | 9 MiB | 6% | 111 ⚠️ |
 | Rust | **85.23 msg/s** | **5 MiB** | 10% | 0 |
 | Zig  | 85.18 msg/s | **2 MiB** | 11% | 0 |
 
@@ -172,6 +199,39 @@ bash benchmark/run-profile-b.sh
 
 ---
 
+## ผลการทดสอบ Soak — Profile A (Docker, arm64, 2026-02-28)
+
+### Steady-soak — 100 VUs × 1 msg/s × 300s
+
+| ภาษา | Throughput | Peak memory | Peak CPU | ws_errors/s | connect p95 |
+|------|-----------|-------------|---------|------------|------------|
+| Go (GoFiber)  | 93.88 msg/s | 15 MiB | 18% | 2.54 ⚠️ | 30.68ms |
+| Rust (Axum)   | **95.14 msg/s** | **6 MiB** | 10% | **0.00** | 22.52ms |
+| Zig (zap)     | 94.70 msg/s | 30 MiB | **2%** | **0.00** | 27.97ms |
+
+### Churn-soak — 200 VUs × connect→2s→leave × 180s
+
+| ภาษา | Total connections | Peak memory | Peak CPU | ws_errors/s |
+|------|-----------------|-------------|---------|------------|
+| Go (GoFiber)  | 21,251 ⚠️ | 17 MiB | 10% | 18.06 ⚠️ |
+| Rust (Axum)   | 18,000 | **8 MiB** | **5%** | **0.00** |
+| Zig (zap)     | 18,000 | 32 MiB | 4% | **0.00** |
+
+> ⚠️ GoFiber churn anomaly ยังคงอยู่ใน soak run — connection เกิน 18,000 เพราะ fasthttp HTTP upgrade behavior เดิม (ไม่ได้แย่ลงเมื่อ run นานขึ้น)
+
+### สรุปผล Soak
+
+| KPI | Go | Rust | Zig |
+|-----|-----|------|-----|
+| Memory leak | ไม่พบ | ไม่พบ | ไม่พบ |
+| ws_errors/s (steady-soak) | 2.54 ⚠️ | **0.00** | **0.00** |
+| ws_errors/s (churn-soak) | 18.06 ⚠️ | **0.00** | **0.00** |
+| Memory stability | คงที่ | คงที่ | คงที่ |
+
+**ข้อสรุป soak**: ทุกภาษา **ไม่มี memory leak** ตลอด 300s+180s — Rust และ Zig ผ่าน error-free, Go มี ws_errors จาก fasthttp anomaly เดิม (ไม่ใช่ปัญหาใหม่)
+
+---
+
 ## วิเคราะห์ผล
 
 ### Steady & Burst — ทั้ง 3 ภาษาใกล้เคียงกัน
@@ -186,12 +246,12 @@ Rust หลัง fix AtomicU64 + try_send: **2,960 msg/s** ใกล้เค�
 - **Go (2,722 msg/s)**: ใกล้เคียง — goroutine + channel model เหมาะกับ concurrent I/O
 - **Zig (578 msg/s)**: ต่ำกว่า — mutex-protected broadcast loop ทำงาน O(n) แบบ sequential blocking
 
-> **บทเรียนสำคัญ**: ผลของ Zig ใน Profile A (zap) สะท้อน **ความสามารถของ facil.io C library** ไม่ใช่ภาษา Zig เอง เมื่อเปลี่ยนมาใช้ pure Zig, Zig มีปัญหาเรื่อง broadcast scalability เหมือนกับการ implement naive broadcast ใน language ไหนก็ตาม
+> **บทเรียนสำคัญ**: ผลของ Zig ใน Profile A (zap) สะท้อน **ความสามารถของ facil.io C library** ไม่ใช่ภาษา Zig เอง
 
 ### Memory — Zig ชนะในมิติ memory (Profile B)
 Profile B: Zig ใช้ memory น้อยที่สุดในทุก scenario (2–66 MiB) เพราะ websocket.zig ไม่มี overhead ของ C runtime
 
-### Framework Impact — ยังน้อยมาก
+### Framework Impact — น้อยมาก
 Steady/Burst ระหว่าง Profile A และ B ต่างกันแทบไม่เกิน 0.5%
 
 ---
@@ -200,17 +260,17 @@ Steady/Burst ระหว่าง Profile A และ B ต่างกัน�
 
 | มิติ | Profile A | Profile B | หมายเหตุ |
 |------|-----------|-----------|---------|
-| Throughput (saturation) | **Zig/Rust** (ใกล้เคียงกัน) | **Rust** | Rust ชนะ Profile B ด้วย tokio channel |
-| Memory efficiency | **Rust** (5 MiB) | **Zig** (2–4 MiB) | Zig wins ใน pure Zig stack |
+| Throughput (saturation) | **Zig/Rust** (~2,950 msg/s) | **Rust** (2,982 msg/s) | Rust ชนะ Profile B ด้วย tokio channel |
+| Memory efficiency | **Rust** (5–6 MiB) | **Zig** (2–4 MiB) | Zig wins ใน pure Zig stack |
 | Binary size | **Rust** (1.94 MB) | **Rust** (1.50 MB) | Rust เล็กสุดทั้งสองโปรไฟล์ |
-| Connection stability | ทุกภาษา | ทุกภาษา | Churn ผ่านเท่ากันหมด |
 | CPU efficiency (saturation) | **Zig** (83%) | **Rust** (188%) | Zig ใช้ CPU น้อยกว่าใน Profile A |
+| Production stability (soak) | **Rust/Zig** | — | 0 errors ตลอด 480s |
 
-> **ข้อสรุป**: Rust มีความสมดุลดีที่สุด — throughput สูง, memory ต่ำ, binary เล็ก ส่วน Zig มี memory footprint ต่ำที่สุดใน Profile B แต่ broadcast scalability ต้องการ optimization เพิ่มเติม
+> **ข้อสรุป**: Rust มีความสมดุลดีที่สุด — throughput สูง, memory ต่ำ, binary เล็ก, error-free ทั้ง quick และ soak ส่วน Zig มี memory footprint ต่ำที่สุดใน Profile B แต่ broadcast scalability ต้องการ optimization เพิ่มเติม
 
 ---
 
-## Improvement History (Epics 6–9)
+## Improvement History
 
 | Epic | Change | Before | After | Delta |
 |------|--------|--------|-------|-------|
@@ -220,38 +280,9 @@ Steady/Burst ระหว่าง Profile A และ B ต่างกัน�
 | **7** | Peak memory (saturation) | 195 MiB | **153 MiB** | **−22%** ✅ |
 | **9** — Zig: websocket.zig (fair) | Saturation throughput | 2,951 msg/s *(zap)* | 578 msg/s | −80%¹ |
 | **9** | Steady memory | 30 MiB | **2 MiB** | −93% ✅ |
+| **10** — Soak benchmark (300s+180s) | Memory leak detection | ไม่มี soak test | 0 leak ทุกภาษา | ✅ |
 
 > ¹ ไม่ใช่ regression — Zig ด้วย zap ได้เปรียบจาก facil.io C library ที่ optimize มา 10+ ปี ผลจาก websocket.zig สะท้อนความสามารถจริงของ pure Zig runtime
-
----
-
-## Soak Benchmark (Profile A)
-
-> สถานะ: พร้อมใช้งาน ✅ (Epic 10)
-
-### โหมดที่รองรับ
-
-| โหมด | Duration | ใช้สำหรับ |
-|------|----------|--------|
-| `quick` | steady 60s / burst 20s / churn 60s / saturation 100s | dev loop / quick compare |
-| `soak` | steady-soak 300s / churn-soak 180s | production readiness · ~25 นาที |
-
-### รันการทดสอบ Soak
-
-```bash
-cd websocket-public-chat
-bash benchmark/run-soak-profile-a.sh
-```
-
-ผลจะบันทึกที่ `benchmark/results/websocket_soak_profile_a_<timestamp>.txt`
-
-### KPI ที่วัด
-
-| KPI | วิธีวัด |
-|-----|--------|
-| Memory drift | peak mem ช่วงต้น (60s แรก) vs ช่วงท้าย (60s สุดท้าย) |
-| Error accumulation | ws_errors / วินาที จาก k6 summary |
-| Connection stability | total connections จาก churn-soak 180s |
 
 ---
 
