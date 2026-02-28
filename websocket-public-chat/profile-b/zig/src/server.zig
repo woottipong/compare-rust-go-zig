@@ -1,168 +1,152 @@
 const std = @import("std");
-const zap = @import("zap");
+const ws = @import("websocket");
 const hub_mod = @import("hub.zig");
 const protocol = @import("protocol.zig");
 const stats_mod = @import("stats.zig");
 
-const TOKEN_MAX: u32 = protocol.rate_limit_msg_per_sec;
-const PING_INTERVAL_NS: u64 = protocol.ping_interval_sec * std.time.ns_per_s;
-const PONG_TIMEOUT_NS: u64 = PING_INTERVAL_NS * 2;
+const TOKEN_MAX: u32 = @intCast(protocol.rate_limit_msg_per_sec);
 
-/// Per-connection context — stored on the heap.
-pub const Context = struct {
+// Global state — written once at startup, read-only during serve.
+pub var g_hub: *hub_mod.Hub = undefined;
+pub var g_stats: *stats_mod.Stats = undefined;
+pub var g_allocator: std.mem.Allocator = undefined;
+
+// Per-connection handler for websocket.zig.
+pub const Handler = struct {
+    conn: *ws.Conn,
+    app: *App,
     id: u64,
-    user: []u8, // heap-allocated, owned
+    user: []u8,          // heap-allocated username (duped)
     tokens: u32,
     last_refill_ns: u64,
-    last_pong_ns: u64,
-    subscribe_args: WebsocketHandler.SubscribeArgs,
-    settings: WebsocketHandler.WebSocketSettings,
-    allocator: std.mem.Allocator,
+
+    // websocket.zig: init is called after HTTP upgrade, before handshake ACK.
+    pub fn init(_: *ws.Handshake, conn: *ws.Conn, app: *App) !Handler {
+        const user = try g_allocator.dupe(u8, "");
+        return .{
+            .conn = conn,
+            .app = app,
+            .id = 0,
+            .user = user,
+            .tokens = TOKEN_MAX,
+            .last_refill_ns = nowNs(),
+        };
+    }
+
+    // afterInit — called after handshake ACK sent; safe to record connection.
+    pub fn afterInit(self: *Handler) !void {
+        g_stats.addConnection();
+        try self.app.addConn(self.conn);
+    }
+
+    // close — called when connection closes (client disconnect or server close).
+    pub fn close(self: *Handler) void {
+        self.app.removeConn(self.conn);
+        g_hub.unregister(self.id);
+        g_stats.removeConnection();
+        g_allocator.free(self.user);
+    }
+
+    // clientMessage — called for each text/binary frame received.
+    pub fn clientMessage(self: *Handler, data: []const u8) !void {
+        var arena = std.heap.ArenaAllocator.init(g_allocator);
+        defer arena.deinit();
+        const alloc = arena.allocator();
+
+        const parsed = std.json.parseFromSlice(
+            protocol.Message,
+            alloc,
+            data,
+            .{ .ignore_unknown_fields = true },
+        ) catch return; // ignore malformed JSON
+        defer parsed.deinit();
+
+        const msg = parsed.value;
+
+        if (std.mem.eql(u8, msg.type, protocol.msg_join)) {
+            const user = msg.user orelse "";
+            g_allocator.free(self.user);
+            self.user = try g_allocator.dupe(u8, user);
+            self.id = try g_hub.register(self.user);
+        } else if (std.mem.eql(u8, msg.type, protocol.msg_chat)) {
+            if (!self.allowToken()) {
+                g_stats.addDropped();
+                return;
+            }
+            g_stats.addMessage();
+            // Broadcast to all connected clients.
+            try self.app.broadcast(data);
+        } else if (std.mem.eql(u8, msg.type, protocol.msg_pong)) {
+            // keepalive — nothing to do
+        } else if (std.mem.eql(u8, msg.type, protocol.msg_leave)) {
+            try self.conn.close(.{});
+        }
+        // unknown type → ignore
+    }
+
+    fn allowToken(self: *Handler) bool {
+        const now = nowNs();
+        const elapsed_ns = now -| self.last_refill_ns;
+        const refill: u32 = @intCast(@min(TOKEN_MAX, elapsed_ns * TOKEN_MAX / std.time.ns_per_s));
+        if (refill > 0) {
+            self.tokens = @min(TOKEN_MAX, self.tokens + refill);
+            self.last_refill_ns = now;
+        }
+        if (self.tokens == 0) return false;
+        self.tokens -= 1;
+        return true;
+    }
 };
-
-pub const WebsocketHandler = zap.WebSockets.Handler(Context);
-
-// Global state pointers — required by zap's callback model.
-// zap's on_open/on_message/on_close callbacks are bare function pointers and
-// cannot capture closures or carry user data beyond a per-connection Context.
-// These are written exactly once by server_mod.init() before listener.listen()
-// is called, and are read-only after that point — no concurrency hazard.
-var g_hub: *hub_mod.Hub = undefined;
-var g_stats: *stats_mod.Stats = undefined;
-var g_allocator: std.mem.Allocator = undefined;
-
-pub fn init(hub: *hub_mod.Hub, stats: *stats_mod.Stats, allocator: std.mem.Allocator) void {
-    g_hub = hub;
-    g_stats = stats;
-    g_allocator = allocator;
-}
 
 fn nowNs() u64 {
     return @intCast(std.time.nanoTimestamp());
 }
 
-fn allowToken(ctx: *Context) bool {
-    const now = nowNs();
-    const elapsed_ns = now -| ctx.last_refill_ns;
-    const refill: u32 = @intCast(@min(TOKEN_MAX, elapsed_ns * TOKEN_MAX / std.time.ns_per_s));
-    if (refill > 0) {
-        ctx.tokens = @min(TOKEN_MAX, ctx.tokens + refill);
-        ctx.last_refill_ns = now;
+// App holds the shared connection list for broadcasting.
+pub const App = struct {
+    mu: std.Thread.Mutex,
+    conns: std.ArrayListUnmanaged(*ws.Conn),
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) App {
+        return .{
+            .mu = .{},
+            .conns = .{},
+            .allocator = allocator,
+        };
     }
-    if (ctx.tokens == 0) return false;
-    ctx.tokens -= 1;
-    return true;
-}
 
-fn onOpen(ctx: ?*Context, handle: zap.WebSockets.WsHandle) anyerror!void {
-    const c = ctx orelse return;
-    c.last_pong_ns = nowNs();
+    pub fn deinit(self: *App) void {
+        self.conns.deinit(self.allocator);
+    }
 
-    // Subscribe to the public room channel
-    c.subscribe_args = .{
-        .channel = protocol.room,
-        .force_text = true,
-        .context = c,
-        .on_message = onChannelMessage,
-    };
-    _ = try WebsocketHandler.subscribe(handle, &c.subscribe_args);
-    g_stats.addConnection();
-}
+    pub fn addConn(self: *App, conn: *ws.Conn) !void {
+        self.mu.lock();
+        defer self.mu.unlock();
+        try self.conns.append(self.allocator, conn);
+    }
 
-fn onClose(ctx: ?*Context, _: isize) anyerror!void {
-    const c = ctx orelse return;
-    g_hub.unregister(c.id);
-    g_stats.removeConnection();
-    // Free context memory
-    g_allocator.free(c.user);
-    g_allocator.destroy(c);
-}
-
-fn onMessage(
-    ctx: ?*Context,
-    handle: zap.WebSockets.WsHandle,
-    message: []const u8,
-    _: bool,
-) anyerror!void {
-    const c = ctx orelse return;
-
-    // Parse JSON — use a stack buffer for small messages
-    var arena = std.heap.ArenaAllocator.init(g_allocator);
-    defer arena.deinit();
-    const alloc = arena.allocator();
-
-    const parsed = std.json.parseFromSlice(
-        protocol.Message,
-        alloc,
-        message,
-        .{ .ignore_unknown_fields = true },
-    ) catch return; // ignore malformed JSON
-    defer parsed.deinit();
-
-    const msg = parsed.value;
-
-    if (std.mem.eql(u8, msg.type, protocol.msg_join)) {
-        const user = msg.user orelse "";
-        g_allocator.free(c.user);
-        c.user = try g_allocator.dupe(u8, user);
-        c.id = try g_hub.register(c.user);
-    } else if (std.mem.eql(u8, msg.type, protocol.msg_chat)) {
-        if (!allowToken(c)) {
-            g_stats.addDropped();
-            return;
+    pub fn removeConn(self: *App, conn: *ws.Conn) void {
+        self.mu.lock();
+        defer self.mu.unlock();
+        for (self.conns.items, 0..) |c, i| {
+            if (c == conn) {
+                _ = self.conns.swapRemove(i);
+                return;
+            }
         }
-        g_stats.addMessage();
-        // Broadcast via channel (all subscribers except sender get it via facil.io)
-        WebsocketHandler.publish(.{ .channel = protocol.room, .message = message });
-    } else if (std.mem.eql(u8, msg.type, protocol.msg_pong)) {
-        c.last_pong_ns = nowNs();
-    } else if (std.mem.eql(u8, msg.type, protocol.msg_leave)) {
-        WebsocketHandler.close(handle);
-    }
-    // unknown type → ignore
-}
-
-fn onChannelMessage(
-    _: ?*Context,
-    _: zap.WebSockets.WsHandle,
-    _: []const u8,
-    _: []const u8,
-) anyerror!void {
-    // zap pub/sub delivers to all subscribers — no extra routing needed
-}
-
-/// HTTP upgrade handler — called by zap HTTP listener on /ws route.
-pub fn onUpgrade(r: zap.Request, target_protocol: []const u8) anyerror!void {
-    if (!std.mem.eql(u8, target_protocol, "websocket")) {
-        r.setStatus(.bad_request);
-        r.sendBody("expected websocket") catch {};
-        return;
     }
 
-    const ctx = g_allocator.create(Context) catch return;
-    ctx.* = .{
-        .id = 0,
-        .user = g_allocator.dupe(u8, "") catch {
-            g_allocator.destroy(ctx);
-            return;
-        },
-        .tokens = TOKEN_MAX,
-        .last_refill_ns = nowNs(),
-        .last_pong_ns = nowNs(),
-        .subscribe_args = undefined,
-        .settings = undefined,
-        .allocator = g_allocator,
-    };
+    // broadcast sends message to all active connections (best-effort).
+    pub fn broadcast(self: *App, data: []const u8) !void {
+        self.mu.lock();
+        // Snapshot the list to avoid holding lock during write.
+        const snap = try self.allocator.dupe(*ws.Conn, self.conns.items);
+        self.mu.unlock();
+        defer self.allocator.free(snap);
 
-    ctx.settings = .{
-        .on_open = onOpen,
-        .on_close = onClose,
-        .on_message = onMessage,
-        .context = ctx,
-    };
-
-    WebsocketHandler.upgrade(r.h, &ctx.settings) catch {
-        g_allocator.free(ctx.user);
-        g_allocator.destroy(ctx);
-    };
-}
+        for (snap) |conn| {
+            conn.write(data) catch {}; // ignore slow/closed connections
+        }
+    }
+};

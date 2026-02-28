@@ -1,7 +1,7 @@
 # WebSocket Public Chat — Project Status
 
-> อัปเดตล่าสุด: 2026-02-28 | Phase: IMPROVE
-> Progress: █████████████░░░ 80% (16/20 tasks done)
+> อัปเดตล่าสุด: 2026-02-28 | Phase: DONE
+> Progress: ████████████████ 100% (20/20 tasks done)
 
 ---
 
@@ -33,10 +33,10 @@
 
 ---
 
-## Epic 3: Profile B — Zig (zap v0.11 / facil.io)
+## Epic 3: Profile B — Zig (websocket.zig — pure Zig, ไม่มี C dependency)
 | Task | Description | Status | Priority | Depends On |
 |------|-------------|--------|:--------:|------------|
-| 3.1 | Verify Zig WS library (zap v0.11) | [DONE] | — | 0.4 |
+| 3.1 | Verify Zig WS library (เปลี่ยนจาก zap → websocket.zig) | [DONE] | — | 0.4 |
 | 3.2 | WS server core: connect, join, broadcast | [DONE] | — | 3.1 |
 | 3.3 | Ping/Pong keepalive (30s) + rate limit (10 msg/s) | [DONE] | — | 3.2 |
 | 3.4 | Stats struct + Docker + unit tests | [DONE] | — | 3.3 |
@@ -92,8 +92,8 @@
 ## Epic 9: Documentation & Re-benchmark
 | Task | Description | Status | Priority | Depends On |
 |------|-------------|--------|:--------:|------------|
-| 9.1 | รัน benchmark ใหม่ทั้ง Profile A+B หลังแก้ code | [TODO] | — | 6.3, 7.2, 8.2 |
-| 9.2 | อัปเดต README.md ด้วยผลใหม่ + improvement notes | [TODO] | — | 9.1 |
+| 9.1 | รัน benchmark ใหม่ทั้ง Profile A+B หลังแก้ code + rewrite Profile B Zig | [DONE] | — | 6.3, 7.2, 8.2 |
+| 9.2 | อัปเดต README.md ด้วยผลใหม่ + improvement notes + CPU metrics | [DONE] | — | 9.1 |
 
 ---
 

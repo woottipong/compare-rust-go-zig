@@ -1,14 +1,8 @@
 const std = @import("std");
-const zap = @import("zap");
+const ws = @import("websocket");
 const hub_mod = @import("hub.zig");
 const server_mod = @import("server.zig");
 const stats_mod = @import("stats.zig");
-
-/// Fallback HTTP handler — only WebSocket upgrades are expected on this server.
-fn onRequest(r: zap.Request) anyerror!void {
-    r.setStatus(.not_found);
-    r.sendBody("use WebSocket") catch {};
-}
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -30,33 +24,37 @@ pub fn main() !void {
 
     var stats = stats_mod.Stats.init();
 
-    server_mod.init(&hub, &stats, allocator);
+    // Write global state pointers before starting the server.
+    server_mod.g_hub = &hub;
+    server_mod.g_stats = &stats;
+    server_mod.g_allocator = allocator;
 
-    var listener = zap.HttpListener.init(.{
-        .port = port,
-        .on_request = onRequest,
-        .on_upgrade = server_mod.onUpgrade,
-        .log = false,
-        .max_clients = 4096,
-        .max_body_size = 1024,
-    });
-    try listener.listen();
+    var app = server_mod.App.init(allocator);
+    defer app.deinit();
 
-    std.debug.print("websocket-public-chat: listening on :{d}\n", .{port});
+    std.debug.print("websocket-public-chat (profile-b): listening on :{d}\n", .{port});
 
     if (duration_sec > 0) {
-        // Run zap in background thread, stop after duration
-        const t = try std.Thread.spawn(.{}, runZap, .{});
+        // Run server in a background thread; main thread sleeps then shuts down.
+        const t = try std.Thread.spawn(.{}, runServer, .{ &app, allocator, port });
         std.Thread.sleep(duration_sec * std.time.ns_per_s);
-        zap.stop();
-        t.join();
+        // websocket.zig Server has no stop() — detach and let process exit clean up.
+        t.detach();
     } else {
-        zap.start(.{ .threads = 2, .workers = 1 });
+        try runServer(&app, allocator, port);
     }
 
     stats.printStats();
 }
 
-fn runZap() void {
-    zap.start(.{ .threads = 2, .workers = 1 });
+fn runServer(app: *server_mod.App, allocator: std.mem.Allocator, port: u16) !void {
+    var server = try ws.Server(server_mod.Handler).init(allocator, .{
+        .port = port,
+        .address = "0.0.0.0",
+        .handshake = .{
+            .timeout = 3,
+        },
+    });
+    defer server.deinit();
+    try server.listen(app);
 }

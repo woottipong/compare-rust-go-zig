@@ -4,10 +4,9 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const zap_dep = b.dependency("zap", .{
+    const ws_dep = b.dependency("websocket", .{
         .target = target,
         .optimize = optimize,
-        .openssl = false,
     });
 
     const exe_mod = b.createModule(.{
@@ -15,17 +14,16 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    exe_mod.addImport("zap", zap_dep.module("zap"));
+    exe_mod.addImport("websocket", ws_dep.module("websocket"));
 
     const exe = b.addExecutable(.{
         .name = "websocket-public-chat",
         .root_module = exe_mod,
     });
-    exe.linkLibrary(zap_dep.artifact("facil.io"));
 
     b.installArtifact(exe);
 
-    // test step: hub logic (no zap dependency needed)
+    // test step: hub + protocol logic (no websocket dependency needed)
     const test_mod = b.createModule(.{
         .root_source_file = b.path("src/hub.zig"),
         .target = target,
