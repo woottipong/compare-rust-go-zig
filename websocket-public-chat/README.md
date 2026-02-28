@@ -225,24 +225,33 @@ Steady/Burst ระหว่าง Profile A และ B ต่างกัน�
 
 ---
 
-## แผนถัดไป: Long-run Benchmark (120s – 5 นาที)
+## Soak Benchmark (Profile A)
 
-> สถานะ: วางแผนไว้แล้ว
+> สถานะ: พร้อมใช้งาน ✅ (Epic 10)
 
-### โหมดที่จะเพิ่ม
+### โหมดที่รองรับ
 
 | โหมด | Duration | ใช้สำหรับ |
 |------|----------|--------|
-| `quick` (ปัจจุบัน) | steady 60s / burst 20s / churn 60s / saturation 100s | dev loop / quick compare |
-| `soak` | steady 300s / churn 180s | production readiness · 8 นาที |
+| `quick` | steady 60s / burst 20s / churn 60s / saturation 100s | dev loop / quick compare |
+| `soak` | steady-soak 300s / churn-soak 180s | production readiness · ~25 นาที |
 
-### KPI ที่จะวัดใน long-run
+### รันการทดสอบ Soak
+
+```bash
+cd websocket-public-chat
+bash benchmark/run-soak-profile-a.sh
+```
+
+ผลจะบันทึกที่ `benchmark/results/websocket_soak_profile_a_<timestamp>.txt`
+
+### KPI ที่วัด
 
 | KPI | วิธีวัด |
 |-----|--------|
-| Memory drift | peak mem ช่วงต้น vs ช่วงท้าย |
-| Throughput degradation | tp ช่วงท้าย / tp ช่วงต้น (%) |
-| Error accumulation | ws_errors ต่อวินาที |
+| Memory drift | peak mem ช่วงต้น (60s แรก) vs ช่วงท้าย (60s สุดท้าย) |
+| Error accumulation | ws_errors / วินาที จาก k6 summary |
+| Connection stability | total connections จาก churn-soak 180s |
 
 ---
 

@@ -1,7 +1,7 @@
 # WebSocket Public Chat — Project Status
 
-> อัปเดตล่าสุด: 2026-02-28 | Phase: DONE
-> Progress: ████████████████ 100% (20/20 tasks done)
+> อัปเดตล่าสุด: 2026-02-28 | Phase: IMPROVE
+> Progress: ████████████████░░ 91% (20/23 tasks done)
 
 ---
 
@@ -94,6 +94,15 @@
 |------|-------------|--------|:--------:|------------|
 | 9.1 | รัน benchmark ใหม่ทั้ง Profile A+B หลังแก้ code + rewrite Profile B Zig | [DONE] | — | 6.3, 7.2, 8.2 |
 | 9.2 | อัปเดต README.md ด้วยผลใหม่ + improvement notes + CPU metrics | [DONE] | — | 9.1 |
+
+---
+
+## Epic 10: 🟢 Soak Benchmark — Profile A Long-run
+| Task | Description | Status | Priority | Depends On |
+|------|-------------|--------|:--------:|------------|
+| 10.1 | k6 soak scenarios: steady-soak.js (300s) + churn-soak.js (180s) | [DONE] | 🟢 | 0.3 |
+| 10.2 | benchmark/run-soak-profile-a.sh: memory drift + error accumulation | [DONE] | 🟢 | 10.1 |
+| 10.3 | รัน soak benchmark + อัปเดต README ด้วยผลใหม่ | [TODO] | 🟢 | 10.2 |
 
 ---
 
