@@ -222,8 +222,7 @@ project/
 ## Rules File Structure
 
 ไฟล์ใน `.claude/rules/` มีหน้าที่แยกกัน — ไม่ duplicate กัน:
-- **CLAUDE.md** — master reference: build, benchmark, Dockerfile templates, Known Bugs, statistics format
-- **project-rules.md** — checklist ใหม่ทุก project + Docker image naming table + code design rules
+- **CLAUDE.md** — master reference: build, benchmark, Dockerfile templates, Known Bugs, statistics format, language-specific rules
+- **project-rules.md** — checklist ใหม่ทุก project + Docker image naming table
 - **project-structure.md** — code patterns ที่ใช้ซ้ำ (Stats struct, helper functions, constants)
-- **global.md** — general code quality principles (language-agnostic)
 - **go-dev.md / rust-dev.md / zig-dev.md** — language-specific deep rules

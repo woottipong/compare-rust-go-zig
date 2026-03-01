@@ -39,22 +39,3 @@
 
 > Project ใหม่: เพิ่ม row ก่อน implement เสมอ
 
----
-
-## Code Design Rules (เพิ่มเติมจาก CLAUDE.md)
-
-### Go
-- `http.Client` ใช้ร่วมกัน (shared) ต่อ worker — ไม่สร้างใหม่ต่อ request
-- response body ต้อง drain + close เสมอ: `io.Copy(io.Discard, resp.Body); resp.Body.Close()`
-- `parseArgs()` ต้องตรงกับ `CMD` positional args ใน Dockerfile เสมอ
-
-### Rust
-- ห้ามรวม HTTP client ไว้ใน `Stats` struct — แยกเป็น `AppState`
-- ห้ามใช้ `OnceLock` hack สำหรับ config — ส่งผ่าน state เสมอ
-- `reqwest` ต้องใช้ `rustls-tls` เสมอ (ไม่ใช่ native-tls)
-- `#[arg(long, action = ArgAction::SetTrue)]` สำหรับ boolean CLI flag
-
-### Zig
-- struct ไม่เก็บ allocator — ส่งผ่าน parameter เสมอ
-- ทุก heap field ต้อง `allocator.dupe` รวมถึง fallback literals — ห้าม free string literal
-- `std.http.Client` ใน request handler → สร้างใหม่ต่อ request หรือเก็บใน global state
