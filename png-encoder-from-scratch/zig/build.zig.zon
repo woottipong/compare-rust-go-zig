@@ -1,0 +1,7 @@
+.{
+    .name = .png_encoder_from_scratch,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0xad4dc763c8c5cdec,
+}

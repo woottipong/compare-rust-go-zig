@@ -1,0 +1,7 @@
+.{
+    .name = .automated_tor_tracker,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0x266f27a7e7dff0b7,
+}

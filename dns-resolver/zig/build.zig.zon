@@ -1,0 +1,7 @@
+.{
+    .name = .dns_resolver,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0xc49425ed780ce993,
+}

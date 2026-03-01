@@ -1,0 +1,7 @@
+.{
+    .name = .vector_db_ingester,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0xb1ea597ef50e8569,
+}

@@ -1,0 +1,7 @@
+.{
+    .name = .tcp_port_scanner,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0x8c2a0f1bc1bb0e89,
+}

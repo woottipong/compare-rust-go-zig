@@ -1,0 +1,7 @@
+.{
+    .name = .sqlite_query_engine,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0x6920731644376a4d,
+}

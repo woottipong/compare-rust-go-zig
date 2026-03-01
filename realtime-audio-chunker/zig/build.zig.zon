@@ -1,0 +1,7 @@
+.{
+    .name = .realtime_audio_chunker,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0x5953f9baac704d31,
+}

@@ -1,0 +1,7 @@
+.{
+    .name = .video_frame_extractor,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0xe8578a2e1330a61a,
+}

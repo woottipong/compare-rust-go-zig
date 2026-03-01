@@ -146,7 +146,9 @@ bash benchmark/run-soak-profile-a.sh
 | Rust (Axum)    | 6,000 | **6 MiB** | 5% | 0 |
 | Zig (zap)      | 6,000 | 32 MiB | 8% | 0 |
 
-> ⚠️ GoFiber churn anomaly — connection เกิน 6,000 เพราะพฤติกรรม HTTP upgrade ของ fasthttp
+> ⚠️ **GoFiber Churn Anomaly** — connection เกิน 6,000 เพราะ `fasthttp` (HTTP engine ที่ GoFiber ใช้) นับ HTTP upgrade handshake แยกออกจาก WebSocket connection จริง ทำให้ k6 วัด connection ได้เกินจริง
+> **Root cause**: fasthttp จัดการ `Connection: Upgrade` header แตกต่างจาก standard `net/http` — บาง request ถูกนับสองครั้ง (HTTP + WS)
+> **ถ้าต้องการ 1:1 connection counting**: ใช้ Profile B (net/http + gorilla/websocket) หรือ Rust (Axum) ซึ่งนับ connection ถูกต้องที่ 6,000
 
 #### Saturation
 | ภาษา | Throughput | Drop rate | Peak memory | Peak CPU | k6 errors |
@@ -217,7 +219,7 @@ bash benchmark/run-soak-profile-a.sh
 | Rust (Axum)   | 18,000 | **8 MiB** | **5%** | **0.00** |
 | Zig (zap)     | 18,000 | 32 MiB | 4% | **0.00** |
 
-> ⚠️ GoFiber churn anomaly ยังคงอยู่ใน soak run — connection เกิน 18,000 เพราะ fasthttp HTTP upgrade behavior เดิม (ไม่ได้แย่ลงเมื่อ run นานขึ้น)
+> ⚠️ GoFiber churn anomaly ยังคงอยู่ใน soak run — connection เกิน 18,000 เพราะ fasthttp HTTP upgrade behavior เดิม (ไม่ได้แย่ลงเมื่อ run นานขึ้น ยืนยันว่าเป็น library behavior ไม่ใช่ memory leak)
 
 ### สรุปผล Soak
 

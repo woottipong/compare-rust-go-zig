@@ -1,0 +1,7 @@
+.{
+    .name = .csv_stream_aggregator,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0xf2c155ecf724179f,
+}

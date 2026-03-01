@@ -1,0 +1,7 @@
+.{
+    .name = .custom_log_masker,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0x10762893b417088f,
+}

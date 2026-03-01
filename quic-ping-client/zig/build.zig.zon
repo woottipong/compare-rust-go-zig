@@ -1,0 +1,7 @@
+.{
+    .name = .quic_ping_client,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0x4977bc0b723a1282,
+}
