@@ -2,4 +2,4 @@ module zstd_compression
 
 go 1.25.0
 
-require github.com/klauspost/compress v1.18.4 // indirect
+require github.com/klauspost/compress v1.18.4
