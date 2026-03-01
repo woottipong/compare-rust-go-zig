@@ -1,6 +1,7 @@
 # Compare Rust / Go / Zig
 
 27 mini-projects เปรียบเทียบ **Go**, **Rust**, และ **Zig** แบบวัดผลได้จริงด้วย Docker benchmark
+รวมถึง **WebSocket Public Chat** — โปรเจกต์พิเศษที่ทดสอบ production stability ด้วย soak benchmark 300s+180s
 
 เป้าหมาย: หาว่าแต่ละภาษา **เก่งเรื่องอะไร ด้อยเรื่องอะไร** ในงานจริง ไม่ใช่แค่ microbenchmark สังเคราะห์
 
@@ -26,12 +27,14 @@
 - **latency ต่ำสุด**: Audio Chunker 17 ns (Go ช้ากว่า 250×!)
 - **ไม่ต้อง clone()**: KV Store ไม่ต้องสร้าง String ใหม่ทุก operation → 3× เหนือ Rust
 
+**จุดอ่อน**: naive broadcast loop เป็น O(n) sequential blocking — WebSocket fan-out ได้ 578 msg/s เมื่อใช้ pure Zig (vs 2,945 เมื่อใช้ facil.io C library)
+
 ### Rust ชนะงาน async + regex + production stability
 LLVM SIMD + Tokio async I/O
 - **regex/string search ยาว**: Log Masker 41.7 MB/s (10× เหนือ Go) ด้วย SIMD DFA engine
 - **async TCP**: Port Scanner 108K items/s async (Go sync: 664 items/s)
 - **binary เล็กสุด**: ~388KB ทุกโปรเจกต์
-- **WebSocket soak (300s+180s)**: 0 ws_errors, memory คงที่, throughput 95 msg/s ตลอด 5 นาที
+- **WebSocket soak 480s**: 0 ws_errors, memory 6 MiB คงที่, throughput 95 msg/s — production-ready
 
 ### Go ชนะงาน HTTP networking
 stdlib HTTP + connection pooling
@@ -45,18 +48,19 @@ stdlib HTTP + connection pooling
 
 ```text
 compare-rust-go-zig/
-├── <project-name>/
-│   ├── go/           main.go + Dockerfile
-│   ├── rust/         src/main.rs + Cargo.toml + Dockerfile
-│   ├── zig/          src/main.zig + build.zig + Dockerfile
-│   ├── test-data/    gitignored input data
+├── <project-name>/         # 27 mini-projects (groups 1–9)
+│   ├── go/                 main.go + Dockerfile
+│   ├── rust/               src/main.rs + Cargo.toml + Dockerfile
+│   ├── zig/                src/main.zig + build.zig + Dockerfile
+│   ├── test-data/          gitignored input data
 │   ├── benchmark/
-│   │   ├── run.sh    Docker-based benchmark script
-│   │   └── results/  raw output files (timestamp)
-│   └── README.md     setup + results + key insight
-├── PLAN.md           ตารางผลทุกโปรเจกต์ + winner
-├── SUMMARY.md        วิเคราะห์ patterns + คำแนะนำ
-└── README.md         (ไฟล์นี้)
+│   │   ├── run.sh          Docker-based benchmark script
+│   │   └── results/        raw output files (timestamp)
+│   └── README.md           setup + results + key insight
+├── websocket-public-chat/  # โปรเจกต์พิเศษ — WebSocket server (2 profiles × 2 modes)
+├── PLAN.md                 ตารางผลทุกโปรเจกต์ + winner
+├── SUMMARY.md              วิเคราะห์ patterns + คำแนะนำ + WebSocket soak results
+└── README.md               (ไฟล์นี้)
 ```
 
 ---
@@ -74,6 +78,32 @@ compare-rust-go-zig/
 | 7 | Low-Level Networking | Rust (7.1, 7.2), Zig (7.3) |
 | 8 | Image Processing (Zero-dependency) | Go (8.1, 8.2), Zig (8.3) |
 | 9 | Data Engineering Primitives | Zig (9.1, 9.2), Rust (9.3) |
+
+---
+
+## 🔌 WebSocket Public Chat (โปรเจกต์พิเศษ)
+
+เทียบ WebSocket chat server ด้วย 2 profiles (framework / stdlib) และ 2 benchmark modes:
+
+| Mode | Scenarios | Duration | วัด |
+|------|-----------|----------|-----|
+| **quick** | Steady / Burst / Churn / Saturation | ~4 นาที | throughput, memory, CPU, errors |
+| **soak** | Steady-soak / Churn-soak | ~25 นาที | memory drift, ws_errors/s, stability |
+
+### Soak Results — Profile A (2026-02-28)
+
+| ภาษา | Steady-soak 300s | Peak mem | ws_err/s | Churn-soak 180s |
+|------|-----------------|----------|---------|----------------|
+| Go (GoFiber) | 93.88 msg/s | 15 MiB | 2.54 ⚠️ | 21,251 conns ⚠️ |
+| **Rust (Axum)** | **95.14 msg/s** | **6 MiB** | **0.00** | **18,000 conns** |
+| Zig (zap) | 94.70 msg/s | 30 MiB | **0.00** | 18,000 conns |
+
+**ข้อสรุป**: ทุกภาษา **ไม่มี memory leak** — Rust และ Zig error-free ตลอด 480s
+
+```bash
+cd websocket-public-chat
+bash benchmark/run-soak-profile-a.sh   # ~25 นาที
+```
 
 ---
 
@@ -124,5 +154,6 @@ zig build -Doptimize=ReleaseFast
 ## 📖 อ่านต่อ
 
 - **[PLAN.md](./PLAN.md)** — ตารางตัวเลขดิบทุกโปรเจกต์ พร้อมผู้ชนะแต่ละแถว
-- **[SUMMARY.md](./SUMMARY.md)** — วิเคราะห์ว่า "ทำไม" แต่ละภาษาถึงชนะ + คำแนะนำเลือกภาษา
+- **[SUMMARY.md](./SUMMARY.md)** — วิเคราะห์ว่า "ทำไม" แต่ละภาษาถึงชนะ + WebSocket soak analysis + คำแนะนำเลือกภาษา
 - **`<project>/README.md`** — รายละเอียด setup, ผล benchmark, และ key insight ของแต่ละโปรเจกต์
+- **[websocket-public-chat/README.md](./websocket-public-chat/README.md)** — WebSocket deep-dive: quick + soak results, improvement history
