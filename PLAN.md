@@ -1,5 +1,7 @@
 # Compare Rust / Go / Zig — Master Plan
 
+> วิเคราะห์ผลและ patterns → **[SUMMARY.md](./SUMMARY.md)** | ไฟล์นี้เป็น raw data table + internal progress tracker
+
 ## ภาพรวมสถานะ
 
 | # | Project | สถานะ | Go | Rust | Zig | ผู้ชนะ |

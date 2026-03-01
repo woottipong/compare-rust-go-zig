@@ -187,6 +187,8 @@ Response:
 | **Concurrency** | goroutines + channels | tokio async | zap threads |
 | **HTTP Client** | net/http | reqwest + rustls | std.http.Client |
 
+> **หมายเหตุ**: ผลข้างต้นมาจาก benchmark รุ่นแรก **ก่อน** Go HTTP client fix (เพิ่ม `Transport: &http.Transport{MaxIdleConnsPerHost: 100}`) — ผลล่าสุดหลัง fix: **Go 11,051 req/s ชนะ** ดู [PLAN.md](../PLAN.md) สำหรับตัวเลขอัปเดต
+
 ## Benchmark Results
 
 ```
@@ -236,9 +238,11 @@ Response:
   Zig : 221 lines
 ```
 
-**Key insight**: **Rust ชนะขาด ~6.3x เหนือ Go และ ~13x เหนือ Zig** เพราะ `tokio` async I/O multiplexes requests บน thread pool โดยไม่บล็อก — 50 concurrent connections ถูก handle โดยไม่ต้องรอ thread ว่าง
+**Key insight (รุ่นแรก)**: Rust ชนะขาด ~6.3× เหนือ Go เพราะ `tokio` async I/O multiplexes 50 concurrent connections บน thread pool โดยไม่บล็อก ขณะที่ Go HTTP client default ไม่ reuse connections ข้าม goroutines ได้อย่างมีประสิทธิภาพ
 
-**Zig ช้าเพราะ**: `std.http.Client` ใน Zig 0.15 สร้าง client ใหม่ทุก request + Zap (facil.io) ใช้ memory สูง (~72MB) เนื่องจาก thread stack allocation
+**Key insight (หลัง Go fix)**: หลังเพิ่ม `Transport: &http.Transport{MaxIdleConnsPerHost: 100}` ใน Go HTTP client, **Go ชนะด้วย 11,051 req/s** เพราะ I/O-wait-dominated workload นี้ (backend latency 10-50ms) เหมาะกับ goroutine model มากกว่า — 50 goroutines รอ backend พร้อมกันได้โดยไม่เสียเวลา context switch และ connection pool ของ `net/http` ทำงานได้เต็มประสิทธิภาพ
+
+**บทเรียน**: Go HTTP client ต้อง config `Transport` ให้ถูกต้อง — ค่า default ไม่เหมาะกับ high-concurrency proxy workload **Zig ช้าเพราะ**: `std.http.Client` ใน Zig 0.15 สร้าง client ใหม่ทุก request + Zap (facil.io) ใช้ memory สูง (~72MB) เนื่องจาก thread stack allocation
 
 ### Summary
 

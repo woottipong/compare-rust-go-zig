@@ -81,6 +81,40 @@ compare-rust-go-zig/
 
 ---
 
+## 🎓 Learning Path — เริ่มอ่านที่ไหนดี?
+
+เลือก track ที่ตรงกับคำถามที่อยากตอบ แต่ละ track ใช้เวลา ~1 ชั่วโมงอ่าน README + ดูโค้ด:
+
+### Track A — "ทำไม Rust ถึงชนะงาน async?"
+
+| โปรเจกต์ | แนวคิดที่เรียน |
+|---------|--------------|
+| [`tcp-port-scanner`](./tcp-port-scanner/README.md) | async vs sync: ต่าง 163× (108K vs 664 items/s) เพราะ `tokio` ไม่บล็อก thread ขณะรอ TCP connection |
+| [`local-asr-llm-proxy`](./local-asr-llm-proxy/README.md) | I/O-wait-dominated: Go goroutine pool ชนะเมื่อ backend latency 10-50ms เพราะ connection reuse |
+| [`custom-log-masker`](./custom-log-masker/README.md) | LLVM SIMD auto-vectorize regex บน strings ยาว >64 bytes: 10× เหนือ Go |
+| [`websocket-public-chat`](./websocket-public-chat/README.md) | broadcast fan-out: Rust `try_send` non-blocking ชนะ pure Zig sequential mutex loop |
+
+### Track B — "ทำไม Zig ถึงชนะงาน data loop?"
+
+| โปรเจกต์ | แนวคิดที่เรียน |
+|---------|--------------|
+| [`in-memory-kv-store`](./in-memory-kv-store/README.md) | zero-alloc get path: ไม่ต้อง `.clone()` String → 3× เหนือ Rust |
+| [`sqlite-query-engine`](./sqlite-query-engine/README.md) | comptime inlining + no GC pause: B-tree scan 897M items/s (2.5× เหนือ Rust) |
+| [`csv-stream-aggregator`](./csv-stream-aggregator/README.md) | streaming parse ไม่ allocate buffer ต่อ row: 23M items/s vs Rust 8M |
+| [`tiny-health-check-agent`](./tiny-health-check-agent/README.md) | tight inner loop ไม่มี runtime overhead: 657M checks/s |
+
+### Track C — "เมื่อไหร่ Go ถึงชนะ?"
+
+| โปรเจกต์ | แนวคิดที่เรียน |
+|---------|--------------|
+| [`high-perf-reverse-proxy`](./high-perf-reverse-proxy/README.md) | `httputil.ReverseProxy` + HTTP/1.1 connection pool: 2.8× เหนือ Rust |
+| [`png-encoder-from-scratch`](./png-encoder-from-scratch/README.md) | `image/png` stdlib ที่ optimize อย่างดี: 58M items/s vs Zig 27M |
+| [`local-asr-llm-proxy`](./local-asr-llm-proxy/README.md) | goroutine pool ชนะเมื่อ workload เป็น I/O-wait-dominated — อ่านคู่กับ Track A |
+
+> **หมายเหตุ**: ผลต่าง < 10% ถือว่า "เท่ากันในทางปฏิบัติ" เฉพาะ 2× ขึ้นไปถือเป็น structural advantage ดู [SUMMARY.md § วิธีอ่านตาราง](./SUMMARY.md) สำหรับรายละเอียด
+
+---
+
 ## 🔌 WebSocket Public Chat (โปรเจกต์พิเศษ)
 
 เทียบ WebSocket chat server ด้วย 2 profiles (framework / stdlib) และ 2 benchmark modes:

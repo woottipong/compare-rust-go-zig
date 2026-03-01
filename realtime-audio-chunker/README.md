@@ -150,7 +150,13 @@ bash benchmark/run.sh
   Zig : 157 lines
 ```
 
-**Key insight**: Throughput ใกล้เคียงกันทุกภาษา (dominated โดย real-time simulation) — Zig latency ต่ำสุดในระดับ nanoseconds
+**Key insight**: Throughput ใกล้เคียงกันทุกภาษา เพราะ bottleneck คือ real-time audio simulation (10s input = ~10s process) ไม่ใช่ความเร็วภาษา — แต่ **latency ต่างกันชัดเจน** และเผยให้เห็น runtime overhead ของแต่ละภาษา:
+
+- **Zig: 0.000 ms** (< 0.5 µs จริง, ~17 ns) — ใช้ synchronous callback loop โดยตรง ไม่มี channel, ไม่มี scheduler ทุก chunk ถูก process ทันทีใน same goroutine/thread
+- **Go: 0.006 ms (~6 µs)** — goroutine scheduling + channel `send`/`receive` มี overhead แม้จะเร็วมากเมื่อเทียบกับ context switch จริง
+- **Rust: 0.061 ms (~61 µs)** — `mpsc` channel + thread synchronization มี overhead สูงกว่า เพราะ cross-thread message passing ต้องผ่าน atomic operation
+
+**บทเรียน**: สำหรับ hot-path synchronous loop ที่ไม่ต้องการ true concurrency (เช่น audio chunk processing แบบ sequential) Zig's direct callback ชนะ channel-based architecture ทุกภาษาอย่างชัดเจน — ถ้าเพิ่ม concurrency เข้ามา (เช่น process หลาย audio stream พร้อมกัน) ผลอาจกลับกัน
 
 ### Summary
 
