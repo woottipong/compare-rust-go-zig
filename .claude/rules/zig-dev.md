@@ -275,6 +275,8 @@ std.debug.print("Done in {d}ms\n", .{elapsed_ms});
 | File handle ใน struct ถูก copy | เก็บเป็น `?std.fs.File` และใช้ pointer เมื่อ write |
 | Integer overflow ใน `@intCast` | ตรวจสอบ range ก่อน หรือใช้ `std.math.cast` |
 | `std.fmt.allocPrint` หลุด free | ใช้ `defer allocator.free(str)` ทันทีหลัง allocate |
+| `std.time.Timer.read()` ต้องการ `*Timer` (mutable) | ประกาศ `var timer = try std.time.Timer.start()` ไม่ใช่ `const` |
+| `std.json.parseFromSlice` + `defer .deinit()` ใน loop | สร้าง DOM tree + dealloc ทุก iteration — overhead สูงมากสำหรับ hot-path; ใช้ streaming parser แทน |
 
 ---
 
@@ -285,3 +287,5 @@ std.debug.print("Done in {d}ms\n", .{elapsed_ms});
 - **`?std.fs.File` ใน struct**: ต้องใช้ `&self.field.?` เพื่อ get pointer ไม่ใช่ copy
 - **YUV420P planes**: linesize[0] ≠ width — ต้อง write `width` bytes ต่อ row ไม่ใช่ `linesize`
 - **C array of pointers**: `stream.*.codecpar.*` — ต้อง dereference ทั้งสองระดับ
+- **`std.json` DOM parser performance**: `std.json.parseFromSlice` per line ใน 100K-line loop ช้ากว่า serde_json 37× (144K vs 5.4M lines/s) — `std.json` ยังไม่ mature; ใช้ manual parsing หรือ streaming แทนสำหรับ high-throughput JSON
+- **Thin FFI ชนะ safe wrapper**: `@cImport` + direct C call (zstd, FFmpeg) เร็วกว่า Rust safe wrapper 1.7–2.3× บน C-library-dominated workloads — ยืนยันใน subtitle-burn-in, hls-stream-segmenter, zstd-compression

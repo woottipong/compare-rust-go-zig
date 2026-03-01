@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-A collection of 27 mini-projects each implemented in **Go**, **Rust**, and **Zig** for direct performance comparison across 9 domains (media, networking, AI/data, DevOps, systems, integration, low-level networking, image processing, data engineering). All benchmarks are Docker-based.
+A collection of 29 mini-projects each implemented in **Go**, **Rust**, and **Zig** for direct performance comparison across 10 domains (media, networking, AI/data, DevOps, systems, integration, low-level networking, image processing, data engineering, serialization & encoding). All benchmarks are Docker-based. Plus **websocket-public-chat** as an advanced multi-profile project (30 total).
 
 ## Build Commands
 
@@ -168,6 +168,8 @@ RUN ZIG_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") \
 | **Zig 0.15** | `std.time.sleep` removed | Use `std.Thread.sleep` |
 | **Zig** | Freeing a string literal → crash | Every heap field must use `allocator.dupe`, including fallback literals |
 | **Zig** | `ArrayList.writer()` requires allocator in 0.15 | `buf.writer(allocator)` not `buf.writer()` |
+| **Zig** | `std.time.Timer.read()` requires `*Timer` (mutable) | Declare as `var timer = try std.time.Timer.start()` not `const` |
+| **Zig** | `std.json.parseFromSlice` with `defer .deinit()` in loop | High allocation overhead per line — avoid for hot-path parsing; use streaming or manual parse instead |
 
 ## Language-Specific Rules
 
