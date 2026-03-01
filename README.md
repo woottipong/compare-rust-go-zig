@@ -1,19 +1,19 @@
 # Compare Rust / Go / Zig
 
-27 mini-projects เปรียบเทียบ **Go**, **Rust**, และ **Zig** แบบวัดผลได้จริงด้วย Docker benchmark
+29 mini-projects เปรียบเทียบ **Go**, **Rust**, และ **Zig** แบบวัดผลได้จริงด้วย Docker benchmark
 รวมถึง **WebSocket Public Chat** — โปรเจกต์พิเศษที่ทดสอบ production stability ด้วย soak benchmark 300s+180s
 
 เป้าหมาย: หาว่าแต่ละภาษา **เก่งเรื่องอะไร ด้อยเรื่องอะไร** ในงานจริง ไม่ใช่แค่ microbenchmark สังเคราะห์
 
 ---
 
-## 🏆 ผลรวม (27 โปรเจกต์)
+## 🏆 ผลรวม (29 โปรเจกต์)
 
 | ภาษา | ชนะ | สัดส่วน |
 |------|----:|--------:|
-| **Zig** | **15** | **56%** |
-| **Rust** | 7 | 26% |
-| **Go** | 5 | 19% |
+| **Zig** | **16** | **55%** |
+| **Rust** | 8 | 28% |
+| **Go** | 5 | 17% |
 
 ดูตารางผลลัพธ์ทั้งหมด → **[SUMMARY.md](./SUMMARY.md)** | ตัวเลข raw → **[PLAN.md](./PLAN.md)**
 
@@ -48,7 +48,7 @@ stdlib HTTP + connection pooling
 
 ```text
 compare-rust-go-zig/
-├── <project-name>/         # 27 mini-projects (groups 1–9)
+├── <project-name>/         # 29 mini-projects (groups 1–10)
 │   ├── go/                 main.go + Dockerfile
 │   ├── rust/               src/main.rs + Cargo.toml + Dockerfile
 │   ├── zig/                src/main.zig + build.zig + Dockerfile
@@ -65,7 +65,7 @@ compare-rust-go-zig/
 
 ---
 
-## 🗂 9 กลุ่มโปรเจกต์
+## 🗂 10 กลุ่มโปรเจกต์
 
 | กลุ่ม | Theme | ผู้ชนะ |
 |-------|-------|-------|
@@ -78,6 +78,7 @@ compare-rust-go-zig/
 | 7 | Low-Level Networking | Rust (7.1, 7.2), Zig (7.3) |
 | 8 | Image Processing (Zero-dependency) | Go (8.1, 8.2), Zig (8.3) |
 | 9 | Data Engineering Primitives | Zig (9.1, 9.2), Rust (9.3) |
+| 10 | Serialization & Encoding | Rust (10.1), Zig (10.2) |
 
 ---
 
@@ -110,6 +111,13 @@ compare-rust-go-zig/
 | [`high-perf-reverse-proxy`](./high-perf-reverse-proxy/README.md) | `httputil.ReverseProxy` + HTTP/1.1 connection pool: 2.8× เหนือ Rust |
 | [`png-encoder-from-scratch`](./png-encoder-from-scratch/README.md) | `image/png` stdlib ที่ optimize อย่างดี: 58M items/s vs Zig 27M |
 | [`local-asr-llm-proxy`](./local-asr-llm-proxy/README.md) | goroutine pool ชนะเมื่อ workload เป็น I/O-wait-dominated — อ่านคู่กับ Track A |
+
+### Track D — "Serialization & Encoding: zero-copy vs FFI"
+
+| โปรเจกต์ | แนวคิดที่เรียน |
+|---------|--------------|
+| [`json-transform-pipeline`](./json-transform-pipeline/README.md) | Rust `serde_json` compile-time codegen ชนะ Go reflection 4.8× และ Zig DOM parser 37× |
+| [`zstd-compression`](./zstd-compression/README.md) | Zig direct `@cImport` ชนะ Rust safe FFI wrapper 1.7× บน C library — ยืนยัน subtitle-burn-in finding |
 
 > **หมายเหตุ**: ผลต่าง < 10% ถือว่า "เท่ากันในทางปฏิบัติ" เฉพาะ 2× ขึ้นไปถือเป็น structural advantage ดู [SUMMARY.md § วิธีอ่านตาราง](./SUMMARY.md) สำหรับรายละเอียด
 

@@ -1,0 +1,7 @@
+.{
+    .name = .json_transform_pipeline,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.15.2",
+    .paths = .{""},
+    .fingerprint = 0x517b3a4c6c178674,
+}

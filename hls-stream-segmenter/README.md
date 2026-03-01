@@ -172,6 +172,12 @@ ffmpeg -f lavfi -i testsrc=duration=30:size=640x360:rate=25 -pix_fmt yuv420p sam
 
 **Key insight:** HLS segmentation เป็นงานที่โดน FFmpeg decode/encode และ file I/O ครอบงำเป็นหลัก จึงเห็น Zig/Rust เร็วกว่า Go แบบสม่ำเสมอ แต่ระยะห่างไม่มากเท่างาน pure algorithm เพราะ runtime overhead ของภาษาเป็นสัดส่วนเล็กกว่าต้นทุน I/O.
 
+- **HLS segmentation = I/O-dominated**: FFmpeg decode → transcode → write .ts → write .m3u8 — CPU ถูกครอง C library เกือบทั้งหมด; language runtime overhead เป็นสัดส่วนเล็กมากเมื่อเทียบกับ disk write
+- **Go ช้ากว่า ~34%**: goroutine scheduler + GC pause แทรกระหว่าง system call แม้งานหลักจะเป็น FFmpeg, Go runtime ยังเพิ่ม latency ให้ทุก file write operation
+- **Zig/Rust ใกล้กัน (ต่างกัน ~4%)**: ทั้งคู่ไม่มี GC — ความต่างเล็กน้อยมาจาก Zig call C โดยตรงผ่าน `@cImport` ไม่มี safe wrapper layer เหมือน Rust FFI
+- **Variance สูงมาก (Go: 18,294–24,784ms)**: disk I/O buffer flush timing และ OS scheduler ใน Docker ส่งผลมากกว่า language choice — Go variance ~35% vs Zig ~8%
+- **บทเรียน**: สำหรับ FFmpeg pipeline ที่ I/O-bound, ภาษาที่ไม่มี GC ชนะอย่างสม่ำเสมอ แต่ gap จะเล็กกว่า pure algorithm task; ถ้าต้องการ low variance ในสภาพแวดล้อม Docker → เลือก Zig/Rust
+
 ## หมายเหตุ
 - **Go**: `golang:1.25-bookworm` + `debian:bookworm-slim` — ใช้ C helper wrapper (`hls_sws_scale`) เพื่อหลีกเลี่ยง `*C.SwsContext` field ใน struct ซึ่งไม่ทำงานบน bookworm arm64
 - **Rust**: `ffmpeg-sys-next 8.0`, bookworm runtime — binary เล็กที่สุด (388KB)

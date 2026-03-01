@@ -162,6 +162,12 @@ bash benchmark/run.sh
 
 **Key insight**: **Zig ชนะขาด ~2.4x เหนือ Rust และ ~2.4x เหนือ Go** เพราะใช้ `readToEndAlloc` + `splitScalar` อ่านไฟล์ครั้งเดียวทั้งหมดแทนที่จะ read line-by-line และ batch flush แบบ sync ไม่มี async overhead
 
+- **`readToEndAlloc` strategy**: Zig อ่านไฟล์ทั้งหมดครั้งเดียวแล้วใช้ `splitScalar` scan in-place — ไม่ allocate buffer ใหม่ต่อ line ทำให้ total allocations ต่ำมากสำหรับ 100K lines
+- **Go ช้าที่สุด (22,750 l/s) เพราะ**: `bufio.Scanner` + `strings.Split` allocate `string` ใหม่ทุก line + GC ต้องเก็บ strings ที่ผ่านมาแล้วในระหว่าง forward — 100K lines = 100K+ allocations ที่ GC จัดการ
+- **Rust ดีกว่า Go แต่ห่างจาก Zig**: `BufReader` + `lines()` ยังคง allocate `String` ต่อ line (ownership model บังคับ) — แม้ไม่มี GC แต่ allocation per-line ยังมี `malloc/free` overhead สะสม
+- **Gap 2.4× เป็น algorithm win ไม่ใช่ language win**: ถ้า Go/Rust ใช้ strategy เดียวกัน (read-all + scan) gap จะเล็กลงมาก — ความต่างมาจาก memory access pattern ไม่ใช่ runtime overhead
+- **บทเรียน**: สำหรับ log processing ขนาดใหญ่, "อ่านทั้งหมดครั้งเดียว + scan in-place" ชนะ "อ่านทีละ line + allocate" ได้มากถึง 2-3× — pattern นี้ใช้ได้กับทุกภาษาถ้าออกแบบถูกต้อง
+
 ### Summary
 
 ## สรุปผล

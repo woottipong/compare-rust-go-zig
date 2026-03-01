@@ -33,10 +33,12 @@
 | 9.1 | SQLite Query Engine (subset) | ✅ | 282,688,842 items/s | 358,383,573 items/s | **897,198,108 items/s** | Zig |
 | 9.2 | CSV Stream Aggregator | ✅ | 6,062,819 items/s | 8,003,336 items/s | **23,183,717 items/s** | Zig |
 | 9.3 | Parquet File Reader | ✅ | 119,200,833 items/s | **143,730,005 items/s** | 140,448,514 items/s | Rust |
+| 10.1 | JSON Transform Pipeline | ✅ | 1,125,518 lines/s | **5,393,905 lines/s** | 144,509 lines/s | Rust |
+| 10.2 | ZStandard Compression | ✅ | 965 MB/s | 1,273 MB/s | **2,198 MB/s** | Zig |
 
 > `*` = Docker container startup overhead รวมอยู่ด้วย (~400-500ms); เทียบข้ามภาษาในโปรเจกต์เดียวกันเท่านั้น
 
-**ผลรวม: Zig 15 wins | Rust 7 wins | Go 5 wins**
+**ผลรวม: Zig 16 wins | Rust 8 wins | Go 5 wins** (29 mini-projects + websocket-public-chat advanced = 30 total)
 
 ---
 

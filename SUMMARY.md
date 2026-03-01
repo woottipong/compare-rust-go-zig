@@ -1,4 +1,4 @@
-# สรุปผลการทดสอบทั้งหมด (27 Projects + WebSocket Soak)
+# สรุปผลการทดสอบทั้งหมด (29 Projects + WebSocket Soak = 30 total)
 
 > Docker-based benchmark, 5 runs (1 warm-up + 4 measured), Debian bookworm, Apple Silicon
 
@@ -6,22 +6,22 @@
 
 ## ⚡ สรุป 3 บรรทัด
 
-- **Zig** ชนะ 15/27 (56%) — data loop, parsing, low-latency; ไม่มี GC overhead แต่ broadcast fan-out แบบ pure Zig ช้ากว่า Rust
-- **Rust** ชนะ 7/27 (26%) — async I/O, SIMD string search, production stability (soak 0 errors)
-- **Go** ชนะ 5/27 (19%) — HTTP connection pool, stdlib image processing
+- **Zig** ชนะ 16/29 (55%) — data loop, parsing, low-latency, C library FFI; ไม่มี GC overhead แต่ broadcast fan-out แบบ pure Zig ช้ากว่า Rust
+- **Rust** ชนะ 8/29 (28%) — async I/O, SIMD string search, JSON deserialization (serde), production stability (soak 0 errors)
+- **Go** ชนะ 5/29 (17%) — HTTP connection pool, stdlib image processing
 
 → เลือกภาษา: ดู **[เมื่อไหร่ควรเลือกภาษาไหน](#-เมื่อไหร่ควรเลือกภาษาไหน)**
 → ตัวเลข raw: **[PLAN.md](./PLAN.md)** | Deep-dive: อ่านต่อในเอกสารนี้
 
 ---
 
-## 🏆 ผลรวมการแข่งขัน (27 mini-projects)
+## 🏆 ผลรวมการแข่งขัน (29 mini-projects)
 
 | ภาษา | ชนะ | สัดส่วน | โดดเด่นใน |
 |------|----:|--------:|----------|
-| **Zig** | **15** | **56%** | Data processing, systems, low-level loops — manual memory ให้ overhead ต่ำสุด |
-| **Rust** | **7** | **26%** | Async networking, regex/SIMD string search, parser throughput, production stability |
-| **Go** | **5** | **19%** | HTTP networking (reverse proxy, stdlib), image processing algorithms |
+| **Zig** | **16** | **55%** | Data processing, systems, low-level loops, C library FFI — manual memory ให้ overhead ต่ำสุด |
+| **Rust** | **8** | **28%** | Async networking, regex/SIMD, JSON deserialization (serde), production stability |
+| **Go** | **5** | **17%** | HTTP networking (reverse proxy, stdlib), image processing algorithms |
 
 ---
 
@@ -56,6 +56,8 @@
 | 9.1 | SQLite Query Engine | 282M items/s | 358M items/s | **897M items/s** | **Zig** |
 | 9.2 | CSV Stream Aggregator | 6.1M items/s | 8.0M items/s | **23.2M items/s** | **Zig** |
 | 9.3 | Parquet File Reader | 119M items/s | **143.7M items/s** | 140.4M items/s | **Rust** |
+| 10.1 | JSON Transform Pipeline | 1.1M lines/s | **5.4M lines/s** | 145K lines/s | **Rust** |
+| 10.2 | ZStandard Compression | 965 MB/s | 1,273 MB/s | **2,198 MB/s** | **Zig** |
 
 > `*` = รวม Docker startup overhead (~400-500ms); หน่วยต่างกันตามประเภทงาน — เทียบข้ามภาษาในโปรเจกต์เดียวกันเท่านั้น
 

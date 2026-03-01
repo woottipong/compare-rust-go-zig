@@ -34,6 +34,8 @@
 | local-asr-llm-proxy | `asr-go` | `asr-rust` | `asr-zig` |
 | log-aggregator-sidecar | `las-go` | `las-rust` | `las-zig` |
 | websocket-public-chat | `wsc-go` | `wsc-rust` | `wsc-zig` |
+| json-transform-pipeline | `jtp-go` | `jtp-rust` | `jtp-zig` |
+| zstd-compression | `zst-go` | `zst-rust` | `zst-zig` |
 
 > Project ใหม่: เพิ่ม row ก่อน implement เสมอ
 

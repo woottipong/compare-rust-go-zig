@@ -272,22 +272,6 @@ Steady/Burst ระหว่าง Profile A และ B ต่างกัน�
 
 ---
 
-## Improvement History
-
-| Epic | Change | Before | After | Delta |
-|------|--------|--------|-------|-------|
-| **6** — Rust: AtomicU64 + try_send | Saturation throughput | 597 msg/s | **2,982 msg/s** | **+400%** ✅ |
-| **6** | Saturation drop rate | 1.14% | 0.00% | ✅ |
-| **7** — Go: reduce buffer size | Saturation throughput | 2,551 msg/s | 2,722 msg/s | +7% ✅ |
-| **7** | Peak memory (saturation) | 195 MiB | **153 MiB** | **−22%** ✅ |
-| **9** — Zig: websocket.zig (fair) | Saturation throughput | 2,951 msg/s *(zap)* | 578 msg/s | −80%¹ |
-| **9** | Steady memory | 30 MiB | **2 MiB** | −93% ✅ |
-| **10** — Soak benchmark (300s+180s) | Memory leak detection | ไม่มี soak test | 0 leak ทุกภาษา | ✅ |
-
-> ¹ ไม่ใช่ regression — Zig ด้วย zap ได้เปรียบจาก facil.io C library ที่ optimize มา 10+ ปี ผลจาก websocket.zig สะท้อนความสามารถจริงของ pure Zig runtime
-
----
-
 ## Dependencies
 
 | ภาษา | Profile A | Profile B |

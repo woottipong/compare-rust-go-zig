@@ -180,6 +180,12 @@ EOF
 
 **Key insight:** subtitle burn-in มีทั้ง text rendering (libass) และ video re-encoding (FFmpeg) ทำให้เป็น mixed workload ที่ไม่ใช่ pure compute; Zig ชนะเล็กน้อยจาก control ฝั่ง memory/path ที่ตรงกว่า แต่ทั้งสามภาษาอยู่ในช่วงเวลาที่ใกล้กันเมื่อเทียบกับต้นทุน encode.
 
+- **Mixed workload = libass (text render) + FFmpeg (video re-encode)**: CPU ถูกครองโดย C libraries ทั้งสองตัว — language runtime overhead เป็นสัดส่วนเล็กมาก (~5-10% ของทั้งหมด)
+- **ทุกภาษาใกล้กัน (~10% range)**: เมื่อ bottleneck อยู่ที่ C library, ภาษาที่ call C ได้เร็วแค่ไหนก็แทบไม่ต่างกัน — ไม่ใช่ structural win ของ Zig เหมือน pure algorithm task
+- **Zig ชนะเล็กน้อยเพราะ call path สั้นกว่า**: เรียก libass/FFmpeg ผ่าน `@cImport` โดยตรงไม่มี safe wrapper; Rust ต้องมี unsafe block + raw pointer management ทุก FFI call
+- **Rust ช้ากว่า Go ในโปรเจกต์นี้**: Rust FFI overhead + safe memory abstraction สำหรับ raw pointer จาก libass ทำให้ทุก frame เพิ่ม overhead มากกว่า Go's CGO ที่ thin กว่า
+- **บทเรียน**: ถ้า workload ถูกครองโดย C library, ภาษาที่ไม่มี GC ไม่ได้ชนะอัตโนมัติ — FFI call path efficiency สำคัญกว่า; Zig ชนะเพราะ thin C interop, ไม่ใช่เพราะ language speed
+
 ## หมายเหตุ
 - **Go**: `golang:1.25-bookworm` + `debian:bookworm-slim`, CGO memory management ซับซ้อนกับ libass + FFmpeg
 - **Rust**: `libass-sys` + `scopeguard`, bookworm runtime, binary เล็กเท่า Go (1.6MB)
